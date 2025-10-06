@@ -1,0 +1,53 @@
+:root {
+  --navBg: rgba(34, 139, 34, 0.8); /* Vert semi-transparent */
+  --navTextColor: #fff; /* Couleur du texte */
+}
+
+.navbar {
+  background-color: var(--navBg);
+  background-image: url('../../public/bg-vigne.jpeg'); /* Image de fond */
+  background-size: cover; /* Couvrir toute la navbar */
+  background-position: center; /* Centrer l'image */
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000; /* Assurez-vous que la navbar a un z-index élevé */
+  position: relative;
+  color: var(--navTextColor); /* Couleur du texte */
+}
+
+.navbar-title {
+  color: var(--navTextColor);
+  margin-left: 20px;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.menu-bars {
+  margin-left: 2rem;
+  font-size: 2rem;
+  background: none;
+  color: var(--navTextColor);
+}
+
+.menu-bars:hover {
+  color: #d4f1c5; /* Vert clair au survol */
+}
+
+.logout-button {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--navTextColor);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.logout-button:hover {
+  color: #f44336; /* Rouge clair au survol */
+}

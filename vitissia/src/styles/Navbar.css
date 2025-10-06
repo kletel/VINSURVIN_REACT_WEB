@@ -1,0 +1,470 @@
+:root {
+  /*--navBg: #060b26;*/
+  --navBg: rgba(34, 139, 34, 0.8);
+  /* Vert semi-transparent */
+  --navTextColor: #fff;
+  /* Couleur du texte */
+}
+
+.navbar {
+  /*
+  background-color: #333;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+  position: relative;
+  */
+  background-color: var(--navBg);
+  background-image: url('../../public/bg-vigne.jpeg');
+  /* Image de fond */
+  background-size: cover;
+  /* Couvrir toute la navbar */
+  background-position: center;
+  /* Centrer l'image */
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+  /* Assurez-vous que la navbar a un z-index élevé */
+  position: relative;
+  color: var(--navTextColor);
+  /* Couleur du texte */
+}
+
+.navbar-title {
+  color: var(--navTextColor);
+  margin-left: 20px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+
+.navbar-title:hover {
+  color: #d4f1c5;
+  /* Vert clair au survol */
+}
+
+.menu-bars {
+  margin-left: 2rem;
+  font-size: 2rem;
+  background: none;
+  color: var(--navTextColor);
+}
+
+.menu-bars:hover {
+  color: #d4f1c5;
+  /* Vert clair au survol */
+}
+
+/* Masquer le menu burger en mobile */
+@media (max-width: 768px) {
+  .menu-bars {
+    display: none;
+  }
+
+  .navbar-title {
+    margin-left: 0;
+  }
+}
+
+.nav-menu {
+  background-color: rgba(0, 0, 0, 0.9);
+  width: 250px;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: -100%;
+  transition: 850ms;
+  z-index: 1001;
+  /* Z-index plus élevé que la navbar */
+  overflow-y: auto;
+  /* Permettre le défilement vertical */
+}
+
+/* Masquer la sidebar en mobile */
+@media (max-width: 768px) {
+  .nav-menu {
+    display: none !important;
+  }
+}
+
+.nav-menu.active {
+  left: 0;
+  transition: 350ms;
+}
+
+.nav-text {
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  padding: 8px 16px;
+  list-style: none;
+  height: 60px;
+}
+
+.nav-text a {
+  text-decoration: none;
+  color: #ffffff;
+  font-size: 1.2rem;
+  width: 95%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 4px;
+}
+
+.nav-text a:hover {
+  background-color: #d4f1c5;
+  /* Vert clair au survol */
+  color: #333;
+  /* Couleur du texte au survol */
+}
+
+.nav-menu-items {
+  width: 100%;
+  padding: 0;
+}
+
+.navbar-toggle {
+  background-color: #000000;
+  width: 100%;
+  height: 80px;
+  display: flex;
+  justify-content: start;
+  align-items: center;
+}
+
+.spanNav {
+  margin-left: 16px;
+}
+
+.nav-section-title {
+  color: #fff;
+  margin: 10px 0;
+  padding: 10px;
+  font-size: 1.2rem;
+}
+
+.navbar-title {
+  color: #fff;
+  margin-left: 20px;
+}
+
+.nav-section-title:hover {
+  background-color: #992525;
+}
+
+.nav-section-title.active {
+  background-color: #000000;
+}
+
+.nav-section-title.active:hover {
+  background-color: #0d1115;
+}
+
+/* LOGOUT */
+.logout-button {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  color: black !important;
+  /* Couleur du texte */
+  font-size: 2.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  /* Coins arrondis pour un design plus moderne */
+  padding: 8px;
+  /* Espacement interne */
+  transition: color 0.3s ease;
+}
+
+.logout-button:hover {
+  color: black !important;
+  /* Rouge clair au survol */
+}
+
+/* Ajuster le contenu principal pour la bottom bar en mobile uniquement */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 80px;
+  }
+
+  /* Optimisations pour mobile */
+  .p-datatable {
+    font-size: 0.875rem;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    /* padding: 0.5rem; */
+    padding: 0 !important;
+  }
+}
+
+/* Amélioration des styles desktop avec design moderne épuré */
+@media (min-width: 769px) {
+  .modern-datatable {
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(226, 232, 240, 0.5) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .modern-datatable .p-datatable-header {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%) !important;
+    color: #334155 !important;
+    padding: 1rem !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .modern-datatable .p-datatable-thead > tr > th.modern-header {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0.025em !important;
+    border: none !important;
+    padding: 0.675rem 0.75rem !important;
+    font-size: 0.825rem !important;
+    position: relative !important;
+    box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.1) !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  .modern-datatable .p-datatable-thead > tr > th.modern-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    pointer-events: none;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr.modern-row {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-bottom: 1px solid rgba(241, 245, 249, 0.8) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr.modern-row:nth-child(even) {
+    background: rgba(248, 250, 252, 0.6) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr.modern-row:hover {
+    background: linear-gradient(135deg, rgba(236, 254, 255, 0.8) 0%, rgba(240, 253, 250, 0.8) 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    border-color: rgba(20, 184, 166, 0.2) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr > td {
+    padding: 0.75rem 0.75rem !important;
+    border-bottom: 1px solid rgba(241, 245, 249, 0.6) !important;
+    color: #475569 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Suppression des colonnes figées pour éviter l'entremêlement */
+  .modern-datatable .p-datatable-thead > tr > th {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    min-width: fit-content !important;
+    width: auto !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr > td {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    min-width: fit-content !important;
+    width: auto !important;
+  }
+
+  /* Suppression des styles spécifiques aux colonnes figées */
+  .modern-datatable .p-datatable-thead > tr > th[data-p-frozen-column="true"] {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr > td[data-p-frozen-column="true"] {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    background: inherit !important;
+    backdrop-filter: none !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr:nth-child(even) > td[data-p-frozen-column="true"] {
+    background: rgba(248, 250, 252, 0.6) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr:hover > td[data-p-frozen-column="true"] {
+    background: linear-gradient(135deg, rgba(236, 254, 255, 0.8) 0%, rgba(240, 253, 250, 0.8) 100%) !important;
+  }
+
+  /* Assurer une largeur minimale pour chaque colonne */
+  .modern-datatable .p-datatable-thead > tr > th {
+    min-width: 120px !important;
+  }
+
+  .modern-datatable .p-datatable-tbody > tr > td {
+    min-width: 120px !important;
+  }
+
+  /* Styles spécifiques pour certaines colonnes */
+  .modern-datatable .p-datatable-thead > tr > th:first-child,
+  .modern-datatable .p-datatable-tbody > tr > td:first-child {
+    min-width: 80px !important; /* Image */
+  }
+
+  .modern-datatable .p-datatable-thead > tr > th:nth-child(2),
+  .modern-datatable .p-datatable-tbody > tr > td:nth-child(2) {
+    min-width: 200px !important; /* Nom */
+  }
+
+  .modern-datatable .p-datatable-footer {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%) !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    padding: 1rem !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
+    backdrop-filter: blur(10px) !important;
+    font-size: 0.825rem !important;
+  }
+
+  /* Dark mode amélioré */
+  .dark .modern-datatable {
+    border-color: rgba(55, 65, 81, 0.5) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    background: rgba(31, 41, 55, 0.95) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-header {
+    background: linear-gradient(135deg, rgba(31, 41, 55, 0.9) 0%, rgba(17, 24, 39, 0.9) 100%) !important;
+    color: #d1d5db !important;
+    border-bottom-color: rgba(55, 65, 81, 0.6) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-thead > tr > th.modern-header {
+    background: linear-gradient(135deg, #065f46 0%, #064e3b 100%) !important;
+    box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-thead > tr > th[data-p-frozen-column="true"] {
+    background: linear-gradient(135deg, #065f46 0%, #064e3b 100%) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr.modern-row {
+    border-bottom-color: rgba(55, 65, 81, 0.6) !important;
+    background: rgba(31, 41, 55, 0.8) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr.modern-row:nth-child(even) {
+    background: rgba(17, 24, 39, 0.6) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr.modern-row:hover {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.4) 0%, rgba(4, 47, 46, 0.4) 100%) !important;
+    border-color: rgba(20, 184, 166, 0.3) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr > td {
+    border-bottom-color: rgba(55, 65, 81, 0.4) !important;
+    color: #d1d5db !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr > td[data-p-frozen-column="true"] {
+    background: inherit !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr:nth-child(even) > td[data-p-frozen-column="true"] {
+    background: rgba(17, 24, 39, 0.6) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-tbody > tr:hover > td[data-p-frozen-column="true"] {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.4) 0%, rgba(4, 47, 46, 0.4) 100%) !important;
+  }
+
+  .dark .modern-datatable .p-datatable-footer {
+    background: linear-gradient(135deg, rgba(31, 41, 55, 0.9) 0%, rgba(17, 24, 39, 0.9) 100%) !important;
+    color: #d1d5db !important;
+    border-top-color: rgba(55, 65, 81, 0.6) !important;
+  }
+
+  /* Animation des boutons d'action */
+  .modern-datatable .p-datatable-tbody button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .modern-datatable .p-datatable-tbody button:hover {
+    transform: scale(1.05) !important;
+    filter: brightness(1.1) !important;
+  }
+
+  /* Scrollbar personnalisée */
+  .modern-datatable .p-datatable-scrollable-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .modern-datatable .p-datatable-scrollable-body::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.5);
+    border-radius: 4px;
+  }
+
+  .modern-datatable .p-datatable-scrollable-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #059669, #047857);
+    border-radius: 4px;
+  }
+
+  .modern-datatable .p-datatable-scrollable-body::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #065f46, #064e3b);
+  }
+}
+
+/* Optimisations pour mobile avec couleurs douces */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 80px;
+    background-color: #f8fafc;
+  }
+
+  .dark .main-content {
+    background-color: #0f172a;
+  }
+
+  .p-datatable {
+    font-size: 0.875rem;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    padding: 0.75rem 0.5rem;
+  }
+}

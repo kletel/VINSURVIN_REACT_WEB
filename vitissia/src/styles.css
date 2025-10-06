@@ -1,0 +1,132 @@
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap");
+
+
+:root {
+ --navBg: rgba(34, 139, 34, 0.8); /* Vert semi-transparent */
+ --navTextColor: #fff; /* Couleur du texte */
+}
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Lato", sans-serif;
+  background-color: #fff;
+  /*background-color: var(--navBg);
+  background-image: url('../public/bg-white1.jpg');
+  background-size: cover;
+  background-position: center;*/
+}
+
+/* Ensure pages have minimum height */
+.pageSidebar {
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+}
+
+/* Mobile bottom bar spacing */
+@media (max-width: 767px) {
+  .main-content {
+    min-height: calc(100vh - 4rem);
+    min-height: calc(100dvh - 4rem);
+    padding-bottom: 4rem;
+  }
+}
+
+/* Prevent body scroll issues on mobile */
+html, body {
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Safe area for iOS devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Specific page layouts */
+.page-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 5rem; /* Space for bottom bar on mobile */
+}
+
+.page-content {
+  flex: 1;
+  padding-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .page-container {
+    padding-bottom: 0;
+  }
+
+  .page-content {
+    padding-bottom: 0;
+  }
+}
+
+/* Force all pages to have minimum height */
+.pageSidebar {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: 5rem;
+}
+
+@media (min-width: 768px) {
+  .pageSidebar {
+    padding-bottom: 0;
+  }
+}
+
+/* App main content with mobile spacing */
+.App {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@media (max-width: 767px) {
+  .App > div:first-child {
+    padding-bottom: 5rem;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
+
+/* Bottom bar absolute positioning for mobile */
+@media (max-width: 767px) {
+  .bottom-bar-mobile {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+  }
+}
+
+/* Bottom bar fixes */
+.bottom-bar-fixed {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+  transform: none !important;
+}
+
+/* Prevent content from pushing bottom bar */
+.content-with-bottom-bar {
+  margin-bottom: 4rem;
+  min-height: calc(100vh - 4rem);
+}
+
+@media (max-width: 767px) {
+  .content-with-bottom-bar {
+    margin-bottom: 5rem;
+    min-height: calc(100vh - 5rem);
+  }
+}
+

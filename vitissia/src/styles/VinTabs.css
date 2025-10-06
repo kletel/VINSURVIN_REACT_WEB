@@ -1,0 +1,15 @@
+@import "tailwindcss/utilities";
+
+@layer utilities {
+  .p-tabview,
+  .p-tabview * {
+    all: revert !important;
+  }
+}
+
+/* Désactive les effets de Tailwind sur PrimeReact */
+.no-tailwind .p-tabview,
+.no-tailwind .p-tabview * {
+  all: revert !important;
+}
+

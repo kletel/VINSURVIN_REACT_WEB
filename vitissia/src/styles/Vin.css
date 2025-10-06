@@ -1,0 +1,7 @@
+.custom-dropdown-container .p-dropdown-label {
+    padding: 0 !important;
+  }
+
+.p-slider .p-slider-handle {
+    background-color: var(--slider-thumb-color, black); /* Défaut noir */
+}

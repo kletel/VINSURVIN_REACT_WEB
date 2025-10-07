@@ -496,16 +496,16 @@ const NouveauVinEtape2 = ({
                         step={1}
                         className="w-full mb-2"
                       />*/}
-                       <ReactStars
-                        count={5}
-                        value={(vin.Note_sur_20 || 0) / 4}
+                      <ReactStars
+                        count={3} // ⭐ 3 étoiles
+                        value={(vin.Note_sur_100 || 0) / (100 / 3)} // conversion note/100 → 0–3 étoiles
                         onChange={(newRating) => {
                           handleInputChange({
-                            name: "Note_sur_20",
-                            value: newRating * 4, // convert 0–5 stars to 0–20 scale
+                            name: "Note_sur_100",
+                            value: Math.round(newRating * (100 / 3)), // conversion 0–3 étoiles → 0–100
                           });
                         }}
-                        size={24}
+                        size={28}
                         isHalf={true}
                         edit={true}
                         emptyIcon={<i className="far fa-star" />}
@@ -513,14 +513,18 @@ const NouveauVinEtape2 = ({
                         filledIcon={<i className="fas fa-star" />}
                         activeColor="#ffd700"
                       />
-                      <span className="text-md font-semibold w-12 text-center dark:text-white">{vin?.Note_sur_20}</span>
+
+                      <span className="text-md font-semibold w-16 text-center dark:text-white">
+                        {vin?.Note_sur_100 ?? 0} / 100
+                      </span>
 
                       <div className="text-sm text-gray-500 dark:text-gray-400 text-center font-medium">
-                        {getNoteDescription(vin?.Note_sur_20 || 0)}
+                        {getNoteDescription(vin?.Note_sur_100 || 0)}
                       </div>
+
                     </div>
 
-                       
+
                   </div>
 
                   {/* Association vin */}

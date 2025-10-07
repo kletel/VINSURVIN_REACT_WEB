@@ -1224,50 +1224,36 @@ const SommelierForm = () => {
     const normalizeConseilData = (rawData) => {
         if (!rawData || !rawData.conseil) return {};
 
-        const conseil = rawData.conseil;
+        let conseil = rawData.conseil;
 
-        if (conseil.catégorie && typeof conseil.catégorie === 'object' && !Array.isArray(conseil.catégorie)) {
-            return conseil.catégorie;
-        }
+        conseil = Array.isArray(conseil)
+            ? conseil.filter(item =>
+                typeof item === "object" &&
+                item !== null &&
+                Object.values(item).some(v => typeof v === "object" && v !== null && "nom" in v)
+            )
+            : conseil;
 
-        if (typeof conseil === 'object' && !Array.isArray(conseil)) {
-            const isCategorized = Object.values(conseil).every(value => Array.isArray(value));
-            if (isCategorized) {
-                return conseil;
-            }
-
+        if (typeof conseil === "object" && !Array.isArray(conseil)) {
             return { "Recommandé": [conseil] };
         }
 
         if (Array.isArray(conseil)) {
             const categorized = {};
-
-            const allItemsAreCategorizedObjects = conseil.every(item =>
-                typeof item === 'object' &&
-                item !== null &&
-                Object.keys(item).length === 1 &&
-                typeof Object.values(item)[0] === 'object'
-            );
-
-            if (allItemsAreCategorizedObjects) {
-                conseil.forEach(item => {
-                    const categoryName = Object.keys(item)[0];
-                    const vin = item[categoryName];
-
-                    if (!categorized[categoryName]) {
-                        categorized[categoryName] = [];
-                    }
+            conseil.forEach(item => {
+                const categoryName = Object.keys(item)[0];
+                const vin = item[categoryName];
+                if (typeof vin === "object" && vin !== null) {
+                    if (!categorized[categoryName]) categorized[categoryName] = [];
                     categorized[categoryName].push(vin);
-                });
-            } else {
-                categorized["Recommandés"] = conseil;
-            }
-
+                }
+            });
             return categorized;
         }
 
         return {};
     };
+
 
     const vinResultNormalize = (vinResults) => {
         if (!vinResults || !Array.isArray(vinResults.conseil)) {
@@ -1321,178 +1307,151 @@ const SommelierForm = () => {
                 </div>
             </div>
             <div className='bg-white rounded-2xl border mt-8 px-4 sm:px-10 w-full max-w-sm sm:max-w-4xl mx-auto'>
-                <div className="relative flex flex-col bg-white dark:bg-gray-800 px-6 pb-6 transition-all duration-500">
+  <div className="relative flex flex-col bg-white dark:bg-gray-800 px-6 pb-6 transition-all duration-500">
 
-                    {isAnalyzing ? (
-                        <div className="mt-5 flex items-center justify-center">
-                            <i className="pi pi-spinner pi-spin text-2xl text-blue-500 dark:text-white" />
-                            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Analyse en cours...</span>
+    {/* 🧠 CAS 1 : vérifie si plat invalide */}
+    {((conseilResult?.vraiPlat === false) || (vinResult?.vraiPlat === false)) && (
+      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+        <div className="bg-white dark:bg-gray-900 text-center p-8 rounded-2xl shadow-2xl max-w-md border border-red-400 animate-fade-in">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center shadow-inner">
+              <i className="pi pi-exclamation-triangle text-3xl"></i>
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-3">
+            Plat non reconnu
+          </h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+            Le plat que vous avez saisi n’est pas reconnu comme un plat valide.<br />
+            Souhaitez-vous recommencer votre saisie ?
+          </p>
+          <button
+            onClick={restartHandler}
+            className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            🔄 Recommencer
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* 🧩 CAS 2 : en cours d’analyse */}
+    {isAnalyzing ? (
+      <div className="mt-5 flex items-center justify-center">
+        <i className="pi pi-spinner pi-spin text-2xl text-blue-500 dark:text-white" />
+        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Analyse en cours...</span>
+      </div>
+    ) : (
+      !vinResult && !conseilResult && (
+        <div className="mt-4 space-y-4">
+          {renderForm()}
+        </div>
+      )
+    )}
+
+    {/* 🧩 CAS 3 : résultat des conseils */}
+    {conseilResult && !isAnalyzing && conseilResult?.vraiPlat !== false && (() => {
+      const categories = normalizeConseilData(conseilResult);
+      const groupedByColor = groupByColor(conseilResult?.conseil);
+
+      return (
+        id !== 'cave' ? (
+          <div className="mt-8">
+            <h1 className="text-2xl sm:text-xl italic mb-6">Gabriel vous recommande :</h1>
+            {Object.entries(categories).map(([category, vins]) => (
+              <div key={category} className="mt-6">
+                <h2 className="text-xl font-semibold underline mb-4 text-green-700">
+                  {category === "Le Top" ? "Le Choix Idéal" : category}
+                </h2>
+
+                <div className="space-y-4">
+                  {Array.isArray(vins) && vins.map((vin, index) => {
+                    const region = vin.region || vin.région || "Non précisée";
+
+                    return (
+                      <div key={index} className="grid grid-cols-4 gap-4">
+                        <div className="col-span-4 border-2 border-green-500 p-4 bg-green-100 rounded shadow">
+                          <p><strong>Nom :</strong> {vin.nom}</p>
+                          <p><strong>Couleur :</strong> {vin.couleur}</p>
+                          {vin.appellation && <p><strong>Appellation :</strong> {vin.appellation}</p>}
+                          {region && <p><strong>Région :</strong> {region}</p>}
+                          {vin.prix && <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>}
                         </div>
-                    ) : (
-                        !vinResult && !conseilResult && (
-                            <div className="mt-4 space-y-4">
-                                {renderForm()}
-                            </div>
-                        )
-                    )}
-                    {conseilResult && !isAnalyzing && (() => {
-                       // const isVraiPlat = conseilResult?.vraiPlat;
-                        const categories =  normalizeConseilData(conseilResult);
-                        const groupedByColor =  groupByColor(conseilResult?.conseil);
-
-                        return (
-                            id !== 'cave' ? (
-                                <div className="mt-8">
-                                    <h1 className="text-2xl sm:text-xl italic mb-6">Gabriel vous recommande :</h1>
-                                        {Object.entries(categories).map(([category, vins]) => (
-                                            <div key={category} className="mt-6">
-                                                <h2 className="text-xl font-semibold underline mb-4 text-green-700">
-                                                    {category === "Le Top" ? "Le Choix Idéal" : category}
-                                                </h2>
-
-                                                <div className="space-y-4">
-                                                    {Array.isArray(vins) && vins.map((vin, index) => {
-                                                        const region = vin.region || vin.région || "Non précisée";
-
-                                                        return (
-                                                            <div key={index} className="grid grid-cols-4 gap-4">
-                                                                <div className="col-span-4 border-2 border-green-500 p-4 bg-green-100 rounded shadow">
-                                                                    <p><strong>Nom :</strong> {vin.nom}</p>
-                                                                    <p><strong>Couleur :</strong> {vin.couleur}</p>
-                                                                    {vin.appellation && <p><strong>Appellation :</strong> {vin.appellation}</p>}
-                                                                    {region && <p><strong>Région :</strong> {region}</p>}
-
-                                                                    {vin.prix && Array.isArray(vin.prix) ? (
-                                                                        <p>
-                                                                            <strong>Prix :</strong>{" "}
-                                                                            {vin.prix.map((item, i) => {
-                                                                                if (
-                                                                                    typeof item === "object" &&
-                                                                                    item !== null &&
-                                                                                    "contenance" in item &&
-                                                                                    "prix" in item
-                                                                                ) {
-                                                                                    return (
-                                                                                        <span key={i} className="inline-block mr-2">
-                                                                                            <span className="bg-green-400 rounded-sm px-1">{item.contenance}</span> - {item.prix}
-                                                                                        </span>
-                                                                                    );
-                                                                                } else if (typeof item === "number") {
-                                                                                    return (
-                                                                                        <span key={i} className="inline-block mr-2">
-                                                                                            {item.toFixed(2)} €
-                                                                                        </span>
-                                                                                    );
-                                                                                } else {
-                                                                                    return null;
-                                                                                }
-                                                                            })}
-                                                                        </p>
-                                                                    ) : vin.prix ? (
-                                                                        <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>
-                                                                    ) : null}
-
-                                                                    {vin?.periodedegarde && <p><strong>Période de garde :</strong> {vin.periodedegarde}</p>}
-                                                                    {vin?.quantité && <p><strong>Quantité à acheter :</strong> {vin.quantité} bouteilles</p>}
-                                                                    {vin?.caractéristique && <p><strong>Caractéristique :</strong> {vin.caractéristique}</p>}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        ))
-                                    }
-
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mt-8">
-                                        {Object.entries(groupedByColor).map(([color, vins]) => (
-                                            <div
-                                                key={color}
-                                                className={`rounded-lg p-6 shadow border lg:col-span-2 ${vinCouleurCard[color.toLowerCase()] || vinCouleurCard.default}`}
-                                            >
-                                                <h2 className="text-xl font-bold mb-4">{color}</h2>
-
-                                                {vins.map((vin, index) => (
-                                                    <div key={index} className="mb-4 border-b border-gray-300 pb-3 last:border-b-0 last:pb-0">
-                                                        <p><strong>Type :</strong> {vin.type}</p>
-                                                        <p><strong>Région :</strong> {vin.region}</p>
-                                                        <p><strong>Temps de garde :</strong> {vin.tempsDeGarde}</p>
-                                                        <p><strong>Quantité :</strong> {vin.quantite} bouteille(s)</p>
-                                                        {vin.exempleNomVin && (
-                                                            <div>
-                                                                <p className="font-semibold mt-2">Exemples :</p>
-                                                                <ul className="list-disc list-inside">
-                                                                    {vin.exempleNomVin.map((name, i) => (
-                                                                        <li key={i}>{name}</li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )
-                        );
-                    })()}
-
-
-                    {vinResult && !isAnalyzing && (() => {
-                        //const isVraiPlat = vinResult.vraiPlat;
-                        const groupedByPlat =   vinResultNormalize(vinResult);
-                        return (
-                            <div className="mt-8">
-                                
-                                    <>
-                                        <h1 className='text-2xl sm:text-xl italic mb-6'>Notre IA vous suggère :</h1>
-
-                                        <div className="space-y-6">
-                                            {groupedByPlat && Object.entries(groupedByPlat).map(([plat, vins]) => (
-                                                <div key={plat} className="mb-8">
-                                                    {vins.map((vin, index) => (
-                                                        <div key={index} className="grid grid-cols-6 mb-4">
-                                                            {vin.plat && (
-                                                                <div className="text-center border-2 border-green-600 col-span-2 rounded shadow-lg bg-green-300 flex justify-center items-center text-med mr-5">
-                                                                    <p><strong>Plat:</strong> {vin.plat}</p>
-                                                                </div>
-                                                            )}
-                                                            <div className="border-2 border-green-500 p-2 bg-green-100 rounded shadow-lg col-span-4">
-                                                                <p><strong>Nom :</strong> {vin.nom}</p>
-                                                                <p><strong>Couleur :</strong> {vin.couleur}</p>
-                                                                <p><strong>Appellation :</strong> {vin.appellation}</p>
-                                                                <p><strong>Région :</strong> {vin.region}</p>
-                                                                {vin.prix && (
-                                                                    <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="flex justify-center">
-                                            <button
-                                                className="mt-6 px-4 py-2 bg-emerald-600 text-white font-medium rounded-md shadow hover:bg-emerald-700 transition-all duration-200 border border-emerald-700"
-                                                onClick={restartHandler}
-                                            >
-                                                Recommencer
-                                            </button>
-                                        </div>
-                                    </>
-                                
-                            </div>
-                        );
-                    })()}
-
-
-
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mt-8">
+            {Object.entries(groupedByColor).map(([color, vins]) => (
+              <div
+                key={color}
+                className={`rounded-lg p-6 shadow border lg:col-span-2 ${vinCouleurCard[color.toLowerCase()] || vinCouleurCard.default}`}
+              >
+                <h2 className="text-xl font-bold mb-4">{color}</h2>
+                {vins.map((vin, index) => (
+                  <div key={index} className="mb-4 border-b border-gray-300 pb-3 last:border-b-0 last:pb-0">
+                    <p><strong>Type :</strong> {vin.type}</p>
+                    <p><strong>Région :</strong> {vin.region}</p>
+                    <p><strong>Temps de garde :</strong> {vin.tempsDeGarde}</p>
+                    <p><strong>Quantité :</strong> {vin.quantite} bouteille(s)</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )
+      );
+    })()}
+
+    {/* 🧩 CAS 4 : résultat des vins */}
+    {vinResult && !isAnalyzing && vinResult?.vraiPlat !== false && (() => {
+      const groupedByPlat = vinResultNormalize(vinResult);
+      return (
+        <div className="mt-8">
+          <h1 className='text-2xl sm:text-xl italic mb-6'>Notre IA vous suggère :</h1>
+          <div className="space-y-6">
+            {Object.entries(groupedByPlat).map(([plat, vins]) => (
+              <div key={plat} className="mb-8">
+                {vins.map((vin, index) => (
+                  <div key={index} className="grid grid-cols-6 mb-4">
+                    {vin.plat && (
+                      <div className="text-center border-2 border-green-600 col-span-2 rounded shadow-lg bg-green-300 flex justify-center items-center text-med mr-5">
+                        <p><strong>Plat:</strong> {vin.plat}</p>
+                      </div>
+                    )}
+                    <div className="border-2 border-green-500 p-2 bg-green-100 rounded shadow-lg col-span-4">
+                      <p><strong>Nom :</strong> {vin.nom}</p>
+                      <p><strong>Couleur :</strong> {vin.couleur}</p>
+                      <p><strong>Appellation :</strong> {vin.appellation}</p>
+                      <p><strong>Région :</strong> {vin.region}</p>
+                      {vin.prix && (
+                        <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              className="mt-6 px-4 py-2 bg-emerald-600 text-white font-medium rounded-md shadow hover:bg-emerald-700 transition-all duration-200 border border-emerald-700"
+              onClick={restartHandler}
+            >
+              Recommencer
+            </button>
+          </div>
+        </div>
+      );
+    })()}
+
+  </div>
+
 
                 {/*Afficher Toast*/}
                 <Toast ref={toast} />

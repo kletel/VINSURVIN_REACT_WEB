@@ -343,10 +343,8 @@ const Vin = () => {
         try {
             const newFavoriState = !vin.Coup_de_Coeur;
 
-            // 💫 Mise à jour instantanée locale
             setVin((prev) => ({ ...prev, Coup_de_Coeur: newFavoriState }));
 
-            // 📨 Préparation requête
             const formData = new FormData();
             formData.append("UUID_", vin.UUID_);
             formData.append("Coup_de_Coeur", newFavoriState);
@@ -377,7 +375,6 @@ const Vin = () => {
         } catch (err) {
             console.error("Erreur mise à jour favori:", err);
 
-            // 🔄 Revert local si erreur
             setVin((prev) => ({
                 ...prev,
                 Coup_de_Coeur: !prev.Coup_de_Coeur,
@@ -391,7 +388,6 @@ const Vin = () => {
             });
         }
     };
-
 
     const formatRegionName = useCallback((region) => {
         if (region === "Provence-Alpes-Côte d'Azur") {
@@ -453,7 +449,7 @@ const Vin = () => {
                 {/* <div className="w-full flex justify-end mb-4">
         <ThemeToggle />
       </div> */}
-                <Toast ref={toast} />
+                <Toast ref={toast} position="bottom-right" />
                 {vin && (
                     <div>
                         <div className='grid grid-cols-1 md:grid-cols-2 '>

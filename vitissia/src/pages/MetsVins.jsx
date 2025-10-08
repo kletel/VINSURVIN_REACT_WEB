@@ -11,8 +11,6 @@ import Layout from '../components/Layout';
 import { AutoComplete } from 'primereact/autocomplete';
 import { useLocation } from 'react-router-dom';
 
-
-
 const MetsVins = () => {
     const { associations, fetchAssociations, loading, error } = useFetchAssociations();
     const navigate = useNavigate();
@@ -42,7 +40,6 @@ const MetsVins = () => {
     //Recherche depuis accueil
     const location = useLocation();
     const search = location.state?.search || '';
-
 
     useEffect(() => {
         fetchAssociations();
@@ -227,20 +224,19 @@ const MetsVins = () => {
     };
 
     // Recherche de plat: suggestions
-  const normalizeString = (str) =>
-  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizeString = (str) =>
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-const searchMets = (e) => {
-  const q = normalizeString(e.query || '');
-  const all = Array.from(new Set(associations.map(a => a.Met).filter(Boolean)));
+    const searchMets = (e) => {
+        const q = normalizeString(e.query || '');
+        const all = Array.from(new Set(associations.map(a => a.Met).filter(Boolean)));
 
-  const filtered = q
-    ? all.filter(m => normalizeString(m).includes(q))
-    : all.slice(0, 30);
+        const filtered = q
+            ? all.filter(m => normalizeString(m).includes(q))
+            : all.slice(0, 30);
 
-  setMetSuggestions(filtered.sort());
-};
-
+        setMetSuggestions(filtered.sort());
+    };
 
     const applyProvenance = (prov, met) => {
         setSelectedCategorie(prov.categorie);
@@ -384,107 +380,107 @@ const searchMets = (e) => {
 
                     {/* Stepper Header */}
                     {!searchSelectedMet && (
-                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-6">
-                        <div className="flex items-center justify-between">
-                            {[
-                                { title: 'Catégories', icon: 'pi-list', step: 1 },
-                                { title: 'Sous-catégories', icon: 'pi-tags', step: 2 },
-                                { title: 'Mets', icon: 'pi-star', step: 3 }
-                            ].map((item, index) => (
-                                <React.Fragment key={item.step}>
-                                    <button
-                                        onClick={() => handleStepClick(item.step)}
-                                        disabled={item.step > currentStep}
-                                        className={`flex flex-col items-center p-2 rounded-lg transition-colors ${item.step <= currentStep
+                        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-6">
+                            <div className="flex items-center justify-between">
+                                {[
+                                    { title: 'Catégories', icon: 'pi-list', step: 1 },
+                                    { title: 'Sous-catégories', icon: 'pi-tags', step: 2 },
+                                    { title: 'Mets', icon: 'pi-star', step: 3 }
+                                ].map((item, index) => (
+                                    <React.Fragment key={item.step}>
+                                        <button
+                                            onClick={() => handleStepClick(item.step)}
+                                            disabled={item.step > currentStep}
+                                            className={`flex flex-col items-center p-2 rounded-lg transition-colors ${item.step <= currentStep
                                                 ? 'text-blue-600 dark:text-blue-400'
                                                 : 'text-gray-400 dark:text-gray-500'
-                                            } ${item.step === currentStep ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
-                                    >
-                                        <i className={`pi ${item.icon} text-xl mb-1`}></i>
-                                        <span className="text-xs font-medium">{item.title}</span>
-                                    </button>
-                                    {index < 2 && (
-                                        <div className={`flex-1 h-0.5 mx-2 ${item.step < currentStep ? 'bg-blue-600' : 'bg-gray-300'
-                                            }`}></div>
-                                    )}
-                                </React.Fragment>
-                            ))}
+                                                } ${item.step === currentStep ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
+                                        >
+                                            <i className={`pi ${item.icon} text-xl mb-1`}></i>
+                                            <span className="text-xs font-medium">{item.title}</span>
+                                        </button>
+                                        {index < 2 && (
+                                            <div className={`flex-1 h-0.5 mx-2 ${item.step < currentStep ? 'bg-blue-600' : 'bg-gray-300'
+                                                }`}></div>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </div>
                         </div>
-                    </div>
                     )}
 
                     {/* Selection Summary */}
                     {!searchSelectedMet && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-                        <div className="flex items-center gap-2 mb-2">
-                            <i className="pi pi-info-circle text-blue-600 dark:text-blue-400"></i>
-                            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Vos sélections</span>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                            <div className="flex items-center gap-2 mb-2">
+                                <i className="pi pi-info-circle text-blue-600 dark:text-blue-400"></i>
+                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Vos sélections</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {selectedCategorie && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800">
+                                        <i className="pi pi-list mr-1"></i>
+                                        {selectedCategorie}
+                                    </span>
+                                )}
+                                {selectedSousCategorie && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        <i className="pi pi-tags mr-1"></i>
+                                        {selectedSousCategorie}
+                                    </span>
+                                )}
+                                {selectedMet && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                        <i className="pi pi-star mr-1"></i>
+                                        {selectedMet}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Étape {currentStep}/3
+                            </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            {selectedCategorie && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800">
-                                    <i className="pi pi-list mr-1"></i>
-                                    {selectedCategorie}
-                                </span>
-                            )}
-                            {selectedSousCategorie && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                    <i className="pi pi-tags mr-1"></i>
-                                    {selectedSousCategorie}
-                                </span>
-                            )}
-                            {selectedMet && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                    <i className="pi pi-star mr-1"></i>
-                                    {selectedMet}
-                                </span>
-                            )}
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                            Étape {currentStep}/3
-                        </div>
-                    </div>
                     )}
 
                     {/* Content */}
                     {!searchSelectedMet && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                        {currentStep === 1 && (
-                            <StepContent
-                                title="Sélectionnez une catégorie"
-                                items={categories}
-                                onSelect={handleCategorieSelect}
-                                icon="pi-list"
-                                color="text-green-600"
-                                bgColor="bg-green-50 dark:bg-green-900/20"
-                                borderColor="border-green-200 dark:border-green-800"
-                            />
-                        )}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+                            {currentStep === 1 && (
+                                <StepContent
+                                    title="Sélectionnez une catégorie"
+                                    items={categories}
+                                    onSelect={handleCategorieSelect}
+                                    icon="pi-list"
+                                    color="text-green-600"
+                                    bgColor="bg-green-50 dark:bg-green-900/20"
+                                    borderColor="border-green-200 dark:border-green-800"
+                                />
+                            )}
 
-                        {currentStep === 2 && (
-                            <StepContent
-                                title="Sélectionnez une sous-catégorie"
-                                items={sousCategories}
-                                onSelect={handleSousCategorieSelect}
-                                icon="pi-tags"
-                                color="text-blue-600"
-                                bgColor="bg-blue-50 dark:bg-blue-900/20"
-                                borderColor="border-blue-200 dark:border-blue-800"
-                                emptyMessage="Choisir une catégorie"
-                            />
-                        )}
+                            {currentStep === 2 && (
+                                <StepContent
+                                    title="Sélectionnez une sous-catégorie"
+                                    items={sousCategories}
+                                    onSelect={handleSousCategorieSelect}
+                                    icon="pi-tags"
+                                    color="text-blue-600"
+                                    bgColor="bg-blue-50 dark:bg-blue-900/20"
+                                    borderColor="border-blue-200 dark:border-blue-800"
+                                    emptyMessage="Choisir une catégorie"
+                                />
+                            )}
 
-                        {currentStep === 3 && (
-                            <MetsExpandable
-                                mets={mets}
-                                expandedMet={expandedMet}
-                                onToggleMet={handleMetToggle}
-                                getVinsByMet={getVinsByMet}
-                                onRecipe={generateRecipe}
-                                loadingRecipeFor={loadingRecipeFor}
-                            />
-                        )}
-                    </div>
+                            {currentStep === 3 && (
+                                <MetsExpandable
+                                    mets={mets}
+                                    expandedMet={expandedMet}
+                                    onToggleMet={handleMetToggle}
+                                    getVinsByMet={getVinsByMet}
+                                    onRecipe={generateRecipe}
+                                    loadingRecipeFor={loadingRecipeFor}
+                                />
+                            )}
+                        </div>
                     )}
 
                     {/* Résultats de recherche: cartes du met sélectionné */}

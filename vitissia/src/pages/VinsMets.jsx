@@ -236,7 +236,7 @@ const VinsMets = () => {
 
     return (
         <Layout>
-            <Toast ref={toast} />
+            <Toast ref={toast} position="bottom-right" />
             <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
                 <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6">
                     <div className="max-w-6xl mx-auto">

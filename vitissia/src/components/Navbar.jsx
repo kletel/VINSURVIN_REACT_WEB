@@ -98,7 +98,7 @@ const Navbar = () => {
                   >
                     <span className={`absolute inset-0 rounded-lg ${isActivePath(link.path) ? 'bg-emerald-500/10 dark:bg-emerald-400/10 ring-1 ring-emerald-500/30 dark:ring-emerald-400/30' : 'hover:bg-gray-900/5 dark:hover:bg-white/5'} backdrop-blur-sm`}></span>
                     <span className="relative flex items-center gap-2">
-                      <span >{link.icon}</span>
+                      <span className="text-gray-600 dark:text-gray-300">{link.icon}</span>
                       <span>{link.title}</span>
                     </span>
                   </Link>

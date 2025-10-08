@@ -9,7 +9,9 @@ import useFetchPlats from '../hooks/useFetchPlats';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useNavigate } from 'react-router-dom';
-
+import { motion, AnimatePresence } from "framer-motion";
+import { FiTrash2, FiPlusCircle, FiCheckCircle, FiRefreshCcw, FiStar } from "react-icons/fi";
+import { FaWineGlassAlt as FiWine } from "react-icons/fa";
 
 const SommelierForm = () => {
     const { id } = useParams();
@@ -317,7 +319,7 @@ const SommelierForm = () => {
                 confirmButtonColor: '#16a34a',
                 cancelButtonColor: '#6b7280',
                 reverseButtons: true,
-                allowOutsideClick: true, 
+                allowOutsideClick: true,
                 showClass: {
                     popup: 'animate__animated animate__fadeInDown animate__faster',
                 },
@@ -744,9 +746,7 @@ const SommelierForm = () => {
 
                             </div>
                         )
-
                         }
-
                         {currentStep == 4 &&
                             <div>
                                 <h1>Voulez-vous prendre un photo de votre carte des plats ou saisir manuellement votre choix? </h1>
@@ -786,57 +786,92 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {currentStep == 5 && manual == true &&
-                            <div>
-                                <h1 className='font-bold text-lg'>Liste des plats:</h1>
-                                {repas.map((plat, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <label className="w-20 text-sm text-gray-700 dark:text-gray-200 mt-3">{`Plat ${index + 1}`}</label>
-                                        <input
-                                            type="text"
-                                            value={plat}
-                                            onChange={(e) => handleRepasChange(index, e.target.value)}
-                                            className="form-input  rounded-sm ring ring-neutral-300 p-1 w-96 mt-3"
-                                            placeholder="Entrée / Plat / Fromages / Dessert"
-                                        />
-                                        {repas.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeRepas(index)}
-                                                className="text-red-500 hover:text-red-700 text-sm"
-                                                title="Supprimer"
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                <div className='grid grid-row-2'>
+                        {currentStep == 5 && manual == true && (
+                            <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
+                                <motion.h3
+                                    className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                >
+                                    🍽️ Saisissez vos plats
+                                </motion.h3>
 
-                                    <button
-                                        type="button"
-                                        onClick={addRepas}
-                                        className="mt-2 px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm max-w-40 mt-4"
-                                    >
-                                        ➕ Ajouter un plat
-                                    </button>
+                                <AnimatePresence>
+                                    {repas.map((plat, index) => (
+                                        <motion.div
+                                            key={index}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex flex-col sm:flex-row items-center gap-3 w-full"
+                                        >
+                                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[90px]">
+                                                Plat {index + 1}
+                                            </label>
 
-                                    <button
+                                            <input
+                                                type="text"
+                                                value={plat}
+                                                onChange={(e) => handleRepasChange(index, e.target.value)}
+                                                className="w-full sm:flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
+                                                placeholder="Entrée / Plat / Fromages / Dessert"
+                                            />
+
+                                            {repas.length > 1 && (
+                                                <motion.button
+                                                    whileHover={{ scale: 1.15, rotate: 10 }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                    onClick={() => removeRepas(index)}
+                                                    className="text-red-500 hover:text-red-700 transition-all duration-200"
+                                                    title="Supprimer"
+                                                >
+                                                    <FiTrash2 size={18} />
+                                                </motion.button>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+
+                                <motion.button
+                                    type="button"
+                                    onClick={addRepas}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md transition-all duration-300"
+                                >
+                                    <FiPlusCircle size={16} />
+                                    Ajouter un plat
+                                </motion.button>
+
+                                <motion.div
+                                    className="flex justify-end mt-6"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6 }}
+                                >
+                                    <motion.button
                                         disabled={!isRepasValid}
-                                        className={isRepasValid ? `px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition mt-4` : `px-4 py-2 bg-gray-600 text-white rounded-md mt-4`}
+                                        whileHover={isRepasValid ? { scale: 1.05 } : {}}
+                                        whileTap={isRepasValid ? { scale: 0.95 } : {}}
+                                        className={`flex items-center gap-2 px-5 py-2 font-semibold rounded-lg shadow-md transition-all duration-300 ${isRepasValid
+                                                ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
+                                                : "bg-gray-400 cursor-not-allowed text-white"
+                                            }`}
                                         onClick={() => {
-                                            setCurrentStep(100) //Direct au résultat
+                                            setCurrentStep(100);
                                             setSelectedPlats([...repas]);
                                             analyseResult(0, vinsFiltre, repas, "conseilVin");
                                         }}
                                     >
+                                        <FiCheckCircle size={18} />
                                         Valider
-                                    </button>
-                                </div>
-
+                                    </motion.button>
+                                </motion.div>
                             </div>
+                        )}
 
-                        }
                         {currentStep == 6 && manual == false &&
                             <div>
                                 <h1>Voulez-vous ajouter une nouvelle image? </h1>
@@ -970,55 +1005,92 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {currentStep == 4 && adaptePlat == true &&
-                            <div>
-                                {repas.map((plat, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <label className="w-20 text-sm text-gray-700 dark:text-gray-200 mt-3">{`Plat ${index + 1}`}</label>
-                                        <input
-                                            type="text"
-                                            value={plat}
-                                            onChange={(e) => handleRepasChange(index, e.target.value)}
-                                            className="form-input  rounded-sm ring ring-neutral-300 p-1 w-96 mt-3"
-                                            placeholder="Entrée / Plat / Fromages / Dessert"
-                                        />
-                                        {repas.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeRepas(index)}
-                                                className="text-red-500 hover:text-red-700 text-sm"
-                                                title="Supprimer"
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                <div className='grid grid-row-2'>
+                        {currentStep === 4 && adaptePlat && (
+                            <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
 
-                                    <button
-                                        type="button"
-                                        onClick={addRepas}
-                                        className="mt-2 px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm max-w-40 mt-4"
-                                    >
-                                        ➕ Ajouter un plat
-                                    </button>
+                                <motion.h3
+                                    className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                >
+                                    🍽️ Vos plats à associer
+                                </motion.h3>
 
-                                    <button
+                                <AnimatePresence>
+                                    {repas.map((plat, index) => (
+                                        <motion.div
+                                            key={index}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="flex flex-col sm:flex-row items-center gap-3 w-full"
+                                        >
+                                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[90px]">
+                                                Plat {index + 1}
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                value={plat}
+                                                onChange={(e) => handleRepasChange(index, e.target.value)}
+                                                className="w-full sm:flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
+                                                placeholder="Entrée / Plat / Fromages / Dessert"
+                                            />
+
+                                            {repas.length > 1 && (
+                                                <motion.button
+                                                    whileHover={{ scale: 1.15, rotate: 10 }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                    onClick={() => removeRepas(index)}
+                                                    className="text-red-500 hover:text-red-700 transition-all duration-200"
+                                                    title="Supprimer"
+                                                >
+                                                    <FiTrash2 size={18} />
+                                                </motion.button>
+                                            )}
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+
+                                <motion.button
+                                    type="button"
+                                    onClick={addRepas}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md transition-all duration-300"
+                                >
+                                    <FiPlusCircle size={16} />
+                                    Ajouter un plat
+                                </motion.button>
+
+                                <motion.div
+                                    className="flex justify-end mt-6"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6 }}
+                                >
+                                    <motion.button
                                         disabled={!isRepasValid}
-                                        className={isRepasValid ? `px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition mt-4` : `px-4 py-2 bg-gray-600 text-white rounded-md mt-4`}
+                                        whileHover={isRepasValid ? { scale: 1.05 } : {}}
+                                        whileTap={isRepasValid ? { scale: 0.95 } : {}}
+                                        className={`flex items-center gap-2 px-5 py-2 font-semibold rounded-lg shadow-md transition-all duration-300 ${isRepasValid
+                                                ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
+                                                : "bg-gray-400 cursor-not-allowed text-white"
+                                            }`}
                                         onClick={() => {
-                                            setCurrentStep(100) //Direct au résultat
-                                            analyseResult(0, '', repas, "conseilVin");
+                                            setCurrentStep(100);
+                                            analyseResult(0, "", repas, "conseilVin");
                                         }}
                                     >
+                                        <FiCheckCircle size={18} />
                                         Valider
-                                    </button>
-                                </div>
-
+                                    </motion.button>
+                                </motion.div>
                             </div>
+                        )}
 
-                        }
 
                     </>
                 );
@@ -1026,122 +1098,167 @@ const SommelierForm = () => {
             case 'plat':
                 return (
                     <>
-                        <div className="space-y-4">
-                            <h3 className="text-md font-semibold text-gray-800 dark:text-white">Votre choix des plats :</h3>
+                        <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
+                            <motion.h3
+                                className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4 }}
+                            >
+                                🍽️ Votre choix des plats
+                            </motion.h3>
 
-                            {repas.map((plat, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <label className="w-20 text-sm text-gray-700 dark:text-gray-200">{`Plat ${index + 1}`}</label>
-                                    <input
-                                        type="text"
-                                        value={plat}
-                                        onChange={(e) => handleRepasChange(index, e.target.value)}
-                                        className="form-input  rounded-sm ring ring-neutral-300 p-1 w-96"
-                                        placeholder="Entrée / Plat / Fromages / Dessert"
-                                    />
-                                    {repas.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => removeRepas(index)}
-                                            className="text-red-500 hover:text-red-700 text-sm"
-                                            title="Supprimer"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                            <AnimatePresence>
+                                {repas.map((plat, index) => (
+                                    <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="flex flex-col sm:flex-row items-center gap-3 w-full"
+                                    >
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 min-w-[90px]">
+                                            Plat {index + 1}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={plat}
+                                            onChange={(e) => handleRepasChange(index, e.target.value)}
+                                            className="w-full sm:flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
+                                            placeholder="Entrée / Plat / Fromages / Dessert"
+                                        />
+                                        {repas.length > 1 && (
+                                            <motion.button
+                                                whileHover={{ scale: 1.15, rotate: 10 }}
+                                                whileTap={{ scale: 0.9 }}
+                                                onClick={() => removeRepas(index)}
+                                                className="text-red-500 hover:text-red-700 transition-all duration-200"
+                                                title="Supprimer"
+                                            >
+                                                <FiTrash2 size={18} />
+                                            </motion.button>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
 
-                            <button
+                            <motion.button
                                 type="button"
                                 onClick={addRepas}
-                                className="mt-2 px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md transition-all duration-300"
                             >
-                                ➕ Ajouter un plat
-                            </button>
+                                <FiPlusCircle size={16} />
+                                Ajouter un plat
+                            </motion.button>
 
+                            <motion.div
+                                className="mt-6 space-y-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
+                                    🍷 Sélection du vin :
+                                </h4>
 
-                            <div className="flex items-center gap-6 mt-4">
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                                    <input
-                                        type="radio"
-                                        name="vinOption"
-                                        value="cave"
-                                        className="form-radio h-4 w-4 text-emerald-600"
-                                        onChange={(e) => { setVinChoice(e.target.value) }}
-                                        defaultChecked
-                                    />
-                                    Prendre dans la cave
-                                </label>
-
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                                    <input
-                                        type="radio"
-                                        name="vinOption"
-                                        value="acheter"
-                                        className="form-radio h-4 w-4 text-emerald-600"
-                                        onChange={(e) => { setVinChoice(e.target.value) }}
-
-                                    />
-                                    Acheter un nouveau vin
-                                </label>
-
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                                    <input
-                                        type="radio"
-                                        name="vinOption"
-                                        value="mix"
-                                        className="form-radio h-4 w-4 text-emerald-600"
-                                        onChange={(e) => { setVinChoice(e.target.value) }}
-
-                                    />
-                                    Mixer les deux options
-                                </label>
-                            </div>
-                            {((vinChoice === 'acheter') || (vinChoice === 'mix')) && (
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-3">Budget Maximum</h3>
-
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                                     {[
-                                        { label: '30€', value: '30' },
-                                        { label: '50€', value: '50' },
-                                        { label: '80€', value: '80' },
-                                        { label: '120€', value: '120' },
-                                        { label: '150€', value: '150' },
-                                        { label: 'Pas de Limite', value: 'pas de limite, plus de 150' }
+                                        { label: "Prendre dans la cave", value: "cave" },
+                                        { label: "Acheter un nouveau vin", value: "acheter" },
+                                        { label: "Mixer les deux options", value: "mix" },
                                     ].map(({ label, value }) => (
                                         <label
                                             key={value}
-                                            className="flex items-center space-x-2 text-sm font-medium mt-2"
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${vinChoice === value
+                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                }`}
                                         >
                                             <input
                                                 type="radio"
-                                                name="budget"
+                                                name="vinOption"
                                                 value={value}
-                                                className="form-radio h-4 w-4 text-emerald-600"
-                                                onChange={(e) => setBudget(e.target.value)}
+                                                checked={vinChoice === value}
+                                                onChange={(e) => setVinChoice(e.target.value)}
+                                                className="hidden"
                                             />
                                             <span>{label}</span>
                                         </label>
                                     ))}
                                 </div>
-                            )}
+                            </motion.div>
 
+                            <AnimatePresence>
+                                {["acheter", "mix"].includes(vinChoice) && (
+                                    <motion.div
+                                        key="budget"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.4 }}
+                                        className="mt-6"
+                                    >
+                                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+                                            💰 Budget Maximum
+                                        </h3>
 
-                            <div className="flex justify-start">
-                                <button
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            {[
+                                                { label: "30 €", value: "30" },
+                                                { label: "50 €", value: "50" },
+                                                { label: "80 €", value: "80" },
+                                                { label: "120 €", value: "120" },
+                                                { label: "150 €", value: "150" },
+                                                { label: "Pas de limite", value: "pas de limite, plus de 150" },
+                                            ].map(({ label, value }) => (
+                                                <motion.label
+                                                    key={value}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className={`flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium cursor-pointer transition-all duration-300 ${budget == value
+                                                        ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                        : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="budget"
+                                                        value={value}
+                                                        checked={budget == value}
+                                                        onChange={(e) => setBudget(e.target.value)}
+                                                        className="hidden"
+                                                    />
+                                                    {label}
+                                                </motion.label>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <motion.div
+                                className="flex justify-end mt-6"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6 }}
+                            >
+                                <motion.button
                                     disabled={!isRepasValid}
-                                    className={isRepasValid ? `px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition` : `px-4 py-2 bg-gray-600 text-white rounded-md`}
-                                    //className={`px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition`}
-                                    onClick={() => {
-                                        analyseResult(0, '', repas, "conseilPlat");
-                                        // AnalyseImageIA(0)
-                                    }}
+                                    whileHover={isRepasValid ? { scale: 1.05 } : {}}
+                                    whileTap={isRepasValid ? { scale: 0.95 } : {}}
+                                    className={`flex items-center gap-2 px-5 py-2 font-semibold rounded-lg shadow-md transition-all duration-300 ${isRepasValid
+                                        ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
+                                        : "bg-gray-400 cursor-not-allowed text-white"
+                                        }`}
+                                    onClick={() => analyseResult(0, '', repas, "conseilPlat")}
                                 >
+                                    <FiCheckCircle size={18} />
                                     Valider
-                                </button>
-                            </div>
-
+                                </motion.button>
+                            </motion.div>
                         </div>
                     </>
                 );
@@ -1375,60 +1492,119 @@ const SommelierForm = () => {
                     )}
 
                     {/* 🧩 CAS 3 : résultat des conseils */}
+
                     {conseilResult && !isAnalyzing && conseilResult?.vraiPlat !== false && (() => {
                         const categories = normalizeConseilData(conseilResult);
                         const groupedByColor = groupByColor(conseilResult?.conseil);
 
                         return (
-                            id !== 'cave' ? (
-                                <div className="mt-8">
-                                    <h1 className="text-2xl sm:text-xl italic mb-6">Gabriel vous recommande :</h1>
-                                    {Object.entries(categories).map(([category, vins]) => (
-                                        <div key={category} className="mt-6">
-                                            <h2 className="text-xl font-semibold underline mb-4 text-green-700">
-                                                {category === "Le Top" ? "Le Choix Idéal" : category}
-                                            </h2>
+                            <div className="mt-10">
+                                <motion.h1
+                                    className="text-3xl sm:text-2xl font-semibold text-center text-emerald-700 dark:text-emerald-400 mb-10"
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                >
+                                    🍷 Gabriel vous recommande :
+                                </motion.h1>
 
-                                            <div className="space-y-4">
-                                                {Array.isArray(vins) && vins.map((vin, index) => {
-                                                    const region = vin.region || vin.région || "Non précisée";
-
-                                                    return (
-                                                        <div key={index} className="grid grid-cols-4 gap-4">
-                                                            <div className="col-span-4 border-2 border-green-500 p-4 bg-green-100 rounded shadow">
-                                                                <p><strong>Nom :</strong> {vin.nom}</p>
-                                                                <p><strong>Couleur :</strong> {vin.couleur}</p>
-                                                                {vin.appellation && <p><strong>Appellation :</strong> {vin.appellation}</p>}
-                                                                {region && <p><strong>Région :</strong> {region}</p>}
-                                                                {vin.prix && <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mt-8">
-                                    {Object.entries(groupedByColor).map(([color, vins]) => (
+                                <AnimatePresence>
+                                    {id !== "cave" ? (
                                         <div
-                                            key={color}
-                                            className={`rounded-lg p-6 shadow border lg:col-span-2 ${vinCouleurCard[color.toLowerCase()] || vinCouleurCard.default}`}
+                                            className="flex flex-col gap-10
+                                                lg:flex-row lg:flex-wrap lg:justify-center lg:items-start lg:gap-8"
                                         >
-                                            <h2 className="text-xl font-bold mb-4">{color}</h2>
-                                            {vins.map((vin, index) => (
-                                                <div key={index} className="mb-4 border-b border-gray-300 pb-3 last:border-b-0 last:pb-0">
-                                                    <p><strong>Type :</strong> {vin.type}</p>
-                                                    <p><strong>Région :</strong> {vin.region}</p>
-                                                    <p><strong>Temps de garde :</strong> {vin.tempsDeGarde}</p>
-                                                    <p><strong>Quantité :</strong> {vin.quantite} bouteille(s)</p>
-                                                </div>
+                                            {Object.entries(categories).map(([category, vins], i) => (
+                                                <motion.div
+                                                    key={category}
+                                                    className="flex-1 min-w-[280px] max-w-sm"
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: i * 0.15, duration: 0.5 }}
+                                                >
+                                                    <h2 className="text-xl sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-2">
+                                                        <FiStar className="text-emerald-500" />
+                                                        {category === "Le Top" ? " Le Choix Idéal" : category}
+                                                    </h2>
+
+                                                    <div className="space-y-4">
+                                                        {Array.isArray(vins) &&
+                                                            vins.map((vin, index) => {
+                                                                const region = vin.region || vin.région || "Non précisée";
+                                                                return (
+                                                                    <motion.div
+                                                                        key={index}
+                                                                        whileHover={{ scale: 1.02 }}
+                                                                        whileTap={{ scale: 0.98 }}
+                                                                        className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50
+                                                                            dark:from-gray-800 dark:to-gray-900
+                                                                            border border-emerald-200 dark:border-gray-700
+                                                                            shadow-lg hover:shadow-emerald-300/30 transition-all duration-300
+                                                                            backdrop-blur-md"
+                                                                    >
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <FiWine className="text-emerald-500" />
+                                                                            <p className="font-semibold text-gray-900 dark:text-gray-100">{vin.nom}</p>
+                                                                        </div>
+                                                                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                            <strong>Couleur :</strong> {vin.couleur}
+                                                                        </p>
+                                                                        {vin.appellation && (
+                                                                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Appellation :</strong> {vin.appellation}
+                                                                            </p>
+                                                                        )}
+                                                                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                            <strong>Région :</strong> {region}
+                                                                        </p>
+                                                                        {vin.prix && (
+                                                                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Prix :</strong> {formatPrice(vin.prix)}
+                                                                            </p>
+                                                                        )}
+                                                                    </motion.div>
+                                                                );
+                                                            })}
+                                                    </div>
+                                                </motion.div>
                                             ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )
+                                    ) : (
+                                        <motion.div
+                                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.5 }}
+                                        >
+                                            {Object.entries(groupedByColor).map(([color, vins], i) => (
+                                                <motion.div
+                                                    key={color}
+                                                    initial={{ opacity: 0, y: 30 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className={`p-6 rounded-2xl shadow-lg backdrop-blur-md border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ${vinCouleurCard[color.toLowerCase()] || "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900"
+                                                        }`}
+                                                >
+                                                    <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                                        {color}
+                                                    </h2>
+                                                    {vins.map((vin, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-none last:pb-0"
+                                                        >
+                                                            <p className="text-sm text-gray-800 dark:text-gray-200"><strong>Type :</strong> {vin.type}</p>
+                                                            <p className="text-sm text-gray-800 dark:text-gray-200"><strong>Région :</strong> {vin.region}</p>
+                                                            <p className="text-sm text-gray-800 dark:text-gray-200"><strong>Garde :</strong> {vin.tempsDeGarde}</p>
+                                                            <p className="text-sm text-gray-800 dark:text-gray-200"><strong>Quantité :</strong> {vin.quantite} bouteille(s)</p>
+                                                        </div>
+                                                    ))}
+                                                </motion.div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         );
                     })()}
 
@@ -1436,54 +1612,87 @@ const SommelierForm = () => {
                     {vinResult && !isAnalyzing && vinResult?.vraiPlat !== false && (() => {
                         const groupedByPlat = vinResultNormalize(vinResult);
                         return (
-                            <div className="mt-8">
-                                <h1 className='text-2xl sm:text-xl italic mb-6'>Notre IA vous suggère :</h1>
-                                <div className="space-y-6">
-                                    {Object.entries(groupedByPlat).map(([plat, vins]) => (
-                                        <div key={plat} className="mb-8">
-                                            {vins.map((vin, index) => (
-                                                <div key={index} className="grid grid-cols-6 mb-4">
-                                                    {vin.plat && (
-                                                        <div className="text-center border-2 border-green-600 col-span-2 rounded shadow-lg bg-green-300 flex justify-center items-center text-med mr-5">
-                                                            <p><strong>Plat:</strong> {vin.plat}</p>
-                                                        </div>
-                                                    )}
-                                                    <div className="border-2 border-green-500 p-2 bg-green-100 rounded shadow-lg col-span-4">
-                                                        <p><strong>Nom :</strong> {vin.nom}</p>
-                                                        <p><strong>Couleur :</strong> {vin.couleur}</p>
-                                                        <p><strong>Appellation :</strong> {vin.appellation}</p>
-                                                        <p><strong>Région :</strong> {vin.region}</p>
+                            <div className="mt-10">
+                                <motion.h1
+                                    className="text-3xl sm:text-2xl italic font-semibold text-center text-emerald-700 dark:text-emerald-400 mb-10"
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                >
+                                    🤖 Notre IA vous suggère :
+                                </motion.h1>
+
+                                <div className="space-y-10">
+                                    {Object.entries(groupedByPlat).map(([plat, vins], i) => (
+                                        <motion.div
+                                            key={plat}
+                                            className="rounded-2xl p-6 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-800 dark:to-gray-900 shadow-lg border border-emerald-200 dark:border-gray-700"
+                                            initial={{ opacity: 0, y: 25 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.15 }}
+                                        >
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                                <FiWine className="text-emerald-600" />
+                                                {plat}
+                                            </h2>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                                {vins.map((vin, index) => (
+                                                    <motion.div
+                                                        key={index}
+                                                        whileHover={{ scale: 1.03 }}
+                                                        className="rounded-xl border border-emerald-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 p-4 shadow-md hover:shadow-emerald-400/20 transition-all duration-300"
+                                                    >
+                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                            <strong>Nom :</strong> {vin.nom}
+                                                        </p>
+                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                            <strong>Couleur :</strong> {vin.couleur}
+                                                        </p>
+                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                            <strong>Appellation :</strong> {vin.appellation}
+                                                        </p>
+                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                            <strong>Région :</strong> {vin.region}
+                                                        </p>
                                                         {vin.prix && (
-                                                            <p><strong>Prix :</strong> {formatPrice(vin.prix)}</p>
+                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                <strong>Prix :</strong> {formatPrice(vin.prix)}
+                                                            </p>
                                                         )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
+                                        </motion.div>
                                     ))}
                                 </div>
 
-                                <div className="flex justify-center">
-                                    <button
-                                        className="mt-6 px-4 py-2 bg-emerald-600 text-white font-medium rounded-md shadow hover:bg-emerald-700 transition-all duration-200 border border-emerald-700"
+                                <motion.div
+                                    className="flex justify-center mt-12"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.5 }}
+                                >
+                                    <motion.button
                                         onClick={restartHandler}
+                                        whileHover={{ scale: 1.08, rotate: 2 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-semibold shadow-lg hover:shadow-emerald-300/40 transition-all duration-300"
                                     >
+                                        <FiRefreshCcw size={18} />
                                         Recommencer
-                                    </button>
-                                </div>
+                                    </motion.button>
+                                </motion.div>
                             </div>
                         );
                     })()}
-
                 </div>
-
 
                 {/*Afficher Toast*/}
                 <Toast ref={toast} position="bottom-right" />
 
             </div>
         </div>
-
 
     )
 

@@ -140,7 +140,7 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
                     </div>
 
                     {/* Image + prix (droite) */}
-                    <div className="relative flex flex-col items-end gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative flex flex-col items-end gap-2 flex-shrink-0">
                         <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
                             <img
                                 src={imgSrc}

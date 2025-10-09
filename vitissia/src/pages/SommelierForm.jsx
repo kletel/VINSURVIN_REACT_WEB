@@ -111,6 +111,11 @@ const SommelierForm = () => {
                 jsonAtraite?.vraiPlat === false ||
                 (jsonAtraite?.conseil && jsonAtraite.conseil.vraiPlat === false)
             ) {
+                if (typeCase === "conseilVin" || typeCase === "conseilCave") {
+                    setConseilResult(jsonAtraite);
+                } else if (typeCase === "conseilPlat") {
+                    setVinResult(jsonAtraite);
+                }
                 return;
             }
             toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Analyse réussie', life: 3000 });
@@ -125,7 +130,6 @@ const SommelierForm = () => {
             setIsAnalyzing(false);
             clearFile.current = false
             setCurrentStep(currentStep + 1)
-
         }
     };
 
@@ -298,6 +302,12 @@ const SommelierForm = () => {
     };
 
     useEffect(() => {
+        if (currentStep === 100) {
+            analyseResult(0, repas, "conseilVin");
+        }
+    }, [adaptePlat]);
+
+    useEffect(() => {
         const platInvalide =
             conseilResult?.vraiPlat === false || vinResult?.vraiPlat === false;
 
@@ -434,8 +444,11 @@ const SommelierForm = () => {
     }
 
     const lastStepHandler = () => {
-        setCurrentStep(currentStep - 1)
-    }
+        setVinResult(null);
+        setConseilResult(null);
+        setCurrentStep((prev) => prev - 1);
+    };
+
 
     /* function getContenances(data) {
          const contenancesSet = new Set();
@@ -562,6 +575,7 @@ const SommelierForm = () => {
             setFilters((prev) => ({ ...prev, [type]: "" }));
         };
 
+        console.log("🔢 Étape actuelle :", currentStep);
         switch (id) {
             case 'restaurant':
                 return (
@@ -794,7 +808,7 @@ const SommelierForm = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4 }}
                                 >
-                                    🍽️ Saisissez vos plats
+                                    Saisissez vos plats
                                 </motion.h3>
 
                                 <AnimatePresence>
@@ -856,8 +870,8 @@ const SommelierForm = () => {
                                         whileHover={isRepasValid ? { scale: 1.05 } : {}}
                                         whileTap={isRepasValid ? { scale: 0.95 } : {}}
                                         className={`flex items-center gap-2 px-5 py-2 font-semibold rounded-lg shadow-md transition-all duration-300 ${isRepasValid
-                                                ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
-                                                : "bg-gray-400 cursor-not-allowed text-white"
+                                            ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
+                                            : "bg-gray-400 cursor-not-allowed text-white"
                                             }`}
                                         onClick={() => {
                                             setCurrentStep(100);
@@ -984,7 +998,6 @@ const SommelierForm = () => {
                                         onClick={() => {
                                             setAdaptePlat(false);
                                             setCurrentStep(100);
-                                            analyseResult(0, repas, "conseilVin");
                                         }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
@@ -1014,7 +1027,7 @@ const SommelierForm = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.4 }}
                                 >
-                                    🍽️ Vos plats à associer
+                                    Vos plats à associer
                                 </motion.h3>
 
                                 <AnimatePresence>
@@ -1076,8 +1089,8 @@ const SommelierForm = () => {
                                         whileHover={isRepasValid ? { scale: 1.05 } : {}}
                                         whileTap={isRepasValid ? { scale: 0.95 } : {}}
                                         className={`flex items-center gap-2 px-5 py-2 font-semibold rounded-lg shadow-md transition-all duration-300 ${isRepasValid
-                                                ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
-                                                : "bg-gray-400 cursor-not-allowed text-white"
+                                            ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg hover:from-emerald-500 hover:to-teal-400"
+                                            : "bg-gray-400 cursor-not-allowed text-white"
                                             }`}
                                         onClick={() => {
                                             setCurrentStep(100);
@@ -1105,7 +1118,7 @@ const SommelierForm = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.4 }}
                             >
-                                🍽️ Votre choix des plats
+                                Votre choix des plats
                             </motion.h3>
 
                             <AnimatePresence>
@@ -1161,7 +1174,7 @@ const SommelierForm = () => {
                                 transition={{ duration: 0.5 }}
                             >
                                 <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
-                                    🍷 Sélection du vin :
+                                    Sélection du vin :
                                 </h4>
 
                                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
@@ -1202,7 +1215,7 @@ const SommelierForm = () => {
                                         className="mt-6"
                                     >
                                         <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-                                            💰 Budget Maximum
+                                            Budget Maximum
                                         </h3>
 
                                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1422,7 +1435,6 @@ const SommelierForm = () => {
         return {};
     };
 
-
     const vinResultNormalize = (vinResults) => {
         if (!vinResults || !Array.isArray(vinResults.conseil)) {
             return {};
@@ -1474,6 +1486,24 @@ const SommelierForm = () => {
                         : <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gabriel sélectionne les meillures vins pour vous. </h1>}
                 </div>
             </div>
+            <div className="max-w-4xl mx-auto mt-4 flex justify-start">
+                <motion.button
+                    onClick={() => {
+                        if (currentStep === 1) {
+                            navigate('/sommelier');
+                        } else {
+                            lastStepHandler();
+                        }
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-100 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 shadow-sm"
+                >
+                    <i className="pi pi-arrow-left text-gray-600"></i>
+                    {currentStep === 1 ? 'Retour au menu' : 'Étape précédente'}
+                </motion.button>
+            </div>
+
             <div className='bg-white rounded-2xl border mt-8 px-4 sm:px-10 w-full max-w-sm sm:max-w-4xl mx-auto'>
                 <div className="relative flex flex-col bg-white dark:bg-gray-800 px-6 pb-6 transition-all duration-500">
 
@@ -1505,7 +1535,7 @@ const SommelierForm = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.5 }}
                                 >
-                                    🍷 Gabriel vous recommande :
+                                    Gabriel vous recommande :
                                 </motion.h1>
 
                                 <AnimatePresence>
@@ -1558,10 +1588,18 @@ const SommelierForm = () => {
                                                                             <strong>Région :</strong> {region}
                                                                         </p>
                                                                         {vin.prix && (
-                                                                            <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                                                <strong>Prix :</strong> {formatPrice(vin.prix)}
-                                                                            </p>
+                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Prix :</strong>{" "}
+                                                                                {Array.isArray(vin.prix)
+                                                                                    ? vin.prix.map((p, i) => (
+                                                                                        <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                                                                                            {p.contenance} — {p.prix}
+                                                                                        </span>
+                                                                                    ))
+                                                                                    : formatPrice(vin.prix)}
+                                                                            </div>
                                                                         )}
+
                                                                     </motion.div>
                                                                 );
                                                             })}
@@ -1619,7 +1657,7 @@ const SommelierForm = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.5 }}
                                 >
-                                    🤖 Notre IA vous suggère :
+                                    Notre IA vous suggère :
                                 </motion.h1>
 
                                 <div className="space-y-10">
@@ -1632,41 +1670,118 @@ const SommelierForm = () => {
                                             transition={{ delay: i * 0.15 }}
                                         >
                                             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                                <FiWine className="text-emerald-600" />
-                                                {plat}
+                                                Votre plat : {plat}
                                             </h2>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                                {vins.map((vin, index) => (
-                                                    <motion.div
-                                                        key={index}
-                                                        whileHover={{ scale: 1.03 }}
-                                                        className="rounded-xl border border-emerald-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 p-4 shadow-md hover:shadow-emerald-400/20 transition-all duration-300"
-                                                    >
-                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                            <strong>Nom :</strong> {vin.nom}
-                                                        </p>
-                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                            <strong>Couleur :</strong> {vin.couleur}
-                                                        </p>
-                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                            <strong>Appellation :</strong> {vin.appellation}
-                                                        </p>
-                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                            <strong>Région :</strong> {vin.region}
-                                                        </p>
-                                                        {vin.prix && (
-                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                                <strong>Prix :</strong> {formatPrice(vin.prix)}
-                                                            </p>
-                                                        )}
-                                                    </motion.div>
-                                                ))}
+                                                {vins.map((vin, index) => {
+                                                    const hasCaveData = vin.UUID_ && vin.base64_132etiquette && vin.Etagere;
+                                                    const imgSrc = vin.base64_132etiquette
+                                                        ? `data:image/jpeg;base64,${vin.base64_132etiquette}`
+                                                        : '/images/default-avatar.jpg';
+
+                                                    return (
+                                                        <motion.div
+                                                            key={index}
+                                                            whileHover={{ scale: 1.03 }}
+                                                            onClick={() => hasCaveData && navigate(`/vin/${vin.UUID_}`)}
+                                                            className="rounded-xl border border-emerald-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 p-4 shadow-md hover:shadow-emerald-400/20 transition-all duration-300 flex flex-col gap-3"
+                                                        >
+                                                            {!hasCaveData && (
+                                                                <div className="mb-2 text-center">
+                                                                    <span className="text-emerald-700 dark:text-emerald-400 font-semibold italic">
+                                                                        Notre IA vous propose d’acheter :
+                                                                    </span>
+                                                                </div>
+                                                            )}
+
+                                                            {hasCaveData && (
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="flex-shrink-0">
+                                                                        <img
+                                                                            src={imgSrc}
+                                                                            alt={vin.nom || 'Vin'}
+                                                                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm"
+                                                                            loading="lazy"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Nom :</strong> {vin.nom}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Couleur :</strong> {vin.couleur}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Appellation :</strong> {vin.appellation}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Région :</strong> {vin.region}
+                                                                        </p>
+
+                                                                        {vin.prix && (
+                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Prix :</strong>{' '}
+                                                                                {Array.isArray(vin.prix)
+                                                                                    ? vin.prix.map((p, i) => (
+                                                                                        <span
+                                                                                            key={i}
+                                                                                            className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-2"
+                                                                                        >
+                                                                                            {p.contenance} — {p.prix}
+                                                                                        </span>
+                                                                                    ))
+                                                                                    : formatPrice(vin.prix)}
+                                                                            </div>
+                                                                        )}
+
+                                                                        {vin.Etagere && (
+                                                                            <p className="text-sm text-gray-800 dark:text-gray-100 mt-1">
+                                                                                <strong>Lieu de stockage :</strong> {vin.Etagere}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {!hasCaveData && (
+                                                                <div className="mt-2">
+                                                                    <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                        <strong>Nom :</strong> {vin.nom}
+                                                                    </p>
+                                                                    <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                        <strong>Couleur :</strong> {vin.couleur}
+                                                                    </p>
+                                                                    <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                        <strong>Appellation :</strong> {vin.appellation}
+                                                                    </p>
+                                                                    <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                        <strong>Région :</strong> {vin.region}
+                                                                    </p>
+                                                                    {vin.prix && (
+                                                                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                            <strong>Prix :</strong>{' '}
+                                                                            {Array.isArray(vin.prix)
+                                                                                ? vin.prix.map((p, i) => (
+                                                                                    <span
+                                                                                        key={i}
+                                                                                        className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-2"
+                                                                                    >
+                                                                                        {p.contenance} — {p.prix}
+                                                                                    </span>
+                                                                                ))
+                                                                                : formatPrice(vin.prix)}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </motion.div>
+                                                    );
+                                                })}
+
                                             </div>
                                         </motion.div>
                                     ))}
                                 </div>
-
                                 <motion.div
                                     className="flex justify-center mt-12"
                                     initial={{ opacity: 0 }}

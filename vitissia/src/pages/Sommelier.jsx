@@ -77,12 +77,11 @@ const Sommelier = () => {
        
     ];
 
-
     return (
         <div className='mt-4'>
             <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6 flex justify-center items-center">
                 <div className='flex-col items-center text-center'>
-                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Trouver un vin pour vous</h1>
+                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Gabirel, Mon Sommelier-Conseil</h1>
                     <p className="mt-1 text-sm md:text-base text-gray-600 dark:text-gray-300">Gabriel vous donne des conseils</p>
                 </div>
             </div>

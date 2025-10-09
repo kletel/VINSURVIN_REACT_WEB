@@ -265,11 +265,11 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     };
 
     const formatRegionName = useCallback((region) => {
-    if (region === "Provence-Alpes-Côte d'Azur") {
-        return "PACA";
-    }
-    return region;
-}, []);
+        if (region === "Provence-Alpes-Côte d'Azur") {
+            return "PACA";
+        }
+        return region;
+    }, []);
 
     const exportCSV = () => dt.current.exportCSV();
     const ajouterVin = () => navigate('/creation-vin');
@@ -288,35 +288,35 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     // Filtrer les données visibles en temps réel pour mobile et desktop
 
     const normalizeString = (str) =>
-    str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-const filteredVisibleData = useMemo(() => {
-    let data = caves; 
+    const filteredVisibleData = useMemo(() => {
+        let data = caves;
 
-    if (globalFilter) {
-        const filterValue = normalizeString(globalFilter);
+        if (globalFilter) {
+            const filterValue = normalizeString(globalFilter);
 
-        data = data.filter(vin =>
-            normalizeString(vin.Nom).includes(filterValue) ||
-            normalizeString(vin.Pays).includes(filterValue) ||
-            normalizeString(vin.Région).includes(filterValue) ||
-            normalizeString(vin.Type).includes(filterValue) ||
-            normalizeString(vin.Cave).includes(filterValue) ||
-            normalizeString(vin.Appellation).includes(filterValue) ||
-            vin.Valeur?.toString().includes(filterValue)
-        );
-    }
+            data = data.filter(vin =>
+                normalizeString(vin.Nom).includes(filterValue) ||
+                normalizeString(vin.Pays).includes(filterValue) ||
+                normalizeString(vin.Région).includes(filterValue) ||
+                normalizeString(vin.Type).includes(filterValue) ||
+                normalizeString(vin.Cave).includes(filterValue) ||
+                normalizeString(vin.Appellation).includes(filterValue) ||
+                vin.Valeur?.toString().includes(filterValue)
+            );
+        }
 
-    if (showEnCaveOnly) {
-        data = data.filter(v => (v.Reste_en_Cave || 0) > 0);
-    }
+        if (showEnCaveOnly) {
+            data = data.filter(v => (v.Reste_en_Cave || 0) > 0);
+        }
 
-    if (showFavoritesOnly) {
-        data = data.filter(v => !!v.Coup_de_Coeur);
-    }
+        if (showFavoritesOnly) {
+            data = data.filter(v => !!v.Coup_de_Coeur);
+        }
 
-    return data;
-}, [caves, globalFilter, showEnCaveOnly, showFavoritesOnly]);
+        return data;
+    }, [caves, globalFilter, showEnCaveOnly, showFavoritesOnly]);
 
 
     // Fonction pour générer les étoiles selon la note
@@ -614,7 +614,7 @@ const filteredVisibleData = useMemo(() => {
         if (isMobile) {
             setVisibleData(filteredData.slice(0, 20));
         }
-    //}, [mobileFilters, listeCaves, isMobile]);
+        //}, [mobileFilters, listeCaves, isMobile]);
     }, [listeCaves, mobileFilters, sortField, sortOrder, isMobile]);
 
     useEffect(() => {
@@ -927,11 +927,10 @@ const filteredVisibleData = useMemo(() => {
                                                         ...prev,
                                                         note: prev.note === option.value ? null : option.value
                                                     }))}
-                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${
-                                                        mobileFilters.note === option.value
+                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${mobileFilters.note === option.value
                                                             ? 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-600 dark:text-yellow-300'
                                                             : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <span className="text-sm font-medium">{option.label}</span>
                                                     {mobileFilters.note === option.value && (
@@ -1037,15 +1036,13 @@ const filteredVisibleData = useMemo(() => {
                                         <button
                                             key={option.value}
                                             onClick={() => setSortField(option.value)}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
-                                                sortField === option.value
+                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${sortField === option.value
                                                     ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                            }`}
+                                                }`}
                                         >
-                                            <i className={`pi ${option.icon} text-lg ${
-                                                sortField === option.value ? 'text-purple-500' : 'text-gray-400'
-                                            }`}></i>
+                                            <i className={`pi ${option.icon} text-lg ${sortField === option.value ? 'text-purple-500' : 'text-gray-400'
+                                                }`}></i>
                                             <span className="font-medium">{option.label}</span>
                                             {sortField === option.value && (
                                                 <i className="pi pi-check text-purple-500 ml-auto"></i>
@@ -1063,22 +1060,20 @@ const filteredVisibleData = useMemo(() => {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setSortOrder(1)}
-                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${
-                                            sortOrder === 1
+                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === 1
                                                 ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
+                                            }`}
                                     >
                                         <i className="pi pi-sort-alpha-down text-lg"></i>
                                         <span className="font-medium">A → Z</span>
                                     </button>
                                     <button
                                         onClick={() => setSortOrder(-1)}
-                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${
-                                            sortOrder === -1
+                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === -1
                                                 ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
+                                            }`}
                                     >
                                         <i className="pi pi-sort-alpha-up text-lg"></i>
                                         <span className="font-medium">Z → A</span>
@@ -1185,7 +1180,7 @@ const filteredVisibleData = useMemo(() => {
                                 <button
                                     onClick={() => setShowEnCaveOnly(prev => !prev)}
                                     aria-pressed={showEnCaveOnly}
-                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition duration-300 focus:outline-none focus:ring-2 ${showEnCaveOnly 
+                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition duration-300 focus:outline-none focus:ring-2 ${showEnCaveOnly
                                         ? //'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' 
                                         'bg-gray-400 text-white focus:ring-2 focus:ring-stone-50'
                                         : 'bg-white dark:bg-gray-800 border border-amber-300 text-amber-600 hover:bg-amber-50'}`}

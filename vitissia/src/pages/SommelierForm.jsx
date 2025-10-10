@@ -1588,17 +1588,44 @@ const SommelierForm = () => {
                                                                             <strong>Région :</strong> {region}
                                                                         </p>
                                                                         {vin.prix && (
-                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
-                                                                                <strong>Prix :</strong>{" "}
-                                                                                {Array.isArray(vin.prix)
-                                                                                    ? vin.prix.map((p, i) => (
-                                                                                        <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
-                                                                                            {p.contenance} — {p.prix}
-                                                                                        </span>
-                                                                                    ))
-                                                                                    : formatPrice(vin.prix)}
-                                                                            </div>
-                                                                        )}
+  <div className="text-sm text-gray-700 dark:text-gray-300">
+    <strong>Prix :</strong>{" "}
+    {Array.isArray(vin.prix)
+      ? vin.prix.map((p, i) => {
+          // 🧩 Cas 1 : objet avec contenance et prix
+          if (typeof p === "object" && p !== null) {
+            return (
+              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                {p.contenance ? `${p.contenance} — ` : ""}
+                {p.prix ?? "Non précisé"}
+              </span>
+            );
+          }
+
+          // 🧩 Cas 2 : nombre simple (ex: [10])
+          if (typeof p === "number") {
+            return (
+              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                {p.toFixed(2)} €
+              </span>
+            );
+          }
+
+          // 🧩 Cas 3 : chaîne texte (ex: ["10€"])
+          if (typeof p === "string") {
+            return (
+              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                {p.includes("€") ? p : `${p} €`}
+              </span>
+            );
+          }
+
+          return null;
+        })
+      : formatPrice(vin.prix)}
+  </div>
+)}
+
 
                                                                     </motion.div>
                                                                 );

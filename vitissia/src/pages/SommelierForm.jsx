@@ -25,6 +25,8 @@ const SommelierForm = () => {
     const [UUIDTable, setUUIDTable] = useState('');
     const [repas, setRepas] = useState(['']);
     const [vinChoice, setVinChoice] = useState('cave');
+    const [aperitif, setAperitif] = useState(false);
+    const [digestif, setDigestif] = useState(false);
     const [budget, setBudget] = useState(0);
     const [bouteille, setBouteille] = useState(0);
     const [currentStep, setCurrentStep] = useState(1);
@@ -79,6 +81,8 @@ const SommelierForm = () => {
             formData.append("equilibre", equilibre);
             formData.append("dansrayon", dansRayon);
             formData.append("adaptePlat", adaptePlat);
+            formData.append("aperitif", aperitif);
+            formData.append("digestif", digestif);
 
 
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_conseilPlatIA`, {
@@ -175,6 +179,23 @@ const SommelierForm = () => {
                         shouldAnalyze.current = true;
                     };
                 } else {
+
+                    // Si le fichier est déjà assez petit, on ne le compresse pas
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => {
+
+                        const base64String = reader.result.split(",")[1];
+                        setImage((prevImg) => ({
+                            ...prevImg,
+                            image: base64String,
+                            typeData: typeData,
+                            typeCategorie: typeCategorie
+
+                        }));
+
+                        shouldAnalyze.current = true;
+/*
                     // Options de compression seulement si le fichier est trop volumineux
                     const options = {
                         maxSizeMB: 0.256,
@@ -195,6 +216,7 @@ const SommelierForm = () => {
 
                         }));
                         shouldAnalyze.current = true;
+                        */
                     };
                 }
             } catch (error) {
@@ -1112,6 +1134,43 @@ const SommelierForm = () => {
                 return (
                     <>
                         <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
+
+                            <motion.div
+                                className="mt-6 space-y-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
+                                    Apéritif :
+                                </h4>
+
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                                    {[
+                                        { label: "Oui", value: "true" },
+                                        { label: "Non, Merci", value: "false" }
+                                    ].map(({ label, value }) => (
+                                        <label
+                                            key={value}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${aperitif === value
+                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="aperitifOption"
+                                                value={value}
+                                                checked={aperitif === value}
+                                                onChange={(e) => setAperitif(e.target.value)}
+                                                className="hidden"
+                                            />
+                                            <span>{label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </motion.div>
+
                             <motion.h3
                                 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
                                 initial={{ opacity: 0, y: -10 }}
@@ -1174,13 +1233,49 @@ const SommelierForm = () => {
                                 transition={{ duration: 0.5 }}
                             >
                                 <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
+                                    Digestif :
+                                </h4>
+
+                                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                                    {[
+                                        { label: "Oui", value: "true" },
+                                        { label: "Non, Merci", value: "false" }
+                                    ].map(({ label, value }) => (
+                                        <label
+                                            key={value}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${digestif === value
+                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="aperitifOption"
+                                                value={value}
+                                                checked={digestif === value}
+                                                onChange={(e) => setDigestif(e.target.value)}
+                                                className="hidden"
+                                            />
+                                            <span>{label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </motion.div>
+
+                            <motion.div
+                                className="mt-6 space-y-3"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
+                                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
                                     Sélection du vin :
                                 </h4>
 
                                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                                     {[
                                         { label: "Prendre dans la cave", value: "cave" },
-                                        { label: "Acheter un nouveau vin", value: "acheter" },
+                                        { label: "Accord mets-vin", value: "acheter" },
                                         { label: "Mixer les deux options", value: "mix" },
                                     ].map(({ label, value }) => (
                                         <label
@@ -1399,6 +1494,8 @@ const SommelierForm = () => {
         setManual(false)
         setAdaptePlat(true)
         setEquilibre('')
+        setAperitif(false)
+        setDigestif(false)
     }
 
     //Normaliser le format de réponse
@@ -1435,26 +1532,83 @@ const SommelierForm = () => {
         return {};
     };
 
-    const vinResultNormalize = (vinResults) => {
-        if (!vinResults || !Array.isArray(vinResults.conseil)) {
-            return {};
-        }
-
-        return vinResults.conseil.reduce((acc, vin) => {
-            const plat = vin.plat || "Autre";
-
-            if (!acc[plat]) {
-                acc[plat] = [];
+    /*    const vinResultNormalize = (vinResults) => {
+            if (!vinResults || !Array.isArray(vinResults.conseil)) {
+                return {};
             }
+    
+            return vinResults.conseil.reduce((acc, vin) => {
+                const plat = vin.plat || vin.nomvin||"Autre";
+    
+                if (!acc[plat]) {
+                    acc[plat] = [];
+                }
+    
+                acc[plat].push({
+                    ...vin,
+                    region: vin.region || vin.région || "Non précisée"
+                });
+    
+                return acc;
+            }, {});
+        };*/
 
-            acc[plat].push({
+const vinResultNormalize = (vinResults) => {
+    if (!vinResults || !Array.isArray(vinResults.conseil)) {
+        return {};
+    }
+
+    const grouped = {
+        Aperitif: [],
+        Digestif: []
+    };
+
+    vinResults.conseil.forEach(item => {
+        // Handle vinaperitif if present
+        if (item.vinaperitif) {
+            const vin = typeof item.vinaperitif === 'object'
+                ? item.vinaperitif
+                : { nomvin: item.vinaperitif, ...item };
+
+            grouped.Aperitif.push({
                 ...vin,
                 region: vin.region || vin.région || "Non précisée"
             });
+        }
 
-            return acc;
-        }, {});
-    };
+        // Handle vindigestif if present
+        if (item.vindigestif) {
+            const vin = typeof item.vindigestif === 'object'
+                ? item.vindigestif
+                : { nomvin: item.vindigestif, ...item };
+
+            grouped.Digestif.push({
+                ...vin,
+                region: vin.region || vin.région || "Non précisée"
+            });
+        }
+
+        // Handle plat if present
+        if (item.plat) {
+            const platData = typeof item.plat === 'object' ? item.plat : item;
+            const platName = platData.plat || platData.nomvin || "Autre";
+
+            if (!grouped[platName]) {
+                grouped[platName] = [];
+            }
+
+            grouped[platName].push({
+                ...platData,
+                region: platData.region || platData.région || "Non précisée"
+            });
+        }
+    });
+
+    return grouped;
+};
+
+
+
 
     const vinCouleurCard = {
         rouge: 'bg-red-100 border-red-500 text-red-800',
@@ -1483,7 +1637,7 @@ const SommelierForm = () => {
             <div className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6">
                 <div className="max-w-6xl mx-auto">
                     {id != 'plat' ? <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gabriel vous donne les meilleurs choix. </h1>
-                        : <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gabriel sélectionne les meillures vins pour vous. </h1>}
+                        : <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gabriel sélectionne les meilleurs vins pour vous. </h1>}
                 </div>
             </div>
             <div className="max-w-4xl mx-auto mt-4 flex justify-start">
@@ -1588,43 +1742,43 @@ const SommelierForm = () => {
                                                                             <strong>Région :</strong> {region}
                                                                         </p>
                                                                         {vin.prix && (
-  <div className="text-sm text-gray-700 dark:text-gray-300">
-    <strong>Prix :</strong>{" "}
-    {Array.isArray(vin.prix)
-      ? vin.prix.map((p, i) => {
-          // 🧩 Cas 1 : objet avec contenance et prix
-          if (typeof p === "object" && p !== null) {
-            return (
-              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
-                {p.contenance ? `${p.contenance} — ` : ""}
-                {p.prix ?? "Non précisé"}
-              </span>
-            );
-          }
+                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Prix :</strong>{" "}
+                                                                                {Array.isArray(vin.prix)
+                                                                                    ? vin.prix.map((p, i) => {
+                                                                                        // 🧩 Cas 1 : objet avec contenance et prix
+                                                                                        if (typeof p === "object" && p !== null) {
+                                                                                            return (
+                                                                                                <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                                                                                                    {p.contenance ? `${p.contenance} — ` : ""}
+                                                                                                    {p.prix ?? "Non précisé"}
+                                                                                                </span>
+                                                                                            );
+                                                                                        }
 
-          // 🧩 Cas 2 : nombre simple (ex: [10])
-          if (typeof p === "number") {
-            return (
-              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
-                {p.toFixed(2)} €
-              </span>
-            );
-          }
+                                                                                        // 🧩 Cas 2 : nombre simple (ex: [10])
+                                                                                        if (typeof p === "number") {
+                                                                                            return (
+                                                                                                <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                                                                                                    {p.toFixed(2)} €
+                                                                                                </span>
+                                                                                            );
+                                                                                        }
 
-          // 🧩 Cas 3 : chaîne texte (ex: ["10€"])
-          if (typeof p === "string") {
-            return (
-              <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
-                {p.includes("€") ? p : `${p} €`}
-              </span>
-            );
-          }
+                                                                                        // 🧩 Cas 3 : chaîne texte (ex: ["10€"])
+                                                                                        if (typeof p === "string") {
+                                                                                            return (
+                                                                                                <span key={i} className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                                                                                                    {p.includes("€") ? p : `${p} €`}
+                                                                                                </span>
+                                                                                            );
+                                                                                        }
 
-          return null;
-        })
-      : formatPrice(vin.prix)}
-  </div>
-)}
+                                                                                        return null;
+                                                                                    })
+                                                                                    : formatPrice(vin.prix)}
+                                                                            </div>
+                                                                        )}
 
 
                                                                     </motion.div>
@@ -1688,7 +1842,7 @@ const SommelierForm = () => {
                                 </motion.h1>
 
                                 <div className="space-y-10">
-                                    {Object.entries(groupedByPlat).map(([plat, vins], i) => (
+                                    {/* {Object.entries(groupedByPlat).map(([plat, vins], i) => (
                                         <motion.div
                                             key={plat}
                                             className="rounded-2xl p-6 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-800 dark:to-gray-900 shadow-lg border border-emerald-200 dark:border-gray-700"
@@ -1727,14 +1881,14 @@ const SommelierForm = () => {
                                                                     <div className="flex-shrink-0">
                                                                         <img
                                                                             src={imgSrc}
-                                                                            alt={vin.nom || 'Vin'}
+                                                                            alt={vin.nomvin || 'Vin'}
                                                                             className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm"
                                                                             loading="lazy"
                                                                         />
                                                                     </div>
                                                                     <div className="flex-1">
                                                                         <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                                            <strong>Nom :</strong> {vin.nom}
+                                                                            <strong>Nom :</strong> {vin.nomvin}
                                                                         </p>
                                                                         <p className="text-sm text-gray-800 dark:text-gray-100">
                                                                             <strong>Couleur :</strong> {vin.couleur}
@@ -1773,7 +1927,7 @@ const SommelierForm = () => {
                                                             {!hasCaveData && (
                                                                 <div className="mt-2">
                                                                     <p className="text-sm text-gray-800 dark:text-gray-100">
-                                                                        <strong>Nom :</strong> {vin.nom}
+                                                                        <strong>Nom :</strong> {vin.nomvin}
                                                                     </p>
                                                                     <p className="text-sm text-gray-800 dark:text-gray-100">
                                                                         <strong>Couleur :</strong> {vin.couleur}
@@ -1807,8 +1961,142 @@ const SommelierForm = () => {
 
                                             </div>
                                         </motion.div>
-                                    ))}
+                                    ))}*/}
                                 </div>
+                                {["Aperitif", ...Object.keys(groupedByPlat).filter(k => k !== "Aperitif" && k !== "Digestif"), "Digestif"]
+                                    .filter(key => groupedByPlat[key]?.length > 0) // ✅ Only render non-empty groups
+                                    .map((plat, i) => {
+                                        const vins = groupedByPlat[plat];
+
+                                        const sectionTitle =
+                                            plat === "Aperitif"
+                                                ? "En apéritif"
+                                                : plat === "Digestif"
+                                                    ? "En digestif"
+                                                    : `Votre plat : ${plat.charAt(0).toUpperCase() + plat.slice(1)}`;
+
+                                        return (
+                                            <motion.div
+                                                key={plat}
+                                                className="rounded-2xl p-6 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-800 dark:to-gray-900 shadow-lg border border-emerald-200 dark:border-gray-700"
+                                                initial={{ opacity: 0, y: 25 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: i * 0.15 }}
+                                            >
+                                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                                    {sectionTitle}
+                                                </h2>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                                    {vins.map((vin, index) => {
+                                                        const hasCaveData = vin.UUID_ && vin.base64_132etiquette && vin.Etagere;
+                                                        const imgSrc = vin.base64_132etiquette
+                                                            ? `data:image/jpeg;base64,${vin.base64_132etiquette}`
+                                                            : '/images/default-avatar.jpg';
+
+                                                        return (
+                                                            <motion.div
+                                                                key={index}
+                                                                whileHover={{ scale: 1.03 }}
+                                                                onClick={() => hasCaveData && navigate(`/vin/${vin.UUID_}`)}
+                                                                className="rounded-xl border border-emerald-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 p-4 shadow-md hover:shadow-emerald-400/20 transition-all duration-300 flex flex-col gap-3"
+                                                            >
+                                                                {!hasCaveData && (
+                                                                    <div className="mb-2 text-center">
+                                                                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold italic">
+                                                                            Notre IA vous propose d’acheter :
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+
+                                                                {hasCaveData && (
+                                                                    <div className="flex items-start gap-3">
+                                                                        <div className="flex-shrink-0">
+                                                                            <img
+                                                                                src={imgSrc}
+                                                                                alt={vin.nomvin || 'Vin'}
+                                                                                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm"
+                                                                                loading="lazy"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                                <strong>Nom :</strong> {vin.nomvin || vin.nom || vin.Nom}
+                                                                            </p>
+                                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                                <strong>Couleur :</strong> {vin.couleur||vin.Couleur}
+                                                                            </p>
+                                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                                <strong>Appellation :</strong> {vin.appellation || vin.Appellation}
+                                                                            </p>
+                                                                            <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                                <strong>Région :</strong> {vin.region||vin.Region||vin.région||vin.Région}
+                                                                            </p>
+
+                                                                            {vin.prix && (
+                                                                                <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                    <strong>Prix :</strong>{' '}
+                                                                                    {Array.isArray(vin.prix)
+                                                                                        ? vin.prix.map((p, i) => (
+                                                                                            <span
+                                                                                                key={i}
+                                                                                                className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-2"
+                                                                                            >
+                                                                                                {p.contenance} — {p.prix}
+                                                                                            </span>
+                                                                                        ))
+                                                                                        : formatPrice(vin.prix)}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {vin.Etagere && (
+                                                                                <p className="text-sm text-gray-800 dark:text-gray-100 mt-1">
+                                                                                    <strong>Lieu de stockage :</strong> {vin.Etagere}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {!hasCaveData && (
+                                                                    <div className="mt-2">
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Nom :</strong> {vin.nomvin ||vin.nom||vin.Nom}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Couleur :</strong> {vin.couleur||vin.Couleur}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Appellation :</strong> {vin.appellation||vin.Appellation}
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-800 dark:text-gray-100">
+                                                                            <strong>Région :</strong> {vin.region||vin.Region||vin.région||vin.Région}
+                                                                        </p>
+                                                                        {vin.prix && (
+                                                                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <strong>Prix :</strong>{' '}
+                                                                                {Array.isArray(vin.prix)
+                                                                                    ? vin.prix.map((p, i) => (
+                                                                                        <span
+                                                                                            key={i}
+                                                                                            className="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-2"
+                                                                                        >
+                                                                                            {p.contenance} — {p.prix}
+                                                                                        </span>
+                                                                                    ))
+                                                                                    : formatPrice(vin.prix)}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </motion.div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+
                                 <motion.div
                                     className="flex justify-center mt-12"
                                     initial={{ opacity: 0 }}

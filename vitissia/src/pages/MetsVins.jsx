@@ -558,23 +558,21 @@ const StepContent = ({ title, items, onSelect, icon, color, bgColor, borderColor
     return (
         <div className="p-6">
             <div
-  className={`flex flex-col sm:flex-row sm:items-center gap-3 mb-6 p-4 ${bgColor} ${borderColor} border rounded-lg relative overflow-hidden`}
->
-  <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent dark:via-white/10 opacity-0 animate-pulse-slow"></div>
+                className={`flex flex-col sm:flex-row sm:items-center gap-3 mb-6 p-4 ${bgColor} ${borderColor} border rounded-lg relative overflow-hidden`}
+            >
+                <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent dark:via-white/10 opacity-0 animate-pulse-slow"></div>
 
-  {/* Ligne principale : icône + titre */}
-  <div className="flex items-center gap-3">
-    <i className={`pi ${icon} text-2xl ${color}`}></i>
-    <h2 className={`text-2xl font-bold ${color}`}>{title}</h2>
-  </div>
+                <div className="flex items-center gap-3">
+                    <i className={`pi ${icon} text-2xl ${color}`}></i>
+                    <h2 className={`text-2xl font-bold ${color}`}>{title}</h2>
+                </div>
 
-  {/* Badge nombre d’éléments */}
-  <div className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-2">
-    <span className="text-xs bg-white dark:bg-gray-800 shadow-sm text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full border border-gray-200 dark:border-gray-600">
-      {items.length} élément(s)
-    </span>
-  </div>
-</div>
+                <div className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-2">
+                    <span className="text-xs bg-white dark:bg-gray-800 shadow-sm text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full border border-gray-200 dark:border-gray-600">
+                        {items.length} élément(s)
+                    </span>
+                </div>
+            </div>
 
             {items.length === 0 ? (
                 <div className="text-center py-16">

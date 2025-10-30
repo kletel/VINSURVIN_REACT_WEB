@@ -45,6 +45,7 @@ const SommelierForm = () => {
     const [showOldResult, setShowOldResult] = useState(false);
     const [rayonMode, setRayonMode] = useState(null);
     const [rayonProfil, setRayonProfil] = useState(null);
+    const [hasRunFinalAnalyse, setHasRunFinalAnalyse] = useState(false);
     const [filters, setFilters] = useState({
         contenance: "",
         couleur: "",
@@ -93,11 +94,19 @@ const SommelierForm = () => {
 
     const analyseResult = async (retryCount = 0, vinsfiltre = vinsFiltre, platsChoisi = selectedPlats, typeCase = 'conseilVin') => {
         try {
+            const vinsPropres = (vinsfiltre || []).filter((v) => {
+                return v?.couleur || v?.appellation || (Array.isArray(v?.format) && v.format.length);
+            });
             const string = JSON.stringify(vinsFiltre)
             setIsAnalyzing(true);
             const formData = new FormData();
 
-            formData.append("platsChoisi", platsChoisi);
+            const platsString = Array.isArray(platsChoisi)
+                ? platsChoisi.map(p => (typeof p === "string" ? p.trim() : "")).filter(Boolean).join(", ")
+                : (platsChoisi ?? "");
+
+            formData.append("platsChoisi", platsString);
+
             formData.append("uuidUser", UUIDuser);
             formData.append("uuidTable", UUIDTable);
             formData.append("budget", budget);
@@ -424,12 +433,13 @@ const SommelierForm = () => {
         setSimMatches(null);
     }, [vinResult, conseilResult]);
 
-
     useEffect(() => {
-        if (currentStep === 100) {
+        if (currentStep === 100 && !hasRunFinalAnalyse) {
+            setHasRunFinalAnalyse(true);
             analyseResult(0, vinsFiltre, repas, "conseilVin");
         }
-    }, [currentStep]);
+    }, [currentStep, hasRunFinalAnalyse]);
+
 
     useEffect(() => {
         const platInvalide =
@@ -579,7 +589,12 @@ const SommelierForm = () => {
         return grouped;
     }
 
-    const allWines = resultAnalyseSommelier?.result?.result || [];
+    const isWine = (item) =>
+        item?.couleur ||
+        item?.appellation ||
+        (Array.isArray(item?.format) && item.format.length);
+
+    const allWines = (resultAnalyseSommelier?.result?.result || []).filter(isWine);
 
     useEffect(() => {
         const filtered = allWines
@@ -671,194 +686,15 @@ const SommelierForm = () => {
             case 'restaurant':
                 return (
                     <>
+                        {/* === 1. ON DEMANDE D'ABORD LE PLAT (photo ou saisie) === */}
                         {currentStep == 1 &&
-                            <>
-                                <FileUploadField
-                                    label={"La carte des vins:"}
-                                    onSelect={(e) => imageBase64Uploader(e, 'carte', 'vin')}
-                                />
-                            </>}
-
-                        {currentStep == 2 &&
                             <div>
-                                <h1>Voulez-vous ajouter une nouvelle image? </h1>
-                                <div className="flex gap-4 mt-4">
-                                    <button
-                                        onClick={() => setCurrentStep(1)}
-                                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                                    >
-                                        oui
-                                    </button>
-
-                                    <button
-                                        onClick={() => setCurrentStep(3)}
-                                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                                    >
-                                        non
-                                    </button>
-                                </div>
-
-                            </div>
-
-                        }
-
-                        {currentStep == 3 && (
-                            <div>
-                                <div>
-                                    <div>
-                                        <h2 className="font-semibold text-lg mb-2">Choisissez vos préférences :</h2>
-                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-2 mt-5">
-                                            <div className="relative">
-                                                <button
-                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
-                                                    onClick={clearFilters}
-                                                >
-                                                    Tous
-                                                </button>
-                                            </div>
-
-                                            <div className="relative">
-                                                <button
-                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
-                                                    onClick={() => setShowDropdown(showDropdown === "contenance" ? null : "contenance")}
-                                                >
-                                                    Contenance
-                                                </button>
-                                            </div>
-
-                                            <div className="relative">
-                                                <button
-                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
-                                                    onClick={() => setShowDropdown(showDropdown === "couleur" ? null : "couleur")}
-                                                >
-                                                    Couleur
-                                                </button>
-                                            </div>
-
-                                            <div className="relative">
-                                                <button
-                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
-                                                    onClick={() => setShowDropdown(showDropdown === "region" ? null : "region")}
-                                                >
-                                                    Région
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {showDropdown && (
-                                            <div className="mt-2">
-                                                <select
-                                                    className="w-full max-w-sm p-2 border border-gray-300 rounded bg-white shadow-md"
-                                                    value={filters[showDropdown] || ""}
-                                                    onChange={(e) => handleFilterChange(showDropdown, e.target.value)}
-                                                >
-                                                    <option value="">-- Sélectionner --</option>
-                                                    {showDropdown === "contenance" &&
-                                                        getContenances().map((c, i) => (
-                                                            <option key={i} value={c}>
-                                                                {c}
-                                                            </option>
-                                                        ))}
-
-                                                    {showDropdown === "couleur" &&
-                                                        getCouleurs().map((c, i) => (
-                                                            <option key={i} value={c}>
-                                                                {c}
-                                                            </option>
-                                                        ))}
-
-                                                    {showDropdown === "region" &&
-                                                        getRegions().map((r, i) => (
-                                                            <option key={i} value={r}>
-                                                                {r}
-                                                            </option>
-                                                        ))}
-                                                </select>
-                                            </div>
-                                        )}
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            {filters.contenance && (
-                                                <span
-                                                    onClick={() => clearSingleFilter("contenance")}
-                                                    className="cursor-pointer bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
-                                                    title="Supprimer ce filtre"
-                                                >
-                                                    Contenance: {filters.contenance} <strong>×</strong>
-                                                </span>
-                                            )}
-                                            {filters.couleur && (
-                                                <span
-                                                    onClick={() => clearSingleFilter("couleur")}
-                                                    className="cursor-pointer bg-blue-200 text-blue-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
-                                                    title="Supprimer ce filtre"
-                                                >
-                                                    Couleur: {filters.couleur} <strong>×</strong>
-                                                </span>
-                                            )}
-                                            {filters.region && (
-                                                <span
-                                                    onClick={() => clearSingleFilter("region")}
-                                                    className="cursor-pointer bg-purple-200 text-purple-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
-                                                    title="Supprimer ce filtre"
-                                                >
-                                                    Région: {filters.region} <strong>×</strong>
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Liste des vins triés */}
-                                        <div className="overflow-auto bg-white shadow-lg rounded-lg max-h-[400px] lg:max-h-[600px] p-4 space-y-4 mt-5 border border-black-300">
-                                            {vinsFiltre.length === 0 && (
-                                                <p className="text-gray-500 italic">
-                                                    Aucun vin ne correspond aux filtres sélectionnés.
-                                                </p>
-                                            )}
-                                            {vinsFiltre.map((vin, index) => (
-                                                <div key={index} className="border-b pb-2">
-                                                    <div className="font-semibold">{vin.nom}</div>
-                                                    <div className="text-sm text-gray-600">
-                                                        <span className="mr-3">Couleur : {vin.couleur} </span>{" "}
-                                                        <span className="mr-3">
-                                                            Région : {vin.région ?? "Région inconnue"}
-                                                        </span>{" "}
-                                                        <span className="ml-3">
-                                                            Appellation : {vin.appellation ?? "Appellation inconnue"}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-sm text-gray-700 italic">{vin.caractéristique}</div>
-                                                    <div className="mt-1 flex flex-wrap gap-2 text-sm">
-                                                        {vin.format?.map((f, i) => (
-                                                            <span key={i} className="bg-gray-100 px-2 py-1 rounded">
-                                                                {f.contenance} - {formatPrice(f.prix)}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className='flex justify-end'>
-
-                                        <button
-                                            onClick={() => setCurrentStep(4)}
-                                            className="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                                        >
-                                            Suivant
-                                        </button>
-                                    </div>
-                                </div>
-
-                            </div>
-                        )
-                        }
-                        {currentStep == 4 &&
-                            <div>
-                                <h1>Voulez-vous prendre un photo de votre carte des plats ou saisir manuellement votre choix? </h1>
+                                <h1>Voulez-vous prendre un photo de votre carte des plats ou saisir manuellement votre choix?</h1>
                                 <div className="flex gap-4 mt-4">
                                     <button
                                         onClick={() => {
                                             setManual(false);
-                                            setCurrentStep(5);
+                                            setCurrentStep(2);
                                         }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
@@ -868,29 +704,28 @@ const SommelierForm = () => {
                                     <button
                                         onClick={() => {
                                             setManual(true);
-                                            setCurrentStep(5);
+                                            setCurrentStep(2);
                                         }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
-                                        <span className='pi pi-pencil mr-2 mt-2'></span>Saisie Manuelle
+                                        <span className='pi pi-pencil mr-2 mt-2'></span> Saisie Manuelle
                                     </button>
                                 </div>
-
                             </div>
-
                         }
-                        {currentStep == 5 && manual == false &&
-                            <div>
 
+                        {/* === 2A. UPLOAD CARTE DE PLAT === */}
+                        {currentStep == 2 && manual == false &&
+                            <div>
                                 <FileUploadField
                                     label={"Votre carte de plat:"}
                                     onSelect={(e) => imageBase64Uploader(e, 'carte', 'plat')}
                                 />
-
                             </div>
                         }
 
-                        {currentStep == 5 && manual == true && (
+                        {/* === 2B. SAISIE MANUELLE DES PLATS === */}
+                        {currentStep == 2 && manual == true && (
                             <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
                                 <motion.h3
                                     className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
@@ -964,9 +799,10 @@ const SommelierForm = () => {
                                             : "bg-gray-400 cursor-not-allowed text-white"
                                             }`}
                                         onClick={() => {
-                                            setCurrentStep(100);
+                                            // on garde les plats pour l’analyse finale
                                             setSelectedPlats([...repas]);
-                                            analyseResult(0, vinsFiltre, repas, "conseilVin");
+                                            // puis on va vers la CARTE DES VINS
+                                            setCurrentStep(5);
                                         }}
                                     >
                                         <FiCheckCircle size={18} />
@@ -976,12 +812,13 @@ const SommelierForm = () => {
                             </div>
                         )}
 
-                        {currentStep == 6 && manual == false &&
+                        {/* === 3. SI PHOTO DE PLATS : AJOUTER UNE 2e IMAGE OU PAS (ton ancien step 6 mais déplacé ici) === */}
+                        {currentStep == 3 && manual == false &&
                             <div>
-                                <h1>Voulez-vous ajouter une nouvelle image? </h1>
+                                <h1>Voulez-vous ajouter une nouvelle image?</h1>
                                 <div className="flex gap-4 mt-4">
                                     <button
-                                        onClick={() => { setCurrentStep(5) }}
+                                        onClick={() => { setCurrentStep(2) }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
                                         oui
@@ -989,7 +826,7 @@ const SommelierForm = () => {
 
                                     <button
                                         onClick={() => {
-                                            setCurrentStep(7);
+                                            setCurrentStep(4);
                                             fetchPlats(UUIDTable);
                                         }}
                                         className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
@@ -997,11 +834,11 @@ const SommelierForm = () => {
                                         non
                                     </button>
                                 </div>
-
                             </div>
                         }
 
-                        {currentStep === 7 && platsCarte && manual === false && (() => {
+                        {/* === 4. SI OCR A RETOUNÉ DES PLATS : ON CHOISIT LES PLATS (ancien step 7) === */}
+                        {currentStep === 4 && platsCarte && manual === false && (() => {
                             const normalizedPlats = normalizePlatsData(platsCarte.Plats);
 
                             return (
@@ -1034,7 +871,10 @@ const SommelierForm = () => {
                                     ))}
 
                                     <button
-                                        onClick={() => analyseResult(0, vinsFiltre, selectedPlats, "conseilVin")}
+                                        onClick={() => {
+                                            // on passe à la carte des vins
+                                            setCurrentStep(5);
+                                        }}
                                         className="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition duration-200 shadow"
                                     >
                                         Valider
@@ -1043,8 +883,208 @@ const SommelierForm = () => {
                             );
                         })()}
 
+                        {/* === 5. MAINTENANT : CARTE DES VINS (ton ancien step 1) === */}
+                        {currentStep == 5 &&
+                            <>
+                                <FileUploadField
+                                    label={"La carte des vins:"}
+                                    onSelect={(e) => imageBase64Uploader(e, 'carte', 'vin')}
+                                />
+                            </>
+                        }
+
+                        {/* === 6. AJOUTER UNE AUTRE IMAGE DE VINS (ton ancien step 2) === */}
+                        {currentStep == 6 &&
+                            <div>
+                                <h1>Voulez-vous ajouter une nouvelle image? </h1>
+                                <div className="flex gap-4 mt-4">
+                                    <button
+                                        onClick={() => setCurrentStep(5)}
+                                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                    >
+                                        oui
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentStep(7)}
+                                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                    >
+                                        non
+                                    </button>
+                                </div>
+
+                            </div>
+                        }
+
+                        {/* === 7. FILTRES SUR LES VINS + BOUTON FINAL (ton ancien step 3, inchangé) === */}
+                        {currentStep == 7 && (
+                            <div>
+                                <div>
+                                    <div>
+                                        <h2 className="font-semibold text-lg mb-2">Choisissez vos préférences :</h2>
+                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-2 mt-5">
+                                            <div className="relative">
+                                                <button
+                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
+                                                    onClick={clearFilters}
+                                                >
+                                                    Tous
+                                                </button>
+                                            </div>
+
+                                            <div className="relative">
+                                                <button
+                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
+                                                    onClick={() => setShowDropdown(showDropdown === "contenance" ? null : "contenance")}
+                                                >
+                                                    Contenance
+                                                </button>
+                                            </div>
+
+                                            <div className="relative">
+                                                <button
+                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
+                                                    onClick={() => setShowDropdown(showDropdown === "couleur" ? null : "couleur")}
+                                                >
+                                                    Couleur
+                                                </button>
+                                            </div>
+
+                                            <div className="relative">
+                                                <button
+                                                    className="bg-gray-200 py-2 px-4 rounded w-full hover:bg-gray-300 transition"
+                                                    onClick={() => setShowDropdown(showDropdown === "region" ? null : "region")}
+                                                >
+                                                    Région
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {showDropdown && (
+                                            <div className="mt-2">
+                                                <select
+                                                    className="w-full max-w-sm p-2 border border-gray-300 rounded bg-white shadow-md"
+                                                    value={filters[showDropdown] || ""}
+                                                    onChange={(e) => handleFilterChange(showDropdown, e.target.value)}
+                                                >
+                                                    <option value="">-- Sélectionner --</option>
+                                                    {showDropdown === "contenance" &&
+                                                        getContenances().map((c, i) => (
+                                                            <option key={i} value={c}>
+                                                                {c}
+                                                            </option>
+                                                        ))}
+
+                                                    {showDropdown === "couleur" &&
+                                                        getCouleurs().map((c, i) => (
+                                                            <option key={i} value={c}>
+                                                                {c}
+                                                            </option>
+                                                        ))}
+
+                                                    {showDropdown === "region" &&
+                                                        getRegions().map((r, i) => (
+                                                            <option key={i} value={r}>
+                                                                {r}
+                                                            </option>
+                                                        ))}
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Badges des filtres */}
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {filters.contenance && (
+                                                <span
+                                                    onClick={() => clearSingleFilter("contenance")}
+                                                    className="cursor-pointer bg-green-200 text-green-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
+                                                    title="Supprimer ce filtre"
+                                                >
+                                                    Contenance: {filters.contenance} <strong>×</strong>
+                                                </span>
+                                            )}
+                                            {filters.couleur && (
+                                                <span
+                                                    onClick={() => clearSingleFilter("couleur")}
+                                                    className="cursor-pointer bg-blue-200 text-blue-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
+                                                    title="Supprimer ce filtre"
+                                                >
+                                                    Couleur: {filters.couleur} <strong>×</strong>
+                                                </span>
+                                            )}
+                                            {filters.region && (
+                                                <span
+                                                    onClick={() => clearSingleFilter("region")}
+                                                    className="cursor-pointer bg-purple-200 text-purple-800 text-xs px-3 py-1 rounded-full select-none flex items-center gap-1"
+                                                    title="Supprimer ce filtre"
+                                                >
+                                                    Région: {filters.region} <strong>×</strong>
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Liste des vins triés */}
+                                        <div className="overflow-auto bg-white shadow-lg rounded-lg max-h-[400px] lg:max-h-[600px] p-4 space-y-4 mt-5 border border-black-300">
+                                            {vinsFiltre.length === 0 && (
+                                                <p className="text-gray-500 italic">
+                                                    Aucun vin ne correspond aux filtres sélectionnés.
+                                                </p>
+                                            )}
+                                            {vinsFiltre.map((vin, index) => (
+                                                <div key={index} className="border-b pb-2">
+                                                    <div className="font-semibold">{vin.nom}</div>
+                                                    <div className="text-sm text-gray-600">
+                                                        <span className="mr-3">Couleur : {vin.couleur} </span>{" "}
+                                                        <span className="mr-3">
+                                                            Région : {vin.région ?? "Région inconnue"}
+                                                        </span>{" "}
+                                                        <span className="ml-3">
+                                                            Appellation : {vin.appellation ?? "Appellation inconnue"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-sm text-gray-700 italic">{vin.caractéristique}</div>
+                                                    <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                                                        {vin.format?.map((f, i) => (
+                                                            <span key={i} className="bg-gray-100 px-2 py-1 rounded">
+                                                                {f.contenance} - {formatPrice(f.prix)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className='flex justify-end'>
+                                        <button
+                                            onClick={() => {
+                                                // ICI seulement on a tout : plats + vins filtrés
+                                                // on envoie les plats (ceux saisis ou ceux sélectionnés OCR)
+                                                const platsFinal = (
+                                                    manual
+                                                        ? repas
+                                                        : (selectedPlats && selectedPlats.length > 0 ? selectedPlats : repas)
+                                                )
+                                                    .map((p) => (typeof p === "string" ? p.trim() : ""))
+                                                    .filter((p) => p !== "")
+                                                    .join(", "); // 4D aime bien une string
+
+
+
+                                                analyseResult(0, vinsFiltre, platsFinal, "conseilVin");
+                                                setCurrentStep(100);
+                                            }}
+                                            className="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                        >
+                                            Suivant
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
                     </>
                 );
+
 
             case 'rayon':
                 return (

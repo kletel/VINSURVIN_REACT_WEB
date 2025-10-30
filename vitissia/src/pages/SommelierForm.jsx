@@ -43,6 +43,8 @@ const SommelierForm = () => {
     const [adaptePlat, setAdaptePlat] = useState(true);
     const [equilibre, setEquilibre] = useState('');
     const [showOldResult, setShowOldResult] = useState(false);
+    const [rayonMode, setRayonMode] = useState(null);
+    const [rayonProfil, setRayonProfil] = useState(null);
     const [filters, setFilters] = useState({
         contenance: "",
         couleur: "",
@@ -89,7 +91,6 @@ const SommelierForm = () => {
 
     console.log("step", currentStep)
 
-
     const analyseResult = async (retryCount = 0, vinsfiltre = vinsFiltre, platsChoisi = selectedPlats, typeCase = 'conseilVin') => {
         try {
             const string = JSON.stringify(vinsFiltre)
@@ -132,19 +133,68 @@ const SommelierForm = () => {
                 }
             }
 
+            if (typeCase === "rayonPlatProfil") {
+                if (Array.isArray(jsonAtraite) && jsonAtraite[0]?.vraiplat === false) {
+                    setVinResult({ vraiPlat: false, vraiplat: false });
+                    return;
+                }
+                if (jsonAtraite?.vraiplat === false || jsonAtraite?.vraiPlat === false) {
+                    setVinResult({ vraiPlat: false, vraiplat: false });
+                    return;
+                }
+
+                const conseilArr = Array.isArray(jsonAtraite?.conseil)
+                    ? jsonAtraite.conseil
+                    : [];
+
+                const profilItem = conseilArr.find((i) => i.profil);
+                const platFlagItem = conseilArr.find(
+                    (i) => typeof i.vraiplat === "boolean" || typeof i.vraiPlat === "boolean"
+                );
+
+                if (
+                    platFlagItem &&
+                    (platFlagItem.vraiplat === false || platFlagItem.vraiPlat === false)
+                ) {
+                    setVinResult({ vraiPlat: false, vraiplat: false });
+                    return;
+                }
+
+                const profil =
+                    profilItem?.profil ||
+                    jsonAtraite?.profil ||
+                    null;
+
+                setRayonProfil(profil);
+
+                setCurrentStep(2);
+
+                toast.current.show({
+                    severity: "success",
+                    summary: "OK",
+                    detail: "Profil récupéré",
+                    life: 3000,
+                });
+                return;
+            }
             if (typeCase == "conseilPlat")
                 traiterImageIA(jsonAtraite)
             else if ((typeCase == "conseilVin") || (typeCase == "conseilCave"))
                 traiterConseilIA(jsonAtraite);
 
-            if (
+            const platNonValide =
                 jsonAtraite?.vraiPlat === false ||
-                (jsonAtraite?.conseil && jsonAtraite.conseil.vraiPlat === false)
-            ) {
+                jsonAtraite?.vraiplat === false ||
+                (Array.isArray(jsonAtraite?.conseil) &&
+                    jsonAtraite.conseil.some(
+                        (c) => c.vraiplat === false || c.vraiPlat === false
+                    ));
+
+            if (platNonValide) {
                 if (typeCase === "conseilVin" || typeCase === "conseilCave") {
-                    setConseilResult(jsonAtraite);
+                    setConseilResult({ ...jsonAtraite, vraiPlat: false, vraiplat: false });
                 } else if (typeCase === "conseilPlat") {
-                    setVinResult(jsonAtraite);
+                    setVinResult({ ...jsonAtraite, vraiPlat: false, vraiplat: false });
                 }
                 return;
             }
@@ -152,7 +202,7 @@ const SommelierForm = () => {
         } catch (error) {
             if (retryCount < 2) {
                 toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Erreur lors de la tentative ${retryCount + 1}, nouvelle tentative...`, life: 3000 });
-                await analyseResult(retryCount + 1, typeCase);
+                await analyseResult(retryCount + 1, vinsFiltre, selectedPlats, typeCase);
             } else {
                 toast.current.show({ severity: 'error', summary: 'Erreur', detail: "Erreur lors de l'analyse après trois tentatives", life: 3000 });
             }
@@ -205,8 +255,6 @@ const SommelierForm = () => {
                         shouldAnalyze.current = true;
                     };
                 } else {
-
-                    // Si le fichier est déjà assez petit, on ne le compresse pas
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
                     reader.onload = () => {
@@ -232,8 +280,8 @@ const SommelierForm = () => {
     useEffect(() => {
         console.log("image", image)
         if (image?.image && shouldAnalyze.current) {
-            AnalyseSommelier(0); // Appeler AnalyseIA uniquement si le drapeau est activé
-            shouldAnalyze.current = false; // Réinitialiser le drapeau après l'appel
+            AnalyseSommelier(0);
+            shouldAnalyze.current = false;
         }
     }, [image?.image]);
 
@@ -269,7 +317,6 @@ const SommelierForm = () => {
             formData.append("budget", budget);
             formData.append("bouteille", bouteille);
             formData.append("token", token);
-
 
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_analyseSommelier`, {
                 method: 'POST',
@@ -329,29 +376,22 @@ const SommelierForm = () => {
 
     // === états "similaires dans ma cave" ===
     const [showSimilarPanel, setShowSimilarPanel] = useState(false);
-    const [missingWines, setMissingWines] = useState([]);          // [{name, context}]
+    const [missingWines, setMissingWines] = useState([]);
     const [selectedMissing, setSelectedMissing] = useState(new Set());
     const [simLoading, setSimLoading] = useState(false);
-    const [simMatches, setSimMatches] = useState(null);            // réponse du back
+    const [simMatches, setSimMatches] = useState(null);
 
-    // helper: extraire un nom "affichable"
     const getVinName = (v) => v?.nomvin || v?.nom || v?.Nom || v?.vindigestif || "";
-
-    // helper: vin présent en cave ? (ton code l’implique déjà)
     const hasCaveDataFn = (v) => !!(v?.UUID_ || v?.base64_132etiquette);
 
-    // recompute la liste des manquants dès qu’on a un vinResult/conseilResult
     useEffect(() => {
         const collect = [];
 
-        // vinResult (par plat + aperitif/digestif)
         if (vinResult?.conseil?.length) {
             vinResult.conseil.forEach(item => {
-                // vin principal
                 if (item.nomvin && !hasCaveDataFn(item)) {
                     collect.push({ name: getVinName(item), context: "plat" });
                 }
-                // apéritif / digestif
                 if (item.vinaperitif && !hasCaveDataFn(item.vinaperitif)) {
                     collect.push({ name: getVinName(item.vinaperitif), context: "apéritif" });
                 }
@@ -361,7 +401,6 @@ const SommelierForm = () => {
             });
         }
 
-        // conseilResult (catégories prix)
         if (conseilResult?.conseil?.length) {
             conseilResult.conseil.forEach(obj => {
                 Object.values(obj).forEach(v => {
@@ -372,7 +411,6 @@ const SommelierForm = () => {
             });
         }
 
-        // de-dupe par nom
         const seen = new Set();
         const dedup = collect.filter(x => {
             const k = x.name.trim().toLowerCase();
@@ -382,7 +420,7 @@ const SommelierForm = () => {
         });
 
         setMissingWines(dedup);
-        setSelectedMissing(new Set()); // reset sélection si les manquants changent
+        setSelectedMissing(new Set());
         setSimMatches(null);
     }, [vinResult, conseilResult]);
 
@@ -395,7 +433,10 @@ const SommelierForm = () => {
 
     useEffect(() => {
         const platInvalide =
-            conseilResult?.vraiPlat === false || vinResult?.vraiPlat === false;
+            conseilResult?.vraiPlat === false ||
+            conseilResult?.vraiplat === false ||
+            vinResult?.vraiPlat === false ||
+            vinResult?.vraiplat === false;
 
         if (platInvalide) {
             Swal.fire({
@@ -478,7 +519,6 @@ const SommelierForm = () => {
         setIsAnalyzing(false);
 
         setCurrentStep(prev => {
-            // S'il y a un résultat à l'écran, on le sauvegarde puis on le vide
             if (vinResult || conseilResult) {
                 const oldData = { vinResult, conseilResult, timestamp: new Date().toISOString() };
                 localStorage.setItem("lastSommelierResult", JSON.stringify(oldData));
@@ -488,7 +528,6 @@ const SommelierForm = () => {
                 setShowOldResult(false);
             }
 
-            // Ta logique existante pour remonter d'une étape
             if (prev >= 100) {
                 if (id === 'restaurant') return 5;
                 if (id === 'rayon' && adaptePlat) return 4;
@@ -500,7 +539,6 @@ const SommelierForm = () => {
             return Math.max(1, prev - 1);
         });
     };
-
 
     const [oldResult, setOldResult] = useState(null);
 
@@ -738,7 +776,6 @@ const SommelierForm = () => {
                                                 </select>
                                             </div>
                                         )}
-                                        {/* Badges des filtres */}
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {filters.contenance && (
                                                 <span
@@ -1012,45 +1049,15 @@ const SommelierForm = () => {
             case 'rayon':
                 return (
                     <>
-                        {currentStep == 1 &&
-
-                            <div className="relative w-full">
-                                <FileUploadField label={"Votre image de rayon"}
-                                    onSelect={(e) => imageBase64Uploader(e, 'rayon', 'vin')}
-                                />
-
-                            </div>
-                        }
-
-                        {currentStep == 2 &&
+                        {currentStep === 1 && (
                             <div>
-                                <h1>Voulez-vous ajouter une nouvelle image? </h1>
-                                <div className="flex gap-4 mt-4">
-                                    <button
-                                        onClick={() => setCurrentStep(1)}
-                                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                                    >
-                                        oui
-                                    </button>
-
-                                    <button
-                                        onClick={() => setCurrentStep(3)}
-                                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                                    >
-                                        non
-                                    </button>
-                                </div>
-                            </div>
-                        }
-
-                        {currentStep == 3 &&
-                            <div>
-                                <h1>Le vin le plus intéressant de ce rayon ou vin adapté à un plat? </h1>
+                                <h1>Le vin le plus intéressant de ce rayon ou vin adapté à un plat ?</h1>
                                 <div className="flex gap-4 mt-4">
                                     <button
                                         onClick={() => {
                                             setAdaptePlat(false);
-                                            setCurrentStep(100);
+                                            setRayonMode('best');
+                                            setCurrentStep(2);
                                         }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
@@ -1060,18 +1067,48 @@ const SommelierForm = () => {
                                     <button
                                         onClick={() => {
                                             setAdaptePlat(true);
-                                            setCurrentStep(4);
+                                            setRayonMode('plat');
+                                            setCurrentStep(2);
                                         }}
                                         className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
                                     >
                                         Adapté à mon/mes plats
                                     </button>
                                 </div>
-
                             </div>
-                        }
+                        )}
 
-                        {currentStep === 4 && adaptePlat && (
+                        {currentStep === 2 && rayonMode === 'best' && (
+                            <div className="relative w-full">
+                                <FileUploadField
+                                    label={"Votre image de rayon"}
+                                    onSelect={(e) => imageBase64Uploader(e, 'rayon', 'vin')}
+                                />
+                            </div>
+                        )}
+
+                        {currentStep === 3 && rayonMode === 'best' && (
+                            <div>
+                                <h1>Voulez-vous ajouter une nouvelle image ?</h1>
+                                <div className="flex gap-4 mt-4">
+                                    <button
+                                        onClick={() => setCurrentStep(2)}
+                                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                    >
+                                        oui
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentStep(100)}
+                                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                    >
+                                        non
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentStep === 2 && rayonMode === 'plat' && (
                             <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
 
                                 <motion.h3
@@ -1146,18 +1183,91 @@ const SommelierForm = () => {
                                             : "bg-gray-400 cursor-not-allowed text-white"
                                             }`}
                                         onClick={() => {
-                                            setCurrentStep(100);
-                                            analyseResult(0, "", repas, "conseilVin");
+                                            analyseResult(0, "", repas, "rayonPlatProfil");
                                         }}
                                     >
                                         <FiCheckCircle size={18} />
-                                        Valider
+                                        Demander le profil
                                     </motion.button>
                                 </motion.div>
                             </div>
                         )}
 
+                        {currentStep === 3 && rayonMode === 'plat' && (
+                            <div className="space-y-6 p-6">
+                                <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                    Profil conseillé pour ton plat
+                                </h2>
 
+                                {rayonProfil ? (
+                                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 dark:bg-gray-800/50 dark:border-emerald-900/40 space-y-1">
+                                        {rayonProfil.couleur && (
+                                            <p className="text-gray-700 dark:text-gray-100">
+                                                <strong>Couleur :</strong> {rayonProfil.couleur}
+                                            </p>
+                                        )}
+                                        {rayonProfil.region && (
+                                            <p className="text-gray-700 dark:text-gray-100">
+                                                <strong>Région :</strong> {rayonProfil.region}
+                                            </p>
+                                        )}
+                                        {rayonProfil.type && (
+                                            <p className="text-gray-700 dark:text-gray-100">
+                                                <strong>Type :</strong> {rayonProfil.type}
+                                            </p>
+                                        )}
+                                        {rayonProfil.prix && (
+                                            <p className="text-gray-700 dark:text-gray-100">
+                                                <strong>Budget :</strong> {rayonProfil.prix}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-500 italic">
+                                        Pas de détail retourné par l’IA.
+                                    </p>
+                                )}
+
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Maintenant envoie l’image du rayon, on te conseillera les meilleurs vins pour ton plat
+                                </p>
+
+                                <FileUploadField
+                                    label={"Votre image de rayon"}
+                                    onSelect={(e) => imageBase64Uploader(e, 'rayon', 'vin')}
+                                />
+
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => setCurrentStep(4)}
+                                        className="px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition"
+                                    >
+                                        Continuer
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentStep === 4 && rayonMode === 'plat' && (
+                            <div>
+                                <h1>Voulez-vous ajouter une nouvelle image ?</h1>
+                                <div className="flex gap-4 mt-4">
+                                    <button
+                                        onClick={() => setCurrentStep(3)}
+                                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                                    >
+                                        oui
+                                    </button>
+
+                                    <button
+                                        onClick={() => setCurrentStep(100)}
+                                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                    >
+                                        non
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </>
                 );
 
@@ -1441,9 +1551,7 @@ const SommelierForm = () => {
         conseilArray.forEach(item => {
             if (typeof item !== "object" || item === null) return;
 
-            // Parcourt toutes les paires [clé, valeur]
             Object.entries(item).forEach(([categoryName, vin]) => {
-                // Ignore le bloc "vraiplat" et ne garde que les objets vin
                 if (categoryName === "vraiplat") return;
                 if (vin && typeof vin === "object" && (("nom" in vin) || ("nomvin" in vin))) {
                     if (!categorized[categoryName]) categorized[categoryName] = [];
@@ -1454,7 +1562,6 @@ const SommelierForm = () => {
 
         return categorized;
     };
-
 
     const vinResultNormalize = (vinResults) => {
         if (!vinResults || !Array.isArray(vinResults.conseil)) {

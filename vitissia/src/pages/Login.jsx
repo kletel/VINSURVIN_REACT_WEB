@@ -70,10 +70,15 @@ const Login = () => {
             setLocalError("Veuillez remplir tous les champs !");
             return;
         }
+
+        const deviceUUID = localStorage.getItem("deviceUUID");
+        if (deviceUUID) {
+            sessionStorage.setItem("deviceUUID", deviceUUID);
+        }
+
         login();
     };
 
-    // Affichage pendant la connexion automatique
     if (isAutoLogging) {
         return (
             <div className="min-h-screen relative px-4">

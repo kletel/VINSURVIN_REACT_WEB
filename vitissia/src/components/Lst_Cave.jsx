@@ -701,9 +701,9 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                                {/*<div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                                     <i className="pi pi-filter text-white text-sm"></i>
-                                </div>
+                                </div>*/}
                                 <span>Filtres de recherche</span>
                             </div>
                         )

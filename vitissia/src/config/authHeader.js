@@ -14,18 +14,25 @@
     return headers;
 }*/
 
-
-
-
 export default function authHeader() {
+    const token = sessionStorage.getItem('token');
+    const deviceUUID = localStorage.getItem('deviceUUID'); 
 
-    let token = sessionStorage.getItem('token');
+    let headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, deviceUUID",
+    };
 
     if (token) {
-        return { Authorization: token };
-    } else {
-        return {};
+        headers["Authorization"] = token;
     }
+
+    if (deviceUUID) {
+        headers["deviceUUID"] = deviceUUID; 
+    }
+
+    return headers;
 }
 
 /*

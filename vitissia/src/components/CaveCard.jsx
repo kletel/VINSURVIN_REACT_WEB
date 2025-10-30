@@ -83,18 +83,14 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
 
                 {/* Contenu principal réagencé */}
                 <div className="flex items-stretch p-4 gap-4">
-                    {/* Bloc texte (gauche) */}
                     <div className="flex-1 min-w-0">
-                        {/* Titre */}
                         <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${isMobile ? 'text-base' : 'text-lg'} truncate`}>{truncate(vin.Nom, isMobile ? 42 : 64)}</h3>
 
-                        {/* Sous-titre concis: Millésime • Producteur (raccourci) */}
                         <p className={`text-gray-500 dark:text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'} mt-0.5 truncate`}>
                             {vin.Millesime}
                             <span className='pl-2'> {truncate(vin.Producteur, isMobile ? 24 : 36)}</span>
                         </p>
 
-                        {/* Localisation succincte */}
                         <div className={`text-gray-600 dark:text-gray-400 ${isMobile ? 'text-xs' : 'text-sm'} mt-1 truncate`}>
                             <span className="inline-flex items-center flex-wrap">
                                 <span className="mr-4">
@@ -111,7 +107,6 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
                             </span>
                         </div>
 
-                        {/* Badges compacts: Type, Stock, Cave, Contenant (aussi en mobile) */}
                         <div className="mt-2 flex flex-wrap gap-1.5">
                             {vin.Type && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
@@ -139,7 +134,6 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
                         </div>
                     </div>
 
-                    {/* Image + prix (droite) */}
                     <div className="relative flex flex-col items-end gap-2 flex-shrink-0">
                         <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
                             <img
@@ -148,18 +142,16 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
                                 className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${isMobile ? 'w-24 h-24' : 'w-32 h-32'}`}
                                 loading="lazy"
                             />
-                            {vin.Coup_de_Coeur && (
+                            {/*{vin.Coup_de_Coeur && (
                                 <div className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-sm">
-                                    {/*<div className="w-2 h-2 bg-white rounded-full"></div>*/}
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
                                     <div className=' pi pi-heart text-white'></div>
                                 </div>
-                            )}
-                            {/* Badge prix sur l'image (unité) */}
+                            )}*/}
                             <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-2 py-0.5 rounded text-[11px] font-semibold shadow">
                                 {formatCurrency(vin.Valeur || 0)}
                             </div>
                         </div>
-                        {/* Prix stock, discret */}
                         <div className="text-right">
                             <div className={`font-medium text-gray-700 dark:text-gray-300 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                                 {formatCurrency(vin.valeurCave || vin.Valeur_Euro || 0)} / stock
@@ -168,25 +160,26 @@ export default function CaveCard({ vin, isMobile, onToggleFavori, onDelete, form
                     </div>
                 </div>
 
-                {/* Bas de carte: divider + rating + actions */}
                 <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between bg-white/60 dark:bg-gray-800/60">
                     <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        {renderStars(rating.stars)}
-                        <span
-                            className={`text-xs ${
-                                rating.stars >= 2.5
-                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-gray-600 dark:text-gray-300'
-                            }`}
-                        >
-                            {rating.label}
-                        </span>
-
+                        {/*{renderStars(rating.stars)}*/}
                         {vin.Note_sur_20 > 0 && (
-                            <span className="text-xs text-gray-400">
-                                ({vin.Note_sur_20}/100)
-                            </span>
+                            <>
+                                <span
+                                    className={`text-xs ${rating?.stars >= 2.5
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-gray-600 dark:text-gray-300'
+                                        }`}
+                                >
+                                    {rating?.label}
+                                </span>
+
+                                <span className="text-xs text-gray-400">
+                                    ({vin.Note_sur_20}/100)
+                                </span>
+                            </>
                         )}
+
                     </div>
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         {/* Poubelle */}

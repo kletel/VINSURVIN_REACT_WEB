@@ -18,6 +18,7 @@ import { Slider } from 'primereact/slider';
 import { ThemeContext } from '../context/ThemeContext';
 import { Dialog } from 'primereact/dialog'; // Importer Dialog
 import Layout from '../components/Layout';
+import FancyNoteSlider from '../components/FancyNoteSlider';
 
 const Vin = () => {
     const { UUID_ } = useParams();
@@ -561,21 +562,21 @@ const Vin = () => {
                                                         boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
                                                         borderRadius: '0',
                                                         backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black', // Texte adapté au mode
+                                                        color: darkMode ? 'white' : 'black', 
                                                         border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black', // Texte sélectionné
+                                                        color: darkMode ? 'white' : 'black', 
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Fond du menu
+                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', 
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
                                                         backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0') // Survol
+                                                            ? (darkMode ? '#444' : '#f0f0f0') 
                                                             : (darkMode ? '#2b2b2b' : 'white'),
                                                         color: darkMode ? 'white' : 'black',
                                                     }),
@@ -713,17 +714,17 @@ const Vin = () => {
                                                         ...baseStyles,
                                                         boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
                                                         borderRadius: '0',
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black', // Texte adapté au mode
+                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
+                                                        color: darkMode ? 'white' : 'black',
                                                         border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black', // Texte sélectionné
+                                                        color: darkMode ? 'white' : 'black',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Fond du menu
+                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
@@ -915,54 +916,41 @@ const Vin = () => {
                                     </div>
 
                                     <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
-                                        {/* <label className="block text-gray-700 font-medium mb-2">Note</label> */}
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-sm font-semibold mb-1 ${isEditing ? 'text-gray-600 dark:text-gray-400' : 'text-gray-800 dark:text-gray-300'
                                                 }`}
-                                        >Note</label>
+                                        >
+                                            Note
+                                        </label>
+
                                         {isEditing ? (
                                             <>
                                                 <div className="flex items-center gap-4">
-                                                    {/*<Slider
-                            value={vin?.Note_sur_20 || 0}//value={vin.Note_sur_20}
-                            onChange={(e) => isEditing && setVin({ ...vin, Note_sur_20: e.value })}
-                            min={83} max={100} step={1} disabled={!isEditing} className="w-full"
-                          />*/}
-
-                                                    {/* <Rating value={vin?.Note_sur_20 || 0}//value={vin.Note_sur_20}
-                            onChange={(e) => isEditing && setVin({ ...vin, Note_sur_20: e.value })}
-                            cancel={false} />*/}
-                                                    <ReactStars
-                                                        count={3} // ⭐ 3 étoiles
-                                                        onChange={(newRating) =>
-                                                            isEditing &&
-                                                            setVin({ ...vin, Note_sur_20: Math.round(newRating * (100 / 3)) }) // conversion 0–3 → 0–100
+                                                    <FancyNoteSlider
+                                                        min={84}
+                                                        max={100}
+                                                        value={Math.max(Number(vin?.Note_sur_20 ?? 84), 84)}
+                                                        onChange={(val) =>
+                                                            setVin((prev) => ({
+                                                                ...prev,
+                                                                Note_sur_20: val,
+                                                            }))
                                                         }
-                                                        size={24}
-                                                        isHalf={true}
-                                                        value={(vin.Note_sur_20 || 0) / (100 / 3)} // conversion note sur 100 → étoiles
-                                                        edit={isEditing}
-                                                        emptyIcon={<i className="far fa-star" />}
-                                                        halfIcon={<i className="fas fa-star-half-alt" />}
-                                                        filledIcon={<i className="fas fa-star" />}
-                                                        activeColor="#ffd700"
                                                     />
 
                                                     <span className="text-lg font-semibold w-16 text-center dark:text-white">
-                                                        {vin.Note_sur_20}/100
+                                                        {vin?.Note_sur_20}/100
                                                     </span>
-
-
                                                 </div>
 
                                                 <div className="text-sm text-gray-400 mt-1 italic">
-                                                    {getNoteDescription(vin.Note_sur_20)}
+                                                    {getNoteDescription(vin?.Note_sur_20)}
                                                 </div>
                                             </>
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Note_sur_20 || '-'}/20 ({getNoteDescription(vin.Note_sur_20)})</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                {vin?.Note_sur_20 || '-'} / 100 ({getNoteDescription(vin?.Note_sur_20)})
+                                            </p>
                                         )}
                                     </div>
 
@@ -994,14 +982,14 @@ const Vin = () => {
                                                         </div>
                                                     )}
                                                     {/*
-                          <textarea
-                          name="Association_Mets"
-                          value={vin.Association_Mets || ''}
-                          onChange={handleInputChange}
-                          rows={3}
-                          className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
-                          placeholder="Associations avec les mets..."
-                        />*/}
+                                                        <textarea
+                                                        name="Association_Mets"
+                                                        value={vin.Association_Mets || ''}
+                                                        onChange={handleInputChange}
+                                                        rows={3}
+                                                        className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
+                                                        placeholder="Associations avec les mets..."
+                                                    />*/}
                                                 </>
 
                                             ) : (

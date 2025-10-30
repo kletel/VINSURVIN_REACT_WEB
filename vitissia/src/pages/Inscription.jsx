@@ -20,7 +20,7 @@ const Inscription = () => {
         fetch("/version.txt")
             .then(r => r.text())
             .then(t => setVersion(t.trim()))
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const validate = () => {
@@ -52,6 +52,7 @@ const Inscription = () => {
         setLoading(true);
         setError("");
         setSuccess("");
+
         try {
             const formData = new FormData();
             formData.append("email", email);
@@ -60,22 +61,34 @@ const Inscription = () => {
             formData.append("prenom", prenom);
             if (statut) formData.append("statut", statut);
 
+            const deviceUUID = localStorage.getItem("deviceUUID");
+            if (deviceUUID) formData.append("deviceUUID", deviceUUID);
+
             const resp = await fetch(`${config.apiBaseUrl}/4DACTION/react_inscription`, {
-                method: 'POST',
+                method: "POST",
                 headers: authHeader(),
                 body: formData,
             });
 
-            const text = (await resp.text()).trim().toLowerCase();
-            if (text.includes('succes')) {
+            const data = await resp.json ? await resp.json() : await resp.text();
+
+            if (data?.accessToken) {
+                sessionStorage.setItem("token", data.accessToken);
+                if (data.uuid_user) sessionStorage.setItem("uuid_user", data.uuid_user);
+                if (data.nom_user) sessionStorage.setItem("nom_user", data.nom_user);
+
+                setSuccess("Inscription réussie. Connexion automatique…");
+                setTimeout(() => navigate("/dashboard"), 600);
+            } else if (typeof data === "string" && data.toLowerCase().includes("succes")) {
                 setSuccess("Inscription réussie. Vous pouvez vous connecter.");
-                setTimeout(() => navigate('/login'), 800);
-            } else if (text.includes('email')) {
+                setTimeout(() => navigate("/login"), 800);
+            } else if (typeof data === "string" && data.toLowerCase().includes("email")) {
                 setError("Cet email existe déjà. Essayez de vous connecter ou utilisez une autre adresse.");
             } else {
                 setError("Échec de l'inscription. Veuillez réessayer.");
             }
         } catch (err) {
+            console.error(err);
             setError("Erreur réseau. Merci de réessayer.");
         } finally {
             setLoading(false);

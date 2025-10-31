@@ -155,6 +155,22 @@ const NewDashboard = () => {
 				{/* Suppression des actions rapides (non persistantes) */}
 				{/* ... */}
 
+				<div className="mt-6">
+					<Tile
+						Icon={IconBook}
+						title="Gabriel, Mon Sommelier-Conseil"
+						subtitle="Sélectionnez les meilleurs vins"
+						img="/bg-wine.jpg"
+						onOpen={() => {
+							navigate('/sommelier');
+						}
+						}
+						mounted={mounted}
+						delay={350}
+					/>
+				</div>
+				
+
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
 					{/* Mes caves */}
 					<Tile
@@ -285,20 +301,6 @@ const NewDashboard = () => {
 								setShowMesRecettesPopup(true);
 							}
 						}}
-						mounted={mounted}
-						delay={350}
-					/>
-
-					{/* Mon œnologue*/}
-					<Tile
-						Icon={IconBook}
-						title="Gabriel, Mon Sommelier-Conseil"
-						subtitle="Sélectionnez les meilleurs vins"
-						img="/bg-wine.jpg"
-						onOpen={() => {
-							navigate('/sommelier');
-						}
-						}
 						mounted={mounted}
 						delay={350}
 					/>

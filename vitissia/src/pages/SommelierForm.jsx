@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from "framer-motion";
 import { FiTrash2, FiPlusCircle, FiCheckCircle, FiRefreshCcw, FiStar } from "react-icons/fi";
 import { FaWineGlassAlt as FiWine } from "react-icons/fa";
+import RegionRefiner from "../components/RegionRefiner"
 
 const SommelierForm = () => {
     const { id } = useParams();
@@ -1326,8 +1327,8 @@ const SommelierForm = () => {
                                             <label
                                                 key={value}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${aperitif === value
-                                                        ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                                        : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                    : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
                                                     }`}
                                             >
                                                 <input
@@ -1362,8 +1363,8 @@ const SommelierForm = () => {
                                             <label
                                                 key={value}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${digestif === value
-                                                        ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                                        : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                    : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
                                                     }`}
                                             >
                                                 <input
@@ -1456,8 +1457,8 @@ const SommelierForm = () => {
                                             whileHover={{ scale: 1.03 }}
                                             whileTap={{ scale: 0.97 }}
                                             className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${refine === value
-                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                                    : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
                                                 }`}
                                         >
                                             <input
@@ -1491,8 +1492,8 @@ const SommelierForm = () => {
                                                             key={c}
                                                             onClick={() => setRefineCouleur(prev => (prev === c ? "" : c))}
                                                             className={`px-3 py-1.5 rounded-full text-sm border transition-all ${refineCouleur === c
-                                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow"
-                                                                    : "bg-white/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                                ? "bg-emerald-600 text-white border-emerald-700 shadow"
+                                                                : "bg-white/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
                                                                 }`}
                                                         >
                                                             {c}
@@ -1502,65 +1503,17 @@ const SommelierForm = () => {
                                             </div>
 
                                             <div>
-  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Région</p>
-
-  <div className="relative">
-    <motion.input
-      type="text"
-      value={refineRegionInput}
-      onChange={(e) => {
-        const v = e.target.value;
-        setRefineRegionInput(v);
-        setRefineRegion(v.trim()); // ← ce qui partira à 4D
-      }}
-      placeholder="Tapez une région (ex. Bourgogne)…"
-      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-    />
-
-    {/* Suggestions */}
-    <AnimatePresence>
-      {refineRegionInput.trim().length > 0 && (
-        <motion.div
-          key="region-suggest"
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.18 }}
-          className="absolute z-20 mt-2 w-full max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
-        >
-          {getRegions()
-            .filter(r =>
-              (r || '').toLowerCase().includes(refineRegionInput.trim().toLowerCase())
-            )
-            .slice(0, 8) // max 8 suggestions
-            .map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => {
-                  setRefineRegionInput(r);
-                  setRefineRegion(r); // ← snap sur la suggestion
-                }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-gray-700 transition ${
-                  refineRegion === r ? 'bg-emerald-100/70 dark:bg-emerald-900/30' : ''
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-
-          {/* Option “utiliser ma saisie telle quelle” */}
-          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">
-            Appuyez sur Entrée pour garder « {refineRegionInput.trim()} »
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
-</div>
+                                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Région</p>
+                                                <RegionRefiner
+                                                    refineRegion={refineRegion}
+                                                    setRefineRegion={setRefineRegion}
+                                                    defaultRegions={[
+                                                        "Bordeaux", "Bourgogne", "Vallée du Rhône", "Loire", "Champagne",
+                                                        "Languedoc", "Provence", "Jura", "Savoie", "Sud-Ouest", "Alsace",
+                                                        "Piémont", "Napa Valley", "Barossa", "Mendoza", "Douro", "Ribera del Duero"
+                                                    ]}
+                                                />
+                                            </div>
 
                                             {(refineCouleur || refineRegion) && (
                                                 <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -1710,8 +1663,8 @@ const SommelierForm = () => {
         setManual(false)
         setAdaptePlat(true)
         setEquilibre('')
-        setAperitif(false)
-        setDigestif(false)
+        setAperitif('false')   
+        setDigestif('false')
     }
 
     const normalizeConseilData = (rawData) => {
@@ -2100,6 +2053,7 @@ const SommelierForm = () => {
                     {/* 🧩 CAS 4 : résultat des vins */}
                     {vinResult && !isAnalyzing && vinResult?.vraiPlat !== false && (() => {
                         const groupedByPlat = vinResultNormalize(vinResult);
+                        const regionInvalid = vinResult?.vraiRegion === false;
                         return (
                             <div className="mt-10">
                                 <motion.h1
@@ -2684,7 +2638,23 @@ const SommelierForm = () => {
                                     </AnimatePresence>
                                 </div>
 
-                                {/* bouton Recommencer en dessous si tu veux conserver */}
+                                {regionInvalid && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="mt-6 rounded-2xl p-5 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-800 dark:to-gray-900 border border-emerald-300 dark:border-emerald-800 shadow"
+                                    >
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                            <p className="text-sm sm:text-base text-emerald-800 dark:text-emerald-300">
+                                                <span className="font-semibold">Information :</span> les vins ci-dessous ont été retournés
+                                                <span className="font-semibold"> sans filtrage par région</span> car la région saisie
+                                                n’a pas été reconnue comme une région valide. Vous pouvez réessayer en entrant une autre région.
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+
                                 <motion.div
                                     className="flex justify-center mt-12"
                                     initial={{ opacity: 0 }}

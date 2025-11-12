@@ -434,15 +434,15 @@ const Vin = () => {
 
     // Fonction pour afficher la description selon la note
     const getNoteDescription = (value) => {
-        if (value >= 18) return 'Exceptionnel';
-        else if (value >= 14) return 'Excellent';
-        else if (value >= 10) return 'Très bon';
-        else if (value >= 6) return 'Bon';
-        else if (value >= 2) return 'Acceptable';
-        else if (value == 0) return 'Non noté';
-        return 'Médiocre';
+        if (value === 0) return 'Non noté';
+        if (value < 82) return 'Médiocre';
+        if (value < 85) return 'Correct';
+        if (value < 87) return 'Bon';
+        if (value < 90) return 'Très bon';
+        if (value < 93) return 'Excellent';
+        if (value < 97) return 'Exceptionnel';
+        return 'Grand Cru';
     };
-
 
     return (
         <Layout>
@@ -562,21 +562,21 @@ const Vin = () => {
                                                         boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
                                                         borderRadius: '0',
                                                         backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black', 
+                                                        color: darkMode ? 'white' : 'black',
                                                         border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black', 
+                                                        color: darkMode ? 'white' : 'black',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', 
+                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
                                                         backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0') 
+                                                            ? (darkMode ? '#444' : '#f0f0f0')
                                                             : (darkMode ? '#2b2b2b' : 'white'),
                                                         color: darkMode ? 'white' : 'black',
                                                     }),

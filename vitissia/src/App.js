@@ -31,6 +31,7 @@ import Cave from './pages/Cave';
 import MesRecettes from './pages/MesRecettes';
 import Sommelier from './pages/Sommelier';
 import SommelierForm from './pages/SommelierForm';
+import ScrollToTop from './components/ScrollToTop';
 
 function AppContent() {
   const isLoggedIn = !!sessionStorage.getItem('token');
@@ -104,6 +105,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
+         <ScrollToTop />
         <div className="App min-h-screen flex flex-col">
           <div className="flex-1">
             <AppContent />

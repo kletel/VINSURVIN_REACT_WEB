@@ -27,9 +27,13 @@ const SommelierForm = () => {
     const [UUIDTable, setUUIDTable] = useState('');
     const [repas, setRepas] = useState(['']);
     const [vinChoice, setVinChoice] = useState('cave');
-    const [aperitif, setAperitif] = useState(false);
-    const [digestif, setDigestif] = useState(false);
+    const [aperitif, setAperitif] = useState('false');
+    const [digestif, setDigestif] = useState('false');
     const [budget, setBudget] = useState(0);
+    const [refine, setRefine] = useState('false');
+    const [refineCouleur, setRefineCouleur] = useState('');
+    const [refineRegion, setRefineRegion] = useState('');
+    const [refineRegionInput, setRefineRegionInput] = useState('');
     const [bouteille, setBouteille] = useState(0);
     const [currentStep, setCurrentStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -61,10 +65,8 @@ const SommelierForm = () => {
         setOldResult(null);
         setShowOldResult(false);
 
-        // reset complet de l'écran
         restartHandler();
 
-        // navigate (replace pour éviter revenir avec back)
         navigate('/sommelier', { replace: true });
     };
     const handleCheckboxChange = (item) => {
@@ -120,6 +122,11 @@ const SommelierForm = () => {
             formData.append("aperitif", aperitif);
             formData.append("digestif", digestif);
             formData.append("token", token);
+            formData.append("refine", refine);
+            if (refine === 'true') {
+                formData.append("ref_couleur", refineCouleur || '');
+                formData.append("ref_region", refineRegion || '');
+            }
 
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_conseilPlatIA`, {
                 method: 'POST',
@@ -686,7 +693,6 @@ const SommelierForm = () => {
             case 'restaurant':
                 return (
                     <>
-                        {/* === 1. ON DEMANDE D'ABORD LE PLAT (photo ou saisie) === */}
                         {currentStep == 1 &&
                             <div>
                                 <h1>Voulez-vous prendre un photo de votre carte des plats ou saisir manuellement votre choix?</h1>
@@ -714,7 +720,6 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {/* === 2A. UPLOAD CARTE DE PLAT === */}
                         {currentStep == 2 && manual == false &&
                             <div>
                                 <FileUploadField
@@ -724,7 +729,6 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {/* === 2B. SAISIE MANUELLE DES PLATS === */}
                         {currentStep == 2 && manual == true && (
                             <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
                                 <motion.h3
@@ -812,7 +816,6 @@ const SommelierForm = () => {
                             </div>
                         )}
 
-                        {/* === 3. SI PHOTO DE PLATS : AJOUTER UNE 2e IMAGE OU PAS (ton ancien step 6 mais déplacé ici) === */}
                         {currentStep == 3 && manual == false &&
                             <div>
                                 <h1>Voulez-vous ajouter une nouvelle image?</h1>
@@ -837,7 +840,6 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {/* === 4. SI OCR A RETOUNÉ DES PLATS : ON CHOISIT LES PLATS (ancien step 7) === */}
                         {currentStep === 4 && platsCarte && manual === false && (() => {
                             const normalizedPlats = normalizePlatsData(platsCarte.Plats);
 
@@ -872,7 +874,6 @@ const SommelierForm = () => {
 
                                     <button
                                         onClick={() => {
-                                            // on passe à la carte des vins
                                             setCurrentStep(5);
                                         }}
                                         className="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition duration-200 shadow"
@@ -883,7 +884,6 @@ const SommelierForm = () => {
                             );
                         })()}
 
-                        {/* === 5. MAINTENANT : CARTE DES VINS (ton ancien step 1) === */}
                         {currentStep == 5 &&
                             <>
                                 <FileUploadField
@@ -893,7 +893,6 @@ const SommelierForm = () => {
                             </>
                         }
 
-                        {/* === 6. AJOUTER UNE AUTRE IMAGE DE VINS (ton ancien step 2) === */}
                         {currentStep == 6 &&
                             <div>
                                 <h1>Voulez-vous ajouter une nouvelle image? </h1>
@@ -916,7 +915,6 @@ const SommelierForm = () => {
                             </div>
                         }
 
-                        {/* === 7. FILTRES SUR LES VINS + BOUTON FINAL (ton ancien step 3, inchangé) === */}
                         {currentStep == 7 && (
                             <div>
                                 <div>
@@ -992,7 +990,6 @@ const SommelierForm = () => {
                                             </div>
                                         )}
 
-                                        {/* Badges des filtres */}
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {filters.contenance && (
                                                 <span
@@ -1023,7 +1020,6 @@ const SommelierForm = () => {
                                             )}
                                         </div>
 
-                                        {/* Liste des vins triés */}
                                         <div className="overflow-auto bg-white shadow-lg rounded-lg max-h-[400px] lg:max-h-[600px] p-4 space-y-4 mt-5 border border-black-300">
                                             {vinsFiltre.length === 0 && (
                                                 <p className="text-gray-500 italic">
@@ -1057,8 +1053,6 @@ const SommelierForm = () => {
                                     <div className='flex justify-end'>
                                         <button
                                             onClick={() => {
-                                                // ICI seulement on a tout : plats + vins filtrés
-                                                // on envoie les plats (ceux saisis ou ceux sélectionnés OCR)
                                                 const platsFinal = (
                                                     manual
                                                         ? repas
@@ -1066,9 +1060,7 @@ const SommelierForm = () => {
                                                 )
                                                     .map((p) => (typeof p === "string" ? p.trim() : ""))
                                                     .filter((p) => p !== "")
-                                                    .join(", "); // 4D aime bien une string
-
-
+                                                    .join(", ");
 
                                                 analyseResult(0, vinsFiltre, platsFinal, "conseilVin");
                                                 setCurrentStep(100);
@@ -1084,7 +1076,6 @@ const SommelierForm = () => {
                         )}
                     </>
                 );
-
 
             case 'rayon':
                 return (
@@ -1316,41 +1307,79 @@ const SommelierForm = () => {
                     <>
                         <div className="w-full max-w-3xl mx-auto space-y-8 p-6 rounded-2xl bg-gradient-to-b from-white/80 to-emerald-50/70 dark:from-gray-800/80 dark:to-gray-900/80 shadow-lg backdrop-blur-xl transition-all duration-500">
 
-                            <motion.div
-                                className="mt-6 space-y-3"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.5 }}
-                            >
-                                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
-                                    Apéritif :
-                                </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <motion.div
+                                    className="space-y-3"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                >
+                                    <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
+                                        Apéritif :
+                                    </h4>
 
-                                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                                    {[
-                                        { label: "Oui", value: "true" },
-                                        { label: "Non, Merci", value: "false" }
-                                    ].map(({ label, value }) => (
-                                        <label
-                                            key={value}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${aperitif === value
-                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
-                                                }`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="aperitifOption"
-                                                value={value}
-                                                checked={aperitif === value}
-                                                onChange={(e) => setAperitif(e.target.value)}
-                                                className="hidden"
-                                            />
-                                            <span>{label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </motion.div>
+                                    <div className="flex flex-row flex-wrap gap-3">
+                                        {[
+                                            { label: "Oui", value: "true" },
+                                            { label: "Non, Merci", value: "false" },
+                                        ].map(({ label, value }) => (
+                                            <label
+                                                key={value}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${aperitif === value
+                                                        ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                        : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="aperitifOption"
+                                                    value={value}
+                                                    checked={aperitif === value}
+                                                    onChange={(e) => setAperitif(e.target.value)}
+                                                    className="hidden"
+                                                />
+                                                <span>{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </motion.div>
+
+                                <motion.div
+                                    className="space-y-3"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: 0.05 }}
+                                >
+                                    <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
+                                        Digestif :
+                                    </h4>
+
+                                    <div className="flex flex-row flex-wrap gap-3">
+                                        {[
+                                            { label: "Oui", value: "true" },
+                                            { label: "Non, Merci", value: "false" },
+                                        ].map(({ label, value }) => (
+                                            <label
+                                                key={value}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${digestif === value
+                                                        ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                        : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="digestifOption"
+                                                    value={value}
+                                                    checked={digestif === value}
+                                                    onChange={(e) => setDigestif(e.target.value)}
+                                                    className="hidden"
+                                                />
+                                                <span>{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </div>
 
                             <motion.h3
                                 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"
@@ -1408,39 +1437,145 @@ const SommelierForm = () => {
                             </motion.button>
 
                             <motion.div
-                                className="mt-6 space-y-3"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.5 }}
+                                className="mt-8 space-y-4"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.45 }}
                             >
                                 <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100">
-                                    Digestif :
+                                    Affiner votre demande :
                                 </h4>
 
-                                <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                                <div className="flex flex-row flex-wrap gap-3">
                                     {[
                                         { label: "Oui", value: "true" },
-                                        { label: "Non, Merci", value: "false" }
+                                        { label: "Non, Merci", value: "false" },
                                     ].map(({ label, value }) => (
-                                        <label
+                                        <motion.label
                                             key={value}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${digestif === value
-                                                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                                : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                            whileHover={{ scale: 1.03 }}
+                                            whileTap={{ scale: 0.97 }}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all duration-300 ${refine === value
+                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                                    : "bg-white/70 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
                                                 }`}
                                         >
                                             <input
                                                 type="radio"
-                                                name="aperitifOption"
+                                                name="refineOption"
                                                 value={value}
-                                                checked={digestif === value}
-                                                onChange={(e) => setDigestif(e.target.value)}
+                                                checked={refine === value}
+                                                onChange={(e) => setRefine(e.target.value)}
                                                 className="hidden"
                                             />
                                             <span>{label}</span>
-                                        </label>
+                                        </motion.label>
                                     ))}
                                 </div>
+
+                                <AnimatePresence>
+                                    {refine === 'true' && (
+                                        <motion.div
+                                            key="refine-fields"
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            transition={{ duration: 0.35 }}
+                                            className="space-y-5"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Couleur</p>
+                                                <div className="flex flex-row flex-wrap gap-2">
+                                                    {["Rouge", "Blanc", "Rosé"].map((c) => (
+                                                        <button
+                                                            key={c}
+                                                            onClick={() => setRefineCouleur(prev => (prev === c ? "" : c))}
+                                                            className={`px-3 py-1.5 rounded-full text-sm border transition-all ${refineCouleur === c
+                                                                    ? "bg-emerald-600 text-white border-emerald-700 shadow"
+                                                                    : "bg-white/70 dark:bg-gray-800/60 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-gray-700/70"
+                                                                }`}
+                                                        >
+                                                            {c}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div>
+  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Région</p>
+
+  <div className="relative">
+    <motion.input
+      type="text"
+      value={refineRegionInput}
+      onChange={(e) => {
+        const v = e.target.value;
+        setRefineRegionInput(v);
+        setRefineRegion(v.trim()); // ← ce qui partira à 4D
+      }}
+      placeholder="Tapez une région (ex. Bourgogne)…"
+      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/50 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+    />
+
+    {/* Suggestions */}
+    <AnimatePresence>
+      {refineRegionInput.trim().length > 0 && (
+        <motion.div
+          key="region-suggest"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.18 }}
+          className="absolute z-20 mt-2 w-full max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
+        >
+          {getRegions()
+            .filter(r =>
+              (r || '').toLowerCase().includes(refineRegionInput.trim().toLowerCase())
+            )
+            .slice(0, 8) // max 8 suggestions
+            .map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => {
+                  setRefineRegionInput(r);
+                  setRefineRegion(r); // ← snap sur la suggestion
+                }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-gray-700 transition ${
+                  refineRegion === r ? 'bg-emerald-100/70 dark:bg-emerald-900/30' : ''
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+
+          {/* Option “utiliser ma saisie telle quelle” */}
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">
+            Appuyez sur Entrée pour garder « {refineRegionInput.trim()} »
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+</div>
+
+                                            {(refineCouleur || refineRegion) && (
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                                    <span className="font-medium">Sélection :</span>{" "}
+                                                    {[
+                                                        refineCouleur && `Couleur: ${refineCouleur}`,
+                                                        refineRegion && `Région: ${refineRegion}`,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(" · ")}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </motion.div>
 
                             <motion.div

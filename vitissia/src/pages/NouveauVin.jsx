@@ -178,6 +178,9 @@ const NouveauVin = () => {
 
   const handleInputChange = (e, customName) => {
     if (customName) {
+      if (customName === 'Note_sur_100') {
+        console.debug('[NOTE] set Note_sur_100 =', e, 'type=', typeof e);
+      }
       setVin((prevVin) => {
         const updatedVin = { ...prevVin, [customName]: e };
         if (customName === "Valeur" || customName === "Reste_en_Cave" || customName === "Dont_Bue" || customName === "Qte") {
@@ -188,6 +191,9 @@ const NouveauVin = () => {
       });
     } else if (e?.target) {
       const { name, value } = e.target;
+      if (name === 'Note_sur_100') {
+        console.debug('[NOTE] set Note_sur_100 =', value, 'type=', typeof value);
+      }
       setVin((prevVin) => {
         const updatedVin = { ...prevVin, [name]: value };
         if (name === "Valeur" || name === "Reste_en_Cave" || name === "Dont_Bue" || name === "Qte") {
@@ -197,6 +203,9 @@ const NouveauVin = () => {
         return updatedVin;
       });
     } else if (e?.name) {
+      if (e.name === 'Note_sur_100') {
+        console.debug('[NOTE] set Note_sur_100 =', e.value, 'type=', typeof e.value);
+      }
       setVin((prevVin) => {
         const updatedVin = { ...prevVin, [e.name]: e.value };
         if (e.name === "Valeur" || e.name === "Reste_en_Cave" || e.name === "Dont_Bue" || e.name === "Qte") {
@@ -225,8 +234,19 @@ const NouveauVin = () => {
         setShowLoginModal(true);
         return;
       }
-      const modifiedVin = getModifiedFields();  // Obtenir uniquement les champs modifiés
+      const modifiedVin = getModifiedFields();  
+      
+      if (modifiedVin.Note_sur_100 !== undefined) {
+        modifiedVin.Note_sur_20 = Number(modifiedVin.Note_sur_100); 
+      }
       const modifiedVinJson = JSON.stringify(modifiedVin);
+
+      console.group('[SAVE] Payload envoyé à 4D');
+      console.table(modifiedVin); // lisible
+      console.log('Note_sur_100 =', modifiedVin.Note_sur_100, 'type=', typeof modifiedVin.Note_sur_100);
+      console.groupEnd();
+
+
       const formData = new FormData();
       formData.append("champsModif", modifiedVinJson);
       formData.append("action", "creation");
@@ -610,13 +630,16 @@ const NouveauVin = () => {
   };
 
   const getNoteDescription = (value) => {
-    if (value >= 18) return 'Exceptionnel';
-    else if (value >= 14) return 'Excellent';
-    else if (value >= 10) return 'Très bon';
-    else if (value >= 6) return 'Bon';
-    else if (value >= 2) return 'Acceptable';
-    else if (value == 0) return 'Non noté';
-    return 'Médiocre';
+    const v = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0;
+
+    if (v === 0) return 'Non noté';
+    if (v < 82) return 'Médiocre';
+    if (v < 85) return 'Correct';
+    if (v < 87) return 'Bon';
+    if (v < 90) return 'Très bon';
+    if (v < 93) return 'Excellent';
+    if (v < 97) return 'Exceptionnel';
+    return 'Grand Cru';
   };
 
   const addCaveDialogFooter = (

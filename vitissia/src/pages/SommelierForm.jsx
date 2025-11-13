@@ -32,9 +32,11 @@ const SommelierForm = () => {
     const [digestif, setDigestif] = useState('false');
     const [budget, setBudget] = useState(0);
     const [refine, setRefine] = useState('false');
-    const [refineCouleur, setRefineCouleur] = useState('');
+    /*const [refineCouleur, setRefineCouleur] = useState('');
     const [refineRegion, setRefineRegion] = useState('');
-    const [refineRegionInput, setRefineRegionInput] = useState('');
+    const [refineRegionInput, setRefineRegionInput] = useState('');*/
+    const [refineFree, setRefineFree] = useState('');
+    const [refineSummary, setRefineSummary] = useState('');
     const [bouteille, setBouteille] = useState(0);
     const [currentStep, setCurrentStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -125,8 +127,9 @@ const SommelierForm = () => {
             formData.append("token", token);
             formData.append("refine", refine);
             if (refine === 'true') {
-                formData.append("ref_couleur", refineCouleur || '');
-                formData.append("ref_region", refineRegion || '');
+                /*formData.append("ref_couleur", refineCouleur || '');
+                formData.append("ref_region", refineRegion || '');*/
+                formData.append("refine_free", refineFree || '');
             }
 
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_conseilPlatIA`, {
@@ -1476,7 +1479,7 @@ const SommelierForm = () => {
 
                                 <AnimatePresence>
                                     {refine === 'true' && (
-                                        <motion.div
+                                        /*<motion.div
                                             key="refine-fields"
                                             initial={{ opacity: 0, y: 8 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -1524,6 +1527,42 @@ const SommelierForm = () => {
                                                     ]
                                                         .filter(Boolean)
                                                         .join(" · ")}
+                                                </div>
+                                            )}
+                                        </motion.div>*/
+                                        <motion.div
+                                            key="refine-fields"
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -8 }}
+                                            transition={{ duration: 0.35 }}
+                                            className="space-y-5"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                                                    Affinage libre
+                                                </p>
+
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={refineFree}
+                                                        onChange={(e) => setRefineFree(e.target.value)}
+                                                        placeholder="Ex : uniquement des vins rouges ; Bordeaux rive gauche ; cépage Syrah ; bio ; max 25€..."
+                                                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-800/60 px-3 py-2 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all duration-300 shadow-sm"
+                                                    />
+                                                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                        Astuces : vous pouvez combiner librement couleur, région, style, cépage, prix, bio, millésime, etc.
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {(refineFree) && (
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                                    <span className="font-medium">Sélection :</span>{" "}
+                                                    {[
+                                                        refineFree && `Affinage: ${refineFree}`,
+                                                    ].filter(Boolean).join(" · ")}
                                                 </div>
                                             )}
                                         </motion.div>
@@ -1663,7 +1702,7 @@ const SommelierForm = () => {
         setManual(false)
         setAdaptePlat(true)
         setEquilibre('')
-        setAperitif('false')   
+        setAperitif('false')
         setDigestif('false')
     }
 
@@ -2053,7 +2092,7 @@ const SommelierForm = () => {
                     {/* 🧩 CAS 4 : résultat des vins */}
                     {vinResult && !isAnalyzing && vinResult?.vraiPlat !== false && (() => {
                         const groupedByPlat = vinResultNormalize(vinResult);
-                        const regionInvalid = vinResult?.vraiRegion === false;
+                        const affinInvalid = vinResult?.vraiAffin === false;
                         return (
                             <div className="mt-10">
                                 <motion.h1
@@ -2364,7 +2403,6 @@ const SommelierForm = () => {
                                                     localStorage.setItem("lastSommelierResult", JSON.stringify(oldData));
                                                     setOldResult(oldData);
 
-                                                    // 2) on ouvre le panneau
                                                     setShowSimilarPanel(s => !s);
                                                 }}
                                                 whileHover={{ scale: 1.06 }}
@@ -2496,6 +2534,7 @@ const SommelierForm = () => {
                                                                 // Appel back : on envoie la liste de noms à rapprocher
                                                                 const body = new FormData();
                                                                 body.append("uuidTable", vinResult?.uuid || conseilResult?.uuid || UUIDTable || "");
+                                                                body.append("uuidUser", UUIDuser);
                                                                 body.append("typeCase", "similarFromCave");
                                                                 body.append("vinsDemandes", JSON.stringify(Array.from(selectedMissing)));
                                                                 body.append("token", token);
@@ -2638,7 +2677,7 @@ const SommelierForm = () => {
                                     </AnimatePresence>
                                 </div>
 
-                                {regionInvalid && (
+                                {affinInvalid && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -2648,8 +2687,8 @@ const SommelierForm = () => {
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                             <p className="text-sm sm:text-base text-emerald-800 dark:text-emerald-300">
                                                 <span className="font-semibold">Information :</span> les vins ci-dessous ont été retournés
-                                                <span className="font-semibold"> sans filtrage par région</span> car la région saisie
-                                                n’a pas été reconnue comme une région valide. Vous pouvez réessayer en entrant une autre région.
+                                                <span className="font-semibold"> sans filtrage</span> car la demande saisie
+                                                n’a pas été reconnue comme une demande valide. Vous pouvez réessayer en entrant une autre demande.
                                             </p>
                                         </div>
                                     </motion.div>

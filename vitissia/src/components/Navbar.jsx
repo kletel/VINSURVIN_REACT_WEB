@@ -72,31 +72,38 @@ const Navbar = () => {
                 {/* NAVBAR PRINCIPALE */}
                 <div className="fixed top-0 left-0 right-0 z-50">
                     <div className="relative">
-                        <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/60 border-b border-white/40 dark:border-gray-700 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] px-4 md:px-6 py-2.5
-              flex flex-wrap items-center gap-3 md:gap-4">
-
+                        <div
+                            className="
+                                backdrop-blur-xl bg-white/70 dark:bg-gray-900/60
+                                border-b border-white/40 dark:border-gray-700
+                                shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)]
+                                px-3 md:px-4 lg:px-6
+                                py-2 md:py-2
+                                flex flex-wrap items-center
+                                gap-2 md:gap-3
+                            "
+                        >
                             {/* Burger + Logo */}
-                            <div className="hidden lg:flex items-center gap-3 min-w-[140px]">
-  <button
-    onClick={showSidebar}
-    aria-label="Basculer le menu"
-    aria-expanded={sidebar}
-    className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow hover:shadow-md transition-all active:scale-95"
-  >
-    <FaIcons.FaBars className={`text-lg transition-transform ${sidebar ? 'rotate-90' : ''}`} />
-  </button>
-  <Link
-    to="/"
-    onClick={closeSidebar}
-    className="group flex items-center gap-2 font-bold text-xl tracking-tight"
-  >
-    <img src="/vitissia_LOGO.png" alt="Vitissia" className="h-10 w-auto select-none" />
-  </Link>
-</div>
+                            <div className="hidden lg:flex items-center gap-2 min-w-[130px]">
+                                <button
+                                    onClick={showSidebar}
+                                    aria-label="Basculer le menu"
+                                    aria-expanded={sidebar}
+                                    className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow hover:shadow-md transition-all active:scale-95"
+                                >
+                                    <FaIcons.FaBars className={`text-base transition-transform ${sidebar ? 'rotate-90' : ''}`} />
+                                </button>
+                                <Link
+                                    to="/"
+                                    onClick={closeSidebar}
+                                    className="group flex items-center gap-1.5 font-bold text-lg tracking-tight"
+                                >
+                                    <img src="/vitissia_LOGO.png" alt="Vitissia" className="h-9 w-auto select-none" />
+                                </Link>
+                            </div>
 
-
-                            {/* LIENS RAPIDES – alignés à gauche, même taille pour tous les items */}
-                            <div className="hidden md:flex flex-1 items-stretch gap-2">
+                            {/* QUICK LINKS – padding & gap réduits à partir de md */}
+                            <div className="hidden md:flex flex-1 items-center gap-1 md:gap-1 lg:gap-2">
                                 {quickLinks.map(link => {
                                     const active = isActivePath(link.path);
                                     return (
@@ -104,52 +111,58 @@ const Navbar = () => {
                                             key={link.path}
                                             to={link.path}
                                             onClick={(e) => handleNavClick(e, link.path)}
-                                            className={
-                                                `group relative min-w-0 h-full
-                        rounded-xl text-xs sm:text-sm font-medium
-                        flex items-center justify-center
-                        px-2 sm:px-3 py-2
-                        transition-colors duration-200 ease-out
-                        ${active
+                                            className={`
+          group relative min-w-0
+          h-10 sm:h-11 lg:h-12          /* ← même hauteur pour tous */
+          rounded-xl text-xs sm:text-sm font-medium
+          transition-colors duration-200 ease-out
+          ${active
                                                     ? 'text-emerald-700 dark:text-emerald-300'
                                                     : 'text-gray-700 dark:text-gray-100'
-                                                }`
-                                            }
+                                                }
+        `}
                                         >
-                                            {/* Fond / contour – même taille pour tous (absolute inset-0 + items-stretch) */}
+                                            {/* Background plein bouton */}
                                             <span
-                                                className={
-                                                    `absolute inset-0 rounded-xl
-                          ${active
+                                                className={`
+            absolute inset-0 rounded-xl
+            ${active
                                                         ? 'bg-gradient-to-br from-emerald-500/15 via-emerald-400/10 to-teal-500/20 ring-1 ring-emerald-400/40 backdrop-blur-sm'
                                                         : 'bg-white/40 dark:bg-gray-800/40 border border-white/40 dark:border-gray-700/60 group-hover:bg-emerald-50 group-hover:dark:bg-emerald-900/30'
                                                     }
-                          transition-colors duration-200`
-                                                }
+            transition-colors duration-200
+          `}
                                             />
 
                                             {/* Soulignement animé */}
                                             <span
-                                                className={
-                                                    `pointer-events-none absolute bottom-0 left-0 h-[2px] rounded-full origin-left
-                          bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500
-                          transition-transform duration-200
-                          ${active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`
-                                                }
+                                                className={`
+            pointer-events-none absolute bottom-0 left-0 h-[2px] rounded-full origin-left
+            bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500
+            transition-transform duration-200
+            ${active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}
+          `}
                                             />
 
-                                            {/* Contenu icône + texte – texte peut aller à la ligne */}
-                                            <span className="relative flex items-center justify-center gap-2 px-1 sm:px-2">
+                                            {/* Contenu centré dans la hauteur fixe */}
+                                            <span
+                                                className="
+            relative flex items-center justify-center
+            h-full                             /* ← occupe toute la hauteur du bouton */
+            gap-1 md:gap-1
+            px-2 md:px-2 lg:px-3
+          "
+                                            >
                                                 <span
-                                                    className={
-                                                        `flex items-center justify-center text-base shrink-0
-                            transition-transform duration-200
-                            ${active
+                                                    className={`
+              flex items-center justify-center text-base shrink-0
+              transition-transform duration-200
+              ${active
                                                             ? 'text-emerald-600 dark:text-emerald-300'
                                                             : 'text-emerald-700/80 dark:text-emerald-200/90 group-hover:text-emerald-400'
                                                         }
-                            group-hover:scale-110`
-                                                    }
+              group-hover:scale-110
+            `}
                                                 >
                                                     {link.icon}
                                                 </span>
@@ -162,13 +175,14 @@ const Navbar = () => {
                                 })}
                             </div>
 
+
                             {/* Zone droite */}
-                            <div className="flex items-center gap-3 ml-auto md:ml-0">
+                            <div className="flex items-center gap-2 md:gap-2 ml-auto md:ml-0">
                                 {/* Bouton Home mobile */}
                                 <button
                                     onClick={() => navigate('/')}
                                     aria-label="Aller au Livre de cave"
-                                    className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-emerald-300/60 text-emerald-700 bg-white/70 hover:bg-white transition-colors"
+                                    className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl border border-emerald-300/60 text-emerald-700 bg-white/70 hover:bg-white transition-colors"
                                 >
                                     <i className="pi pi-home" />
                                 </button>
@@ -176,7 +190,7 @@ const Navbar = () => {
                                 {/* Nom utilisateur desktop */}
                                 {isLoggedIn && (
                                     <div className="hidden lg:flex flex-col items-end leading-tight">
-                                        <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        <span className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                             Connecté
                                         </span>
                                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 max-w-[160px] truncate">
@@ -187,7 +201,7 @@ const Navbar = () => {
 
                                 {/* Avatar / Profil */}
                                 <Button
-                                    className="group relative !w-12 !h-12 !p-0 !flex !items-center !justify-center rounded-2xl border-0 shadow-lg shadow-emerald-700/20 bg-gradient-to-br from-emerald-500 via-teal-500 to-teal-600 hover:from-emerald-400 hover:via-emerald-500 hover:to-teal-600 transition-all duration-300 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/40"
+                                    className="group relative !w-11 !h-11 md:!w-12 md:!h-12 !p-0 !flex !items-center !justify-center rounded-2xl border-0 shadow-lg shadow-emerald-700/20 bg-gradient-to-br from-emerald-500 via-teal-500 to-teal-600 hover:from-emerald-400 hover:via-emerald-500 hover:to-teal-600 transition-all duration-300 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/40"
                                     type="button"
                                     onClick={(e) => op.current.toggle(e)}
                                     aria-label="Profil utilisateur"
@@ -198,8 +212,8 @@ const Navbar = () => {
                                     </span>
                                     <span className="pointer-events-none absolute -inset-0.5 rounded-2xl opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-emerald-300/20 via-teal-400/10 to-teal-600/20"></span>
                                     <span className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),inset_0_-4px_12px_rgba(0,0,0,0.15)]"></span>
-                                    <span className="relative z-10 font-bold text-white text-sm tracking-wide flex items-center justify-center w-full h-full drop-shadow">
-                                        {initials || <GiGrapes className='text-lg drop-shadow' />}
+                                    <span className="relative z-10 font-bold text-white text-xs md:text-sm tracking-wide flex items-center justify-center w-full h-full drop-shadow">
+                                        {initials || <GiGrapes className='text-base md:text-lg drop-shadow' />}
                                     </span>
                                     {isLoggedIn && (
                                         <span className="pointer-events-none absolute -top-1 -right-1 flex items-center justify-center">
@@ -264,17 +278,17 @@ const Navbar = () => {
                                                 <Link
                                                     to={item.path}
                                                     onClick={(e) => handleNavClick(e, item.path)}
-                                                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative ${active ? 'text-emerald-300' : 'text-gray-300 hover:text-white'
+                                                    className={`group flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all relative ${active ? 'text-emerald-300' : 'text-gray-300 hover:text-white'
                                                         }`}
                                                 >
                                                     <span className={`absolute inset-0 rounded-xl ${active
-                                                            ? 'bg-white/10 ring-1 ring-emerald-400/30 backdrop-blur-sm'
-                                                            : 'group-hover:bg-white/5'
+                                                        ? 'bg-white/10 ring-1 ring-emerald-400/30 backdrop-blur-sm'
+                                                        : 'group-hover:bg-white/5'
                                                         } transition-colors`}></span>
-                                                    <span className="relative flex items-center gap-3">
-                                                        <span className={`flex items-center justify-center w-9 h-9 rounded-lg border ${active
-                                                                ? 'border-emerald-500/60 bg-gradient-to-br from-emerald-500/30 to-teal-600/30'
-                                                                : 'border-white/10 bg-white/5 group-hover:border-emerald-400/30'
+                                                    <span className="relative flex items-center gap-2">
+                                                        <span className={`flex items-center justify-center w-8 h-8 rounded-lg border ${active
+                                                            ? 'border-emerald-500/60 bg-gradient-to-br from-emerald-500/30 to-teal-600/30'
+                                                            : 'border-white/10 bg-white/5 group-hover:border-emerald-400/30'
                                                             } text-lg text-emerald-300 group-hover:scale-105 transition-transform`}>
                                                             {item.icon}
                                                         </span>

@@ -45,17 +45,18 @@ const BottomBar = () => {
       label: "Recettes",
       activeColor: "text-rose-600 dark:text-rose-400",
     },
-     {
+    {
       path: "/sommelier",
       icon: "pi pi-info",
       label: "Sommelier",
       activeColor: "text-blue-600 dark:text-blue-400",
     },
   ];
-console.log('showloginmodal',showLoginModal)
+
+  console.log('showloginmodal', showLoginModal);
+
   const isActive = (path) => {
     if (path === "/cave") {
-      // Désactiver sur le dashboard
       if (location.pathname === "/" || location.pathname === "/dashboard") {
         return false;
       }
@@ -82,25 +83,59 @@ console.log('showloginmodal',showLoginModal)
   if (hideOnThisRoute) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-[9999] safe-area-pb md:hidden">
-      <div className="flex justify-around items-center py-2 px-1">
+    <div
+      className="
+        fixed bottom-0 left-0 right-0
+        md:hidden
+        z-[9999]
+        backdrop-blur-xl
+        bg-black
+        border-t border-white/10
+        shadow-[0_-4px_18px_rgba(0,0,0,0.6)]
+        safe-area-pb
+      "
+    >
+      <div className="flex justify-around items-center px-2 pt-1 pb-2 gap-1">
         {menuItems.map((item) => {
           const active = isActive(item.path);
           return (
             <button
               key={item.path}
               onClick={() => handleClick(item.path)}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 min-w-0 flex-1 max-w-20 ${
-                active
-                  ? `${item.activeColor} bg-gray-50 dark:bg-gray-700/50`
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-              }`}
+              className={`
+                flex flex-col items-center justify-center
+                py-1.5 px-2
+                rounded-2xl
+                transition-all duration-200
+                min-w-0 flex-1 max-w-[88px]
+                ${active
+                  ? `
+                      text-white
+                      bg-gradient-to-t from-[#7f0b21] via-[#b20e2a] to-[#d41132]
+                      shadow-[0_0_14px_rgba(212,17,50,0.55)]
+                      scale-[1.02]
+                    `
+                  : `
+                      text-gray-300/90
+                      hover:text-white
+                      hover:bg-white/5
+                    `
+                }
+              `}
             >
-              <i className={`${item.icon} text-lg mb-1`}></i>
+              <i
+                className={`
+                  ${item.icon}
+                  text-[18px]
+                  mb-0.5
+                  ${active ? 'opacity-100' : 'opacity-90'}
+                `}
+              />
               <span
-                className={`text-xs font-medium truncate ${
-                  active ? "font-semibold" : ""
-                }`}
+                className={`
+                  text-[11px] font-medium truncate max-w-full leading-tight
+                  ${active ? 'font-semibold' : ''}
+                `}
               >
                 {item.label}
               </span>
@@ -108,6 +143,7 @@ console.log('showloginmodal',showLoginModal)
           );
         })}
       </div>
+
       <LoginRequiredModal
         visible={showLoginModal}
         onLogin={() => { setShowLoginModal(false); navigate('/login'); }}

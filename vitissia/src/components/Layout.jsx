@@ -12,7 +12,12 @@ const Layout = ({ children }) => {
   }, []);
 
   return (
-    <div className={`min-h-screen ${isMobile ? 'main-content-mobile' : ''}`}>
+    <div
+      id="main-scroll"
+      className={`min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] ${
+        isMobile ? 'main-content-mobile' : ''
+      }`}
+    >
       {children}
     </div>
   );

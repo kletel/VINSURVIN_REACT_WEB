@@ -5,6 +5,8 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+@import 'react-phone-number-input/style.css';
+
 @layer utilities {
   .p-tabview,
   .p-tabview * {
@@ -27,75 +29,206 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dialog de suppression – fond sombre cohérent avec le thème */
+.vitissia-delete-dialog .p-dialog {
+    background: rgba(15, 23, 42, 0.97); /* slate-900 très sombre */
+    border-radius: 1rem;
+    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.9);
+}
+
+/* On supprime juste le header standard, on gère tout dans le contenu custom */
+.vitissia-delete-dialog .p-dialog-header {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+/* Le contenu ne rajoute pas de blanc autour de notre carte */
+.vitissia-delete-dialog .p-dialog-content {
+    background: transparent;
+    padding: 0;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
 .p-datatable-header {
   padding: 0.5rem 1rem;
-  background-color: #f9f9f9;
   /*border-radius: 8px;*/
 }
-/* Cible les champs de type date */
+
+/* Cible les champs de type date (ancienne règle – surchargée plus bas) */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1); /* Inverse les couleurs pour rendre l'icône blanche */
   cursor: pointer; /* Ajoute un curseur pointer pour l'interaction */
 }
+
 /*
 .dark .p-datatable-header {
   background-color: #1e1e1e;
   color: #f5f5f5;
 }*/
+
 .dark .custom-tabview .p-tabview-nav-container {
-  background-color: #1e1e1e;
- /*  border-top-left-radius: 1rem; Correspond à rounded-t-2xl */
+  /* border-top-left-radius: 1rem; Correspond à rounded-t-2xl */
   /* border-top-right-radius: 1rem; Correspond à rounded-t-2xl */
   overflow: hidden; /* Pour éviter les débordements */
   display: flex;
   justify-content: center;
   align-items: center;
 }
-.custom-tabview .p-tabview-nav-container {
-  background-color: white;
-  overflow: hidden; /* Pour éviter les débordements */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+
+/* ==== TABVIEW VITISSIA (NOUVELLES COULEURS) ==== */
+
+.p-tabview .p-tabview-nav {
+  background: rgba(17, 24, 39, 0.7); /* bg-gray-900/70 */
+  border: none;
+  border-width: 0 0 2px 0;
 }
-/*
-.custom-tabview .p-tabview-nav-container2 {
-  background-color: white;
-  overflow: hidden;
-  justify-content: center !important;
-  align-items: center !important;
+
+/* TabView custom en mode sombre */
+.dark .custom-tabview .p-tabview-nav {
+  background-color: rgba(17, 24, 39, 0.9) !important; /* bg-gray-900 un peu plus opaque */
 }
-*/
 
 .custom-tabview .p-tabview-panel {
-  /*background-color: aqua;*/
-  /*padding: 15px;*/
-  border-bottom-left-radius: 1rem; /* Correspond à rounded-b-2xl */
-  border-bottom-right-radius: 1rem; /* Correspond à rounded-b-2xl */
+  background-color: transparent; 
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
 }
 
-
-
-
-.dark .custom-tabview .p-tabview-nav {
-  /* background-color: #1e1e1e !important; */
-  background-color: #1e1e1e !important;
-}
-.custom-tabview .p-tabview-nav {
-  background-color: white !important;
+/* Liens de tab : transparents, on garde juste le highlight en noir/doré */
+.p-tabview-nav-link {
+  background: transparent;
 }
 
 .dark .custom-tabview .p-tabview-nav-link {
-  background-color: #1e1e1e !important;
+  background-color: transparent !important;
   padding: 12px;
 }
+
 .custom-tabview .p-tabview-nav-link {
-  background-color: white !important;
+  background-color: transparent !important;
   padding: 12px;
+}
+
+.custom-tabview .p-tabview-nav-container {
+  overflow: hidden;
+  justify-content: stretch; /* plus center */
+}
+
+/* La barre qui contient les li */
+.custom-tabview .p-tabview-nav {
+  background-color: rgba(17, 24, 39, 0.9) !important;
+  display: flex;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+/* Chaque onglet prend 1/3 et s’étire en hauteur */
+.custom-tabview .p-tabview-nav li {
+  flex: 1 1 0;
+}
+
+/* Le lien interne prend toute la place */
+.custom-tabview .p-tabview-nav li .p-tabview-nav-link {
+  width: 100%;
+  height: 100%;
+  padding: 0; /* le padding est géré dans le contenu React */
+  display: block;
+}
+
+/* Pour que le contenu interne (notre <button>/<div>) remplisse bien */
+.custom-tabview .p-tabview-nav li .p-tabview-nav-link > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* Mode sombre : TabPanel actif */
+body.dark .custom-tabview .p-tabview-nav-link.p-highlight {
+  background-color: black !important; /* Fond noir */
+  color: #f0cd7b !important;         /* Texte doré */
+}
+
+/* Mode clair : TabPanel actif */
+body .custom-tabview .p-tabview-nav-link.p-highlight {
+  background-color: black !important;
+  color: #f0cd7b !important;
+}
+
+/* Panel global (mêmes vibes que la searchbar) */
+.metsvins-autocomplete-panel {
+  background-color: #111827 !important; /* gray-900 */
+  color: #f9fafb !important;
+  border: 1px solid #374151 !important; /* gray-700 */
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.9) !important;
+  opacity: 0;
+  pointer-events: auto;
+  animation: metsvins-panel-in 150ms ease-out forwards;
+}
+
+/* Position/largeur : déjà OK */
+.metsvins-autocomplete-wrapper .p-autocomplete-panel {
+  width: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-top: 4px;
+}
+
+/* Liste interne */
+.metsvins-autocomplete-panel .p-autocomplete-items {
+  padding: 0.25rem 0;
+}
+
+/* Chaque suggestion */
+.metsvins-autocomplete-panel .p-autocomplete-item {
+  background-color: #111827;
+  color: #f9fafb;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Hover / élément sélectionné */
+.metsvins-autocomplete-panel .p-autocomplete-item.p-highlight,
+.metsvins-autocomplete-panel .p-autocomplete-item:hover {
+  background-color: #1f2937; /* gray-800 */
+  color: #f9fafb;
+}
+
+/* Input AutoComplete : exactement comme la searchbar bg-gray-800/50 */
+.metsvins-autocomplete-wrapper .p-inputtext {
+  background-color: rgba(31, 41, 55, 0.5) !important; /* bg-gray-800/50 */
+  border-color: #374151 !important; /* gray-700 */
+  color: #f9fafb !important;
+}
+
+.metsvins-autocomplete-wrapper .p-inputtext:enabled:focus {
+  box-shadow: none !important;
+  border-color: #9ca3af !important; /* gray-400 */
+  background-color: rgba(31, 41, 55, 0.5) !important; /* garder la même couleur au focus */
+}
+
+
+/* Petite anim de panel (tu peux garder) */
+@keyframes metsvins-panel-in {
+  from {
+    opacity: 0;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  to {
+    opacity: 1;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.9);
+  }
+}
+
+@keyframes mets-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.7); /* gray-400 */
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(148, 163, 184, 0);
+  }
 }
 
 .p-stepper-panels {
@@ -103,21 +236,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 8px;*/
   padding: 0;
 }
-/* Mode sombre : TabPanel actif */
-body.dark .custom-tabview .p-tabview-nav-link.p-highlight {
-  background-color: black !important; /* Fond noir */
-  color: #f0cd7b !important; /* Texte doré */
-}
-
-/* Mode clair : TabPanel actif */
-body .custom-tabview .p-tabview-nav-link.p-highlight {
-  background-color: black !important; /* Fond noir */
-  color: #f0cd7b !important; /* Texte doré */
-}
 
 .custom-tabview .p-tabview-nav-content  {
   /* background-color: green !important;  IL EST VISVIBLE SUR PETIT ECRAN*/
- }
+}
+
 .no-spinner::-webkit-inner-spin-button,
 .no-spinner::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -127,11 +250,13 @@ body .custom-tabview .p-tabview-nav-link.p-highlight {
 .no-spinner {
   -moz-appearance: textfield; /* Firefox */
 }
+
 .centered-tab-headers .p-tabview-nav li .p-tabview-nav-link {
   justify-content: center;
   text-align: center;
 }
 
+/* Nouvelle règle date : écrase la première (mode clair / sombre propre) */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0);
 }
@@ -139,5 +264,348 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 
+/* Container du Dialog */
+.vitissia-dialog .p-dialog {
+  box-shadow: none;
+}
+
+/* Header (zone de la croix) */
+.vitissia-dialog-header {
+  background: linear-gradient(135deg, #14070a 0%, #221013 45%, #2b1419 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Toast global plus petit, en bas à droite */
+.toast-sm.p-toast {
+  max-width: 260px;           /* largeur max */
+  font-size: 0.8rem;          /* texte plus petit */
+}
+
+/* Conteneur de chaque message */
+.toast-sm .p-toast-message {
+  padding: 0.4rem 0.6rem;     /* moins de padding */
+  border-radius: 0.5rem;
+}
+
+/* Icône + texte plus compacts */
+.toast-sm .p-toast-message-content {
+  gap: 0.35rem;
+}
+
+.toast-sm .p-toast-message-icon {
+  font-size: 0.9rem;
+}
+
+.toast-sm .p-toast-summary {
+  font-size: 0.8rem;
+  margin-bottom: 0.1rem;
+}
+
+.toast-sm .p-toast-detail {
+  font-size: 0.75rem;
+}
+
+/* Optionnel : réduire la marge au bord de l'écran */
+.toast-sm.p-toast .p-toast-message {
+  margin: 0.3rem;
+}
+
+.cave-filters-panel .p-dropdown-item:hover,
+.cave-filters-panel .p-multiselect-item:hover {
+  background-color: #111827; /* slate-900 */
+  color: #f9fafb;
+}
+
+/* S'assurer que la "mask" du dialog flotte au-dessus du reste */
+.cave-filters-dialog.p-dialog-mask {
+  z-index: 1200 !important;
+}
+
+/* S'assurer que la boîte du dialog elle-même est visible */
+.cave-filters-dialog .p-dialog {
+  z-index: 1210 !important;
+  transform: none !important;   /* au cas où une anim merde */
+}
+
+  /* >>> Le conteneur du Dialog (l'élément .p-dialog lui-même) */
+.p-dialog.vitissia-dialog {
+  box-shadow: none;
+}
+
+/* >>> Le Dialog spécifique des filtres (classe cave-filters-dialog sur .p-dialog) */
+.p-dialog.cave-filters-dialog {
+  background: transparent;
+  box-shadow: none;
+  z-index: 1210 !important;
+  transform: none !important; /* ici ton override s'applique VRAIMENT */
+}
+
+/* La mask reste gérée par PrimeReact, si tu veux la booster : */
+.p-dialog-mask {
+  z-index: 1200; /* optionnel, souvent inutile de toucher */
+}
+
+.cave-filters-dialog .p-multiselect-token {
+  background-color: #020617;      /* slate-950 */
+  border-radius: 9999px;          /* pill */
+  border: 1px solid rgba(148,163,184,0.6);
+  color: #e5e7eb;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+}
 
 
+/* Contenu : pas de fond blanc, on laisse le gradient géré par motion.div */
+.vitissia-dialog-content {
+  background: transparent;
+  padding: 0; /* on gère le padding dans le motion.div */
+}
+
+/* Croix de fermeture en blanc */
+.vitissia-dialog .p-dialog-header-icon,
+.vitissia-dialog .p-dialog-header-icon .pi {
+  color: #fff;
+}
+
+.vitissia-dialog .p-dialog-header-icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===========================
+   VITISSIA – Dialog filtres cave
+   =========================== */
+
+/* Dialog des filtres (mobile + desktop) */
+.cave-filters-dialog .p-dialog {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Header du dialog (barre du haut) */
+.cave-filters-dialog .p-dialog-header {
+  background: linear-gradient(135deg, #14070a 0%, #221013 40%, #3b0b15 100%);
+  border-bottom: 1px solid rgba(248, 250, 252, 0.12);
+  color: #f9fafb;
+  padding: 0.75rem 1rem;
+}
+
+/* Contenu principal (zone avec les sections Localisation / Caractéristiques / Qualité) */
+.cave-filters-dialog .p-dialog-content {
+  background:
+    radial-gradient(circle at top, rgba(248, 113, 113, 0.18), transparent 55%),
+    linear-gradient(to bottom, #0b0204, #14070a, #1a090d);
+  padding: 0; /* le padding est géré dans ton JSX (p-3 / p-4) */
+}
+
+/* Footer (barre du bas "Appliquer / Réinitialiser") */
+.cave-filters-dialog .p-dialog-footer {
+  background: rgba(3, 7, 18, 0.95);
+  border-top: 1px solid rgba(248, 250, 252, 0.08);
+}
+
+/* ===========================
+   Inputs & panels des filtres (Dropdown / MultiSelect)
+   =========================== */
+
+/* Inputs dans le dialog (p-dropdown & p-multiselect) */
+.cave-filters-dialog .p-dropdown,
+.cave-filters-dialog .p-multiselect {
+  background-color: rgba(15, 23, 42, 0.85); /* bg-slate-900/85 */
+  border: 1px solid rgba(148, 163, 184, 0.6); /* border-slate-400 */
+  border-radius: 0.75rem;
+}
+
+.cave-filters-dialog .p-dropdown .p-inputtext,
+.cave-filters-dialog .p-multiselect-label {
+  background: transparent;
+  border: none;
+  color: #e5e7eb; /* text-slate-200 */
+  font-size: 0.75rem;
+}
+
+.cave-filters-dialog .p-dropdown .p-dropdown-trigger,
+.cave-filters-dialog .p-multiselect .p-multiselect-trigger {
+  color: #9ca3af; /* slate-400 */
+}
+
+/* Panel des listes déroulantes (pays, couleur, etc.) */
+.cave-filters-panel.p-dropdown-panel,
+.cave-filters-panel.p-multiselect-panel {
+  background-color: #020617; /* bg-slate-950 */
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.9);
+  max-height: 240px;
+}
+
+/* Header des panels avec champ de recherche */
+.cave-filters-panel .p-dropdown-header,
+.cave-filters-panel .p-multiselect-header {
+  background-color: #020617;
+  border-bottom: 1px solid #1f2937; /* slate-800 */
+}
+
+.cave-filters-panel .p-inputtext {
+  background-color: rgba(15, 23, 42, 0.9);
+  border: 1px solid #4b5563;
+  color: #e5e7eb;
+  padding: 5px;
+  font-size: 0.75rem;
+}
+
+/* Panel MultiSelect des localisations */
+.cave-filters-panel.p-multiselect-panel .p-multiselect-item.p-highlight,
+.cave-filters-panel.p-multiselect-panel .p-multiselect-item.p-focus {
+  background-color: #111827 !important;  /* slate-900 */
+  color: #f9fafb !important;             /* text-gray-50 */
+}
+
+/* Header du MultiSelect (ligne "Tout sélectionner" + search) */
+.cave-filters-panel.p-multiselect-panel .p-multiselect-header {
+  background-color: #020617;            /* slate-950 */
+  border-bottom: 1px solid #1f2937;     /* slate-800 */
+}
+
+.cave-filters-panel.p-multiselect-panel .p-multiselect-header .p-checkbox-box.p-highlight {
+  background-color: #16a34a;            /* vert (ou ta couleur) */
+  border-color: #16a34a;
+}
+
+/* Label "Tout sélectionner" */
+.cave-filters-panel.p-multiselect-panel .p-multiselect-header .p-multiselect-all-label {
+  color: #e5e7eb;
+  font-size: 0.75rem;
+}
+
+.cave-filters-panel.p-multiselect-panel .p-multiselect-header .p-multiselect-all-label {
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  background-color: rgba(148, 163, 184, 0.15); /* slate-400/15 */
+}
+
+/* === Alignement “Tout sélectionner” avec les items === */
+
+.cave-filters-panel .p-multiselect-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem; /* même padding que les items */
+}
+
+.cave-filters-panel .p-multiselect-header .p-checkbox {
+  margin-right: 0.5rem;
+}
+
+.cave-filters-panel .p-multiselect-header .p-multiselect-filter-container {
+  margin-left: auto;
+  flex: 1;
+  max-width: 180px; /* à adapter si besoin */
+}
+
+.cave-filters-panel .p-multiselect-header .p-multiselect-label:hover {
+  background: rgba(37, 99, 235, 0.9);
+}
+
+/* Désactive l’effet “premier item en blanc auto-focus” */
+.cave-filters-panel .p-multiselect-item.p-focus {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+.cave-filters-dialog .p-multiselect-token {
+  background-color: #020617;
+  border-radius: 9999px;
+  border: 1px solid rgba(148,163,184,0.6);
+  color: #e5e7eb;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+/* ===========================
+   VITISSIA – Dialog TRI cave
+   =========================== */
+
+/* Le conteneur du Dialog (l'élément .p-dialog lui-même) */
+.p-dialog.sort-dialog {
+  box-shadow: none;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+/* Header du dialog de tri */
+.p-dialog.sort-dialog .p-dialog-header {
+  background: linear-gradient(135deg, #14070a 0%, #221013 40%, #3b0b15 100%);
+  border-bottom: 1px solid rgba(248, 250, 252, 0.12);
+  color: #f9fafb;
+  padding: 0.75rem 1rem;
+}
+
+/* Contenu : même fond que les filtres */
+.p-dialog.sort-dialog .p-dialog-content {
+  background:
+    radial-gradient(circle at top, rgba(248, 113, 113, 0.18), transparent 55%),
+    linear-gradient(to bottom, #0b0204, #14070a, #1a090d);
+  color: #e5e7eb;
+  padding: 0; /* tu gères le padding dans le JSX */
+}
+
+/* wrapper global du PhoneInput */
+.react-phone-input-custom {
+    background: transparent;
+    /* pour que le w-full, padding, etc. de Tailwind continuent à marcher */
+}
+
+/* input réel où tu tapes le numéro */
+.react-phone-input-custom .PhoneInputInput {
+    background-color: rgba(15, 23, 42, 0.85); /* bg-slate-900/70 */
+    color: #f9fafb;                            /* text-white */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;                    /* ~ rounded-xl */
+    padding: 0.5rem 0.75rem;                   /* px-3 py-2 */
+    outline: none;
+}
+
+/* placeholder */
+.react-phone-input-custom .PhoneInputInput::placeholder {
+    color: rgba(148, 163, 184, 0.8);           /* text-slate-400 */
+}
+
+/* select du pays */
+.react-phone-input-custom .PhoneInputCountrySelect {
+    background: transparent;
+    color: #f9fafb;
+    border: none;
+}
+
+/* icône du drapeau : pas de gros shadow moche */
+.react-phone-input-custom .PhoneInputCountryIcon {
+    box-shadow: none;
+}
+
+/* Footer */
+.p-dialog.sort-dialog .p-dialog-footer {
+  background: rgba(3, 7, 18, 0.95);
+  border-top: 1px solid rgba(248, 250, 252, 0.08);
+}
+
+
+/* Items des listes */
+.cave-filters-panel .p-dropdown-items,
+.cave-filters-panel .p-multiselect-items {
+  padding: 0.25rem 0;
+}
+
+.cave-filters-panel .p-dropdown-item,
+.cave-filters-panel .p-multiselect-item {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  color: #e5e7eb;
+}
+
+.cave-filters-panel .p-dropdown-item.p-highlight,
+.cave-filters-panel .p-dropdown-item.p-focus,
+.cave-filters-panel .p-multiselect-item.p-highlight {
+  background-color: #111827; /* slate-900 */
+  color: #f9fafb;
+}

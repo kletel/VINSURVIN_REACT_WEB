@@ -18,10 +18,10 @@ const VinsMets = () => {
     const [vinQuery, setVinQuery] = useState('');
     const [vinSuggestions, setVinSuggestions] = useState([]);
     const [selectedVin, setSelectedVin] = useState(null);
-    const [metsForSelectedVin, setMetsForSelectedVin] = useState([]); // [{ met, paths: [{categorie, sousCategorie}] }]
+    const [metsForSelectedVin, setMetsForSelectedVin] = useState([]);
     const [metFilter, setMetFilter] = useState('');
-    const [sortMode, setSortMode] = useState('alpha'); // 'alpha' | 'provenance'
-    const [recipesMap, setRecipesMap] = useState({}); // { [normalizedMetName]: base64 | null }
+    const [sortMode, setSortMode] = useState('alpha');
+    const [recipesMap, setRecipesMap] = useState({});
 
     useEffect(() => {
         fetchAssociations();
@@ -45,6 +45,7 @@ const VinsMets = () => {
             setMetsForSelectedVin(mets);
         }
     }, [associations, selectedVin]);
+
     useEffect(() => {
         const storedVin = sessionStorage.getItem('vinName');
         const metsForVin = sessionStorage.getItem('metsForVin');
@@ -161,7 +162,7 @@ const VinsMets = () => {
         return () => { aborted = true; };
     }, [selectedVin, metsForSelectedVin]);
 
-    // Debug: afficher le mapping pour les mets visibles
+    // Debug
     useEffect(() => {
         if (!selectedVin || filteredAndSortedMets.length === 0) return;
         const report = filteredAndSortedMets.map((m) => {
@@ -170,7 +171,6 @@ const VinsMets = () => {
             return { met: m.met, key, hasImage: !!img, imgLen: img ? img.length : 0 };
         });
         console.table(report);
-        // Logs additionnels pour vérifier une entrée spécifique si besoin
         if (report.length > 0) {
             const sample = report[0];
             console.log('[VinsMets] Sample mapping check — Association.Met:', sample.met, '→ key:', sample.key, 'exists in recipesMap:', sample.key in recipesMap);
@@ -207,10 +207,10 @@ const VinsMets = () => {
     if (loading) {
         return (
             <Layout>
-                <div className="flex justify-center items-center h-screen">
-                    <div className="text-center">
+                <div className="flex justify-center items-center h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-white">
+                    <div className="text-center text-white/80">
                         <ProgressSpinner style={{ width: '50px', height: '50px' }} />
-                        <p className="text-xl font-semibold text-gray-600 dark:text-gray-300 mt-4">
+                        <p className="text-xl font-semibold mt-4">
                             Chargement des associations...
                         </p>
                     </div>
@@ -222,11 +222,11 @@ const VinsMets = () => {
     if (error) {
         return (
             <Layout>
-                <div className="flex justify-center items-center h-screen">
-                    <div className="text-center">
-                        <i className="pi pi-exclamation-triangle text-red-500 text-6xl mb-4"></i>
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Erreur</h2>
-                        <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+                <div className="flex justify-center items-center h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-white">
+                    <div className="text-center text-white/80">
+                        <i className="pi pi-exclamation-triangle text-red-400 text-6xl mb-4"></i>
+                        <h2 className="text-2xl font-bold mb-2 text-white">Erreur</h2>
+                        <p className="mb-4">{error}</p>
                         <Button label="Réessayer" icon="pi pi-refresh" onClick={fetchAssociations} />
                     </div>
                 </div>
@@ -236,22 +236,39 @@ const VinsMets = () => {
 
     return (
         <Layout>
-            <Toast ref={toast} position="bottom-right" />
-            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6">
+            {/* <Toast ref={toast} />*/}
+            <div className="min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-white">
+                {/* Header */}
+                <div
+                    className="
+                        px-4 py-6 mb-6
+                        border-b border-black/30
+                        shadow-[0_18px_30px_-18px_rgba(0,0,0,0.9)]
+                        bg-transparent
+                    "
+                >
                     <div className="max-w-6xl mx-auto">
                         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Rechercher un vin</h1>
-                                <p className="mt-1 text-sm md:text-base text-gray-600 dark:text-gray-300">Trouvez un vin et explorez instantanément tous les mets associés.</p>
+                                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+                                    Rechercher un vin
+                                </h1>
+                                <p className="mt-1 text-sm md:text-base text-white/70">
+                                    Trouvez un vin et explorez instantanément tous les mets associés.
+                                </p>
                             </div>
                             {selectedVin && (
                                 <div className="flex items-center gap-2">
-                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-800/70 border border-gray-600 text-white shadow-sm">
                                         <i className="pi pi-wine-bottle text-sm"></i>
-                                        <span className="font-medium">{selectedVin}</span>
+                                        <span className="font-medium truncate max-w-[220px]">{selectedVin}</span>
                                     </span>
-                                    <Button label="Changer" className="p-button-text" icon="pi pi-refresh" onClick={clearSelectedVin} />
+                                    <Button
+                                        label="Changer"
+                                        icon="pi pi-refresh"
+                                        className="p-button-text p-button-sm !text-white"
+                                        onClick={clearSelectedVin}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -263,17 +280,11 @@ const VinsMets = () => {
                         {/* Panneau gauche: recherche + suggestions */}
                         <div className="lg:col-span-1">
                             <div className="sticky top-4 space-y-4">
-                                <div className="bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 shadow-sm">
-                                    {/*<div className="flex items-center gap-3 mb-4">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow">
-                      <i className="pi pi-search text-lg"></i>
-                    </span>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Rechercher un vin</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Saisissez un nom de vin pour voir tous les mets correspondants</p>
-                    </div>
-                  </div>*/}
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom du vin</label>
+                                {/* Carte recherche vin */}
+                                <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 shadow-[0_18px_45px_rgba(0,0,0,0.9)] backdrop-blur metsvins-autocomplete-wrapper">
+                                    <label className="block text-sm font-medium text-white/80 mb-2">
+                                        Nom du vin
+                                    </label>
                                     <AutoComplete
                                         value={vinQuery}
                                         suggestions={vinSuggestions}
@@ -283,21 +294,40 @@ const VinsMets = () => {
                                         placeholder="Ex: Bordeaux, Chardonnay, Beaujolais…"
                                         className="w-full text-base"
                                         dropdown
+                                        inputClassName="
+                                            !bg-gray-800/50
+                                            !text-white
+                                            !border-gray-700
+                                            placeholder:!text-gray-400
+                                            focus:!border-gray-400
+                                            focus:!shadow-none
+                                        "
+                                        panelClassName="metsvins-autocomplete-panel"
                                     />
                                 </div>
 
+                                {/* Suggestions populaires */}
                                 {!selectedVin && (
-                                    <div className="bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 shadow-sm">
+                                    <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 shadow-[0_18px_45px_rgba(0,0,0,0.9)]">
                                         <div className="flex items-center gap-2 mb-3">
-                                            <i className="pi pi-sparkles text-amber-500"></i>
-                                            <h4 className="font-semibold text-gray-900 dark:text-white">Suggestions populaires</h4>
+                                            <i className="pi pi-sparkles text-amber-400"></i>
+                                            <h4 className="font-semibold text-white">
+                                                Suggestions populaires
+                                            </h4>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {quickSuggestions.map((vin, idx) => (
                                                 <button
                                                     key={idx}
                                                     onClick={() => onSelectVin({ value: vin })}
-                                                    className="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                                                    className="
+                                                        px-3 py-1.5 rounded-full
+                                                        bg-gray-900/70 border border-gray-700
+                                                        text-xs text-white
+                                                        hover:bg-gray-700
+                                                        transition-all
+                                                        hover:-translate-y-0.5
+                                                    "
                                                 >
                                                     {vin}
                                                 </button>
@@ -312,46 +342,92 @@ const VinsMets = () => {
                         <div className="lg:col-span-2">
                             {!selectedVin ? (
                                 <div className="h-full flex items-center justify-center">
-                                    <div className="text-center max-w-md">
-                                        <div className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow">
+                                    <div className="text-center max-w-md bg-gray-800/50 border border-gray-700 rounded-2xl px-8 py-10 shadow-[0_18px_45px_rgba(0,0,0,0.9)]">
+                                        <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-lg">
                                             <i className="pi pi-compass text-2xl"></i>
                                         </div>
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Commencez par choisir un vin</h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Utilisez la recherche à gauche ou sélectionnez l’une des suggestions pour afficher les mets associés.</p>
+                                        <h3 className="text-xl font-bold text-white mb-1">
+                                            Commencez par choisir un vin
+                                        </h3>
+                                        <p className="text-sm text-white/70">
+                                            Utilisez la recherche à gauche ou sélectionnez l’une des suggestions pour afficher les mets associés.
+                                        </p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 shadow-sm">
-                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                        <div className="text-base md:text-lg text-gray-700 dark:text-gray-200">
-                                            Mets associés à <span className="font-semibold text-gray-900 dark:text-white">{selectedVin}</span>
+                                <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 shadow-[0_18px_45px_rgba(0,0,0,0.9)]">
+                                    <div className="flex flex-col gap-3">
+                                        {/* Titre + compteur */}
+                                        <div className="text-base md:text-lg text-white">
+                                            Mets associés à{' '}
+                                            <span className="font-semibold text-white">
+                                                {selectedVin}
+                                            </span>
                                             {metsForSelectedVin.length > 0 && (
-                                                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">• {metsForSelectedVin.length} résultat(s)</span>
+                                                <span className="ml-2 text-sm text-white/60">
+                                                    • {metsForSelectedVin.length} résultat(s)
+                                                </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative">
-                                                <i className="pi pi-filter text-gray-500 dark:text-gray-400 absolute left-2 top-1/2 -translate-y-1/2 text-xs"></i>
+
+                                        {/* Zone filtres + tri, toujours en dessous du titre */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                                            <div className="relative w-full sm:w-56 md:w-64">
+                                                <i className="pi pi-filter text-white/50 absolute left-2 top-1/2 -translate-y-1/2 text-xs"></i>
                                                 <input
                                                     value={metFilter}
                                                     onChange={(e) => setMetFilter(e.target.value)}
                                                     placeholder="Filtrer les mets…"
-                                                    className="pl-7 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                                    className="
+                    w-full
+                    pl-7 pr-3 py-2
+                    rounded-lg
+                    border border-gray-700
+                    bg-gray-900/80
+                    text-xs sm:text-sm text-white
+                    placeholder:text-gray-500
+                    focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:border-rose-400
+                    transition-all
+                "
                                                 />
                                             </div>
-                                            <div className="hidden md:flex items-center gap-1">
-                                                <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Trier:</span>
+
+                                            {/* Boutons de tri */}
+                                            <div className="flex items-center justify-start gap-1.5">
+                                                <span className="hidden sm:inline text-[11px] md:text-xs text-white/50 mr-1">
+                                                    Trier :
+                                                </span>
+
                                                 <button
                                                     onClick={() => setSortMode('alpha')}
                                                     aria-pressed={sortMode === 'alpha'}
-                                                    className={`px-2.5 py-1 rounded-md text-xs border ${sortMode === 'alpha' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                                                    className={`
+                    inline-flex items-center justify-center
+                    min-w-[90px]
+                    px-3 py-1.5
+                    rounded-md text-[11px] sm:text-xs border transition-all
+                    ${sortMode === 'alpha'
+                                                            ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                                                            : 'bg-gray-900/70 border-gray-700 text-white/80 hover:bg-gray-800'
+                                                        }
+                `}
                                                 >
                                                     A → Z
                                                 </button>
+
                                                 <button
                                                     onClick={() => setSortMode('provenance')}
                                                     aria-pressed={sortMode === 'provenance'}
-                                                    className={`px-2.5 py-1 rounded-md text-xs border ${sortMode === 'provenance' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                                                    className={`
+                    inline-flex items-center justify-center
+                    min-w-[110px]
+                    px-3 py-1.5
+                    rounded-md text-[11px] sm:text-xs border transition-all
+                    ${sortMode === 'provenance'
+                                                            ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                                                            : 'bg-gray-900/70 border-gray-700 text-white/80 hover:bg-gray-800'
+                                                        }
+                `}
                                                 >
                                                     + provenance
                                                 </button>
@@ -359,31 +435,43 @@ const VinsMets = () => {
                                         </div>
                                     </div>
 
+
                                     {filteredAndSortedMets.length > 0 ? (
                                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                                             {filteredAndSortedMets.map((item, i) => (
                                                 <div
                                                     key={i}
-                                                    className="group p-4 rounded-2xl border bg-white/90 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+                                                    className="
+                                                        group p-4 rounded-2xl border
+                                                        bg-gray-900/80 border-gray-700
+                                                        shadow-[0_18px_45px_rgba(0,0,0,1)]
+                                                        hover:shadow-[0_24px_60px_rgba(0,0,0,1)]
+                                                        transition-all hover:-translate-y-0.5
+                                                    "
                                                 >
                                                     {/* Image de recette */}
-                                                    <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 mb-3">
+                                                    <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gray-900 mb-3">
                                                         {recipesMap[normalizeName(item.met)] ? (
                                                             <img
                                                                 src={`data:image/jpeg;base64,${recipesMap[normalizeName(item.met)]}`}
                                                                 alt={`Image recette pour ${item.met}`}
-                                                                className="w-full h-full object-cover"
+                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                                                                 loading="lazy"
                                                             />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                                            <div className="w-full h-full flex items-center justify-center text-white/30">
                                                                 <i className="pi pi-image text-2xl"></i>
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div className="flex items-start justify-between gap-2">
-                                                        <div className="font-semibold text-base md:text-lg text-gray-900 dark:text-white truncate" title={item.met}>{item.met}</div>
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 whitespace-nowrap">
+                                                        <div
+                                                            className="font-semibold text-base md:text-lg text-white truncate"
+                                                            title={item.met}
+                                                        >
+                                                            {item.met}
+                                                        </div>
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs bg-purple-900/40 text-purple-200 border border-purple-500/60 whitespace-nowrap">
                                                             <i className="pi pi-diagram-tree text-[10px]"></i>
                                                             {item.paths.length}
                                                         </span>
@@ -392,7 +480,10 @@ const VinsMets = () => {
                                                         {item.paths.map((p, j) => (
                                                             <span
                                                                 key={j}
-                                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] md:text-xs border ${getCategoryClasses(p.categorie)}`}
+                                                                className={`
+                                                                    inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] md:text-xs border
+                                                                    ${getCategoryClasses(p.categorie)}
+                                                                `}
                                                                 title={`${p.categorie} > ${p.sousCategorie}`}
                                                             >
                                                                 <i className="pi pi-tag text-xs"></i>
@@ -404,7 +495,7 @@ const VinsMets = () => {
                                                         <Button
                                                             label="Voir recette"
                                                             icon="pi pi-book"
-                                                            className="p-button-sm"
+                                                            className="p-button-sm px-4 py-2 bg-gradient-to-r from-rose-500 to-orange-400 border-none text-white shadow-sm hover:from-rose-600 hover:to-orange-500 transition-all"
                                                             onClick={() => handleVoirRecette(item.met)}
                                                             aria-label={`Voir recette pour ${item.met}`}
                                                         />
@@ -413,7 +504,9 @@ const VinsMets = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">Aucun met correspondant</div>
+                                        <div className="mt-6 text-sm text-white/60">
+                                            Aucun met correspondant
+                                        </div>
                                     )}
                                 </div>
                             )}

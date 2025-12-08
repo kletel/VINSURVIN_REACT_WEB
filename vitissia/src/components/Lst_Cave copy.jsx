@@ -10,10 +10,10 @@ import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
-import { VirtualScroller } from 'primereact/virtualscroller';
 import { PrimeReactProvider } from 'primereact/api';
 import config from '../config/config';
 import authHeader from '../config/authHeader';
+import CaveGrid from './CaveGrid';
 
 export default function LstCave({ listeCaves, refreshCaves }) {
     const toast = useRef(null);
@@ -52,6 +52,7 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     const [sortField, setSortField] = useState('Nom');
     const [sortOrder, setSortOrder] = useState(1); // 1 = ASC, -1 = DESC
     const [showEnCaveOnly, setShowEnCaveOnly] = useState(false);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
     // Filtres optimisés avec useMemo
     const { regions, pays, types, millesime, totalPrice, totalResteFiltered, couleurs, douceurs, contenants } = useMemo(() => {
@@ -264,29 +265,44 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     };
 
     const formatRegionName = useCallback((region) => {
-    if (region === "Provence-Alpes-Côte d'Azur") {
-        return "PACA";
-    }
-    return region;
-}, []);
+        if (region === "Provence-Alpes-Côte d'Azur") {
+            return "PACA";
+        }
+        return region;
+    }, []);
 
     const exportCSV = () => dt.current.exportCSV();
     const ajouterVin = () => navigate('/creation-vin');
-    const goFavoris = () => navigate('/favoris');
-
+    const goFavoris = () => {
+        setShowFavoritesOnly((prev) => {
+            const next = !prev;
+            toast.current?.show?.({
+                severity: next ? 'info' : 'warn',
+                summary: 'Favoris',
+                detail: next ? 'Filtre favoris activé' : 'Filtre favoris désactivé',
+                life: 1500
+            });
+            return next;
+        });
+    };
     // Filtrer les données visibles en temps réel pour mobile et desktop
+
+    const normalizeString = (str) =>
+        str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
     const filteredVisibleData = useMemo(() => {
-        let data = caves; // Utiliser caves au lieu de visibleData
+        let data = caves;
 
         if (globalFilter) {
-            const filterValue = globalFilter.toLowerCase();
+            const filterValue = normalizeString(globalFilter);
+
             data = data.filter(vin =>
-                vin.Nom?.toLowerCase().includes(filterValue) ||
-                vin.Pays?.toLowerCase().includes(filterValue) ||
-                vin.Région?.toLowerCase().includes(filterValue) ||
-                vin.Type?.toLowerCase().includes(filterValue) ||
-                vin.Cave?.toLowerCase().includes(filterValue) ||
-                vin.Appellation?.toLowerCase().includes(filterValue) ||
+                normalizeString(vin.Nom).includes(filterValue) ||
+                normalizeString(vin.Pays).includes(filterValue) ||
+                normalizeString(vin.Région).includes(filterValue) ||
+                normalizeString(vin.Type).includes(filterValue) ||
+                normalizeString(vin.Cave).includes(filterValue) ||
+                normalizeString(vin.Appellation).includes(filterValue) ||
                 vin.Valeur?.toString().includes(filterValue)
             );
         }
@@ -295,8 +311,13 @@ export default function LstCave({ listeCaves, refreshCaves }) {
             data = data.filter(v => (v.Reste_en_Cave || 0) > 0);
         }
 
+        if (showFavoritesOnly) {
+            data = data.filter(v => !!v.Coup_de_Coeur);
+        }
+
         return data;
-    }, [caves, globalFilter, showEnCaveOnly]); // Supprimer isMobile de la dépendance
+    }, [caves, globalFilter, showEnCaveOnly, showFavoritesOnly]);
+
 
     // Fonction pour générer les étoiles selon la note
     const getStarsForNote = useCallback((note) => {
@@ -321,177 +342,177 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     }, []);
 
     // Template pour VirtualScroller - Version unifiée mobile/desktop
-    const vinItemTemplate = (vin) => (
-        <div className="px-2 py-1">
-            <div
-                onClick={() => navigate(`/vin/${vin.UUID_}`)}
-                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden group hover:border-blue-300 dark:hover:border-blue-600"
-            >
-                {/* Barre de couleur selon le type de vin */}
-                <div className={`absolute top-0 left-0 w-1 h-full ${
-                    vin.Couleur?.toLowerCase().includes('rouge') ? 'bg-red-500' :
-                    vin.Couleur?.toLowerCase().includes('blanc') ? 'bg-yellow-400' :
-                    vin.Couleur?.toLowerCase().includes('rosé') || vin.Couleur?.toLowerCase().includes('rose') ? 'bg-pink-400' :
-                    'bg-gray-400'
-                }`}></div>
+    // const vinItemTemplate = (vin) => (
+    //     <div className="px-2 py-1">
+    //         <div
+    //             onClick={() => navigate(`/vin/${vin.UUID_}`)}
+    //             className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden group hover:border-blue-300 dark:hover:border-blue-600"
+    //         >
+    //             {/* Barre de couleur selon le type de vin */}
+    //             <div className={`absolute top-0 left-0 w-1 h-full ${
+    //                 vin.Couleur?.toLowerCase().includes('rouge') ? 'bg-red-500' :
+    //                 vin.Couleur?.toLowerCase().includes('blanc') ? 'bg-yellow-400' :
+    //                 vin.Couleur?.toLowerCase().includes('rosé') || vin.Couleur?.toLowerCase().includes('rose') ? 'bg-pink-400' :
+    //                 'bg-gray-400'
+    //             }`}></div>
 
-                <div className="flex items-center p-4 gap-4">
-                    {/* Image */}
-                    <div className="relative flex-shrink-0">
-                        <img
-                            src={`data:image/jpeg;base64,${vin.base64_etiquette}`}
-                            alt={vin.Nom}
-                            className={`object-cover rounded border border-gray-200 dark:border-gray-600 shadow-sm group-hover:shadow-md transition-shadow duration-300 ${
-                                isMobile ? 'w-14 h-18' : 'w-18 h-24'
-                            }`}
-                            loading="lazy"
-                        />
-                        {vin.Coup_de_Coeur && (
-                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-sm">
-                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
-                        )}
-                    </div>
+    //             <div className="flex items-center p-4 gap-4">
+    //                 {/* Image */}
+    //                 <div className="relative flex-shrink-0">
+    //                     <img
+    //                         src={`data:image/jpeg;base64,${vin.base64_etiquette}`}
+    //                         alt={vin.Nom}
+    //                         className={`object-cover rounded border border-gray-200 dark:border-gray-600 shadow-sm group-hover:shadow-md transition-shadow duration-300 ${
+    //                             isMobile ? 'w-14 h-18' : 'w-18 h-24'
+    //                         }`}
+    //                         loading="lazy"
+    //                     />
+    //                     {vin.Coup_de_Coeur && (
+    //                         <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-sm">
+    //                             <div className="w-2 h-2 bg-white rounded-full"></div>
+    //                         </div>
+    //                     )}
+    //                 </div>
 
-                    {/* Informations principales */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1 min-w-0">
-                                <h3 className={`font-semibold text-gray-900 dark:text-gray-100 truncate ${
-                                    isMobile ? 'text-sm' : 'text-base'
-                                }`}>
-                                    {vin.Nom}
-                                </h3>
-                                <p className={`text-gray-500 dark:text-gray-400 truncate ${
-                                    isMobile ? 'text-xs' : 'text-sm' } mt-0.5`}>
-                                     • {vin.Millesime} • {vin.Producteur}
-                                </p>
-                            </div>
+    //                 {/* Informations principales */}
+    //                 <div className="flex-1 min-w-0">
+    //                     <div className="flex items-start justify-between mb-2">
+    //                         <div className="flex-1 min-w-0">
+    //                             <h3 className={`font-semibold text-gray-900 dark:text-gray-100 truncate ${
+    //                                 isMobile ? 'text-sm' : 'text-base'
+    //                             }`}>
+    //                                 {vin.Nom}
+    //                             </h3>
+    //                             <p className={`text-gray-500 dark:text-gray-400 truncate ${
+    //                                 isMobile ? 'text-xs' : 'text-sm' } mt-0.5`}>
+    //                                  • {vin.Millesime} • {vin.Producteur}
+    //                             </p>
+    //                         </div>
 
-                            {/* Note avec étoiles */}
-                            <div className="flex items-center gap-1 ml-2">
-                                <div className="flex gap-0.5">
-                                    {getStarsForNote(vin.Note_sur_20)}
-                                </div>
-                                <span className={`font-medium text-gray-700 dark:text-gray-300 ${
-                                    isMobile ? 'text-xs' : 'text-sm'
-                                }`}>
-                                    {vin.Note_sur_20 || 0}
-                                </span>
-                            </div>
-                        </div>
+    //                         {/* Note avec étoiles */}
+    //                         <div className="flex items-center gap-1 ml-2">
+    //                             <div className="flex gap-0.5">
+    //                                 {getStarsForNote(vin.Note_sur_20)}
+    //                             </div>
+    //                             <span className={`font-medium text-gray-700 dark:text-gray-300 ${
+    //                                 isMobile ? 'text-xs' : 'text-sm'
+    //                             }`}>
+    //                                 {vin.Note_sur_20 || 0}
+    //                             </span>
+    //                         </div>
+    //                     </div>
 
-                        {/* Localisation */}
-                        <div className={`text-gray-600 dark:text-gray-400 mb-2 ${
-                            isMobile ? 'text-xs' : 'text-sm'
-                        }`}>
-                            <span className="inline-flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                                {vin.Appellation}
-                                {vin.Région && (
-                                    <>
-                                        <span className="mx-1">•</span>
-                                        {formatRegionName(vin.Région)}
-                                    </>
-                                )}
-                                <span className="mx-1">•</span>
-                                {vin.Pays}
-                            </span>
-                        </div>
+    //                     {/* Localisation */}
+    //                     <div className={`text-gray-600 dark:text-gray-400 mb-2 ${
+    //                         isMobile ? 'text-xs' : 'text-sm'
+    //                     }`}>
+    //                         <span className="inline-flex items-center gap-1">
+    //                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+    //                             {vin.Appellation}
+    //                             {vin.Région && (
+    //                                 <>
+    //                                     <span className="mx-1">•</span>
+    //                                     {formatRegionName(vin.Région)}
+    //                                 </>
+    //                             )}
+    //                             <span className="mx-1">•</span>
+    //                             {vin.Pays}
+    //                         </span>
+    //                     </div>
 
-                        {/* Informations détaillées */}
-                        <div className={`grid gap-x-4 gap-y-1 ${
-                            isMobile ? 'grid-cols-2 text-xs' : 'grid-cols-4 text-sm'
-                        }`}>
-                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                <span className="font-medium text-gray-700 dark:text-gray-300">Type:</span>
-                                <span className="truncate">{vin.Type}</span>
-                            </div>
+    //                     {/* Informations détaillées */}
+    //                     <div className={`grid gap-x-4 gap-y-1 ${
+    //                         isMobile ? 'grid-cols-2 text-xs' : 'grid-cols-4 text-sm'
+    //                     }`}>
+    //                         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+    //                             <span className="font-medium text-gray-700 dark:text-gray-300">Type:</span>
+    //                             <span className="truncate">{vin.Type}</span>
+    //                         </div>
 
-                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                <span className="font-medium text-gray-700 dark:text-gray-300">Stock:</span>
-                                <span className={`font-medium ${
-                                    vin.Reste_en_Cave > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                                }`}>
-                                    {vin.Reste_en_Cave || 0}
-                                </span>
-                            </div>
+    //                         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+    //                             <span className="font-medium text-gray-700 dark:text-gray-300">Stock:</span>
+    //                             <span className={`font-medium ${
+    //                                 vin.Reste_en_Cave > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+    //                             }`}>
+    //                                 {vin.Reste_en_Cave || 0}
+    //                             </span>
+    //                         </div>
 
-                            {!isMobile && (
-                                <>
-                                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Cave:</span>
-                                        <span className="truncate">{vin.Cave}</span>
-                                    </div>
+    //                         {!isMobile && (
+    //                             <>
+    //                                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+    //                                     <span className="font-medium text-gray-700 dark:text-gray-300">Cave:</span>
+    //                                     <span className="truncate">{vin.Cave}</span>
+    //                                 </div>
 
-                                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Format:</span>
-                                        <span className="truncate">{vin.Flacon}</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
+    //                                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+    //                                     <span className="font-medium text-gray-700 dark:text-gray-300">Format:</span>
+    //                                     <span className="truncate">{vin.Flacon}</span>
+    //                                 </div>
+    //                             </>
+    //                         )}
+    //                     </div>
+    //                 </div>
 
-                    {/* Actions et prix */}
-                    <div className="flex flex-col items-end gap-3 ml-2">
-                        {/* Prix */}
-                        <div className="text-right">
-                            <div className={`font-bold text-gray-900 dark:text-gray-100 ${
-                                isMobile ? 'text-sm' : 'text-base'
-                            }`}>
-                                {formatCurrency(vin.valeurCave || vin.Valeur_Euro || 0)}/stock
-                            </div>
-                            <div className={`text-gray-500 dark:text-gray-400 ${
-                                isMobile ? 'text-xs' : 'text-sm'
-                            }`}>
-                                {formatCurrency(vin.Valeur || 0)}/unité
-                            </div>
-                        </div>
+    //                 {/* Actions et prix */}
+    //                 <div className="flex flex-col items-end gap-3 ml-2">
+    //                     {/* Prix */}
+    //                     <div className="text-right">
+    //                         <div className={`font-bold text-gray-900 dark:text-gray-100 ${
+    //                             isMobile ? 'text-sm' : 'text-base'
+    //                         }`}>
+    //                             {formatCurrency(vin.valeurCave || vin.Valeur_Euro || 0)}/stock
+    //                         </div>
+    //                         <div className={`text-gray-500 dark:text-gray-400 ${
+    //                             isMobile ? 'text-xs' : 'text-sm'
+    //                         }`}>
+    //                             {formatCurrency(vin.Valeur || 0)}/unité
+    //                         </div>
+    //                     </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border transition-all duration-200 flex items-center justify-center ${
-                                    vin.Coup_de_Coeur
-                                        ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
-                                        : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-500'
-                                }`}
-                                onClick={(e) => toggleFavori(vin.UUID_, !vin.Coup_de_Coeur, e)}
-                                title={vin.Coup_de_Coeur ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                            >
-                                <svg
-                                    className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`}
-                                    fill={vin.Coup_de_Coeur ? 'currentColor' : 'none'}
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                            </button>
+    //                     {/* Actions */}
+    //                     <div className="flex items-center gap-2">
+    //                         <button
+    //                             className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border transition-all duration-200 flex items-center justify-center ${
+    //                                 vin.Coup_de_Coeur
+    //                                     ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
+    //                                     : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-500'
+    //                             }`}
+    //                             onClick={(e) => toggleFavori(vin.UUID_, !vin.Coup_de_Coeur, e)}
+    //                             title={vin.Coup_de_Coeur ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+    //                         >
+    //                             <svg
+    //                                 className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`}
+    //                                 fill={vin.Coup_de_Coeur ? 'currentColor' : 'none'}
+    //                                 stroke="currentColor"
+    //                                 viewBox="0 0 24 24"
+    //                             >
+    //                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+    //                             </svg>
+    //                         </button>
 
-                            {/* Bouton supprimer visible en mobile et desktop */}
-                            <button
-                                className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:border-gray-600 dark:text-gray-500 dark:hover:bg-red-900/20 dark:hover:border-red-800 dark:hover:text-red-400 transition-all duration-200 flex items-center justify-center`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    confirmDeleteVin(vin);
-                                }}
-                                title="Supprimer"
-                            >
-                                <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+    //                         {/* Bouton supprimer visible en mobile et desktop */}
+    //                         <button
+    //                             className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:border-gray-600 dark:text-gray-500 dark:hover:bg-red-900/20 dark:hover:border-red-800 dark:hover:text-red-400 transition-all duration-200 flex items-center justify-center`}
+    //                             onClick={(e) => {
+    //                                 e.stopPropagation();
+    //                                 confirmDeleteVin(vin);
+    //                             }}
+    //                             title="Supprimer"
+    //                         >
+    //                             <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    //                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    //                             </svg>
+    //                         </button>
+    //                     </div>
+    //                 </div>
+    //             </div>
 
-                {/* Indicateur d'état en bas */}
-                <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
-            </div>
-        </div>
-    );
+    //             {/* Indicateur d'état en bas */}
+    //             <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+    //         </div>
+    //     </div>
+    // );
 
     const header = (
         <div className="flex gap-3 align-center justify-between p-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
@@ -593,7 +614,7 @@ export default function LstCave({ listeCaves, refreshCaves }) {
         if (isMobile) {
             setVisibleData(filteredData.slice(0, 20));
         }
-    //}, [mobileFilters, listeCaves, isMobile]);
+        //}, [mobileFilters, listeCaves, isMobile]);
     }, [listeCaves, mobileFilters, sortField, sortOrder, isMobile]);
 
     useEffect(() => {
@@ -680,9 +701,9 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                                {/*<div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                                     <i className="pi pi-filter text-white text-sm"></i>
-                                </div>
+                                </div>*/}
                                 <span>Filtres de recherche</span>
                             </div>
                         )
@@ -906,11 +927,10 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                                         ...prev,
                                                         note: prev.note === option.value ? null : option.value
                                                     }))}
-                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${
-                                                        mobileFilters.note === option.value
+                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${mobileFilters.note === option.value
                                                             ? 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-600 dark:text-yellow-300'
                                                             : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <span className="text-sm font-medium">{option.label}</span>
                                                     {mobileFilters.note === option.value && (
@@ -1016,15 +1036,13 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                         <button
                                             key={option.value}
                                             onClick={() => setSortField(option.value)}
-                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
-                                                sortField === option.value
+                                            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${sortField === option.value
                                                     ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                            }`}
+                                                }`}
                                         >
-                                            <i className={`pi ${option.icon} text-lg ${
-                                                sortField === option.value ? 'text-purple-500' : 'text-gray-400'
-                                            }`}></i>
+                                            <i className={`pi ${option.icon} text-lg ${sortField === option.value ? 'text-purple-500' : 'text-gray-400'
+                                                }`}></i>
                                             <span className="font-medium">{option.label}</span>
                                             {sortField === option.value && (
                                                 <i className="pi pi-check text-purple-500 ml-auto"></i>
@@ -1042,22 +1060,20 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setSortOrder(1)}
-                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${
-                                            sortOrder === 1
+                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === 1
                                                 ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
+                                            }`}
                                     >
                                         <i className="pi pi-sort-alpha-down text-lg"></i>
                                         <span className="font-medium">A → Z</span>
                                     </button>
                                     <button
                                         onClick={() => setSortOrder(-1)}
-                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${
-                                            sortOrder === -1
+                                        className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === -1
                                                 ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
                                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
+                                            }`}
                                     >
                                         <i className="pi pi-sort-alpha-up text-lg"></i>
                                         <span className="font-medium">Z → A</span>
@@ -1123,10 +1139,16 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             <>
                                 <button
                                     onClick={goFavoris}
-                                    className="px-3 py-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-medium rounded-lg shadow-sm hover:from-rose-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-1"
-                                    title="Voir les favoris"
+                                    aria-pressed={showFavoritesOnly}
+                                    className={`relative px-3 py-2 font-medium rounded-lg shadow-sm focus:outline-none transition duration-300 flex items-center justify-center gap-1 ${showFavoritesOnly
+                                        ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white focus:ring-2 focus:ring-rose-400'
+                                        : 'bg-white dark:bg-gray-800 border border-rose-300 text-rose-600 hover:bg-rose-50'}
+                                    `}
+                                    title="Basculer les favoris"
                                 >
                                     <i className="pi pi-heart text-sm"></i>
+                                    {/* Indicateur actif */}
+                                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showFavoritesOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
                                 <button
                                     ref={(el) => setFilterButtonRef(el)}
@@ -1144,32 +1166,50 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                 </button>
                                 <button
                                     onClick={() => setShowEnCaveOnly(prev => !prev)}
-                                    className={`px-3 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-1 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-0 ${showEnCaveOnly ? 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' : 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 hover:from-amber-200 hover:to-yellow-200 focus:ring-amber-300'}`}
+                                    aria-pressed={showEnCaveOnly}
+                                    className={`relative px-3 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-1 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-0 ${showEnCaveOnly ? 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' : 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 hover:from-amber-200 hover:to-yellow-200 focus:ring-amber-300'}`}
                                     title="Afficher uniquement les vins avec stock > 0"
                                 >
                                     <i className="pi pi-box text-sm"></i>
+                                    {/* Indicateur actif */}
+                                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showEnCaveOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
                             </>
                         ) : (
                             <div className="flex gap-2 ">
                                 <button
                                     onClick={() => setShowEnCaveOnly(prev => !prev)}
-                                    className={`px-4 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition duration-300 focus:outline-none focus:ring-2 ${showEnCaveOnly ? 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' : 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 hover:from-amber-200 hover:to-yellow-200 focus:ring-amber-300'}`}
+                                    aria-pressed={showEnCaveOnly}
+                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition duration-300 focus:outline-none focus:ring-2 ${showEnCaveOnly
+                                        ? //'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' 
+                                        'bg-gray-400 text-white focus:ring-2 focus:ring-stone-50'
+                                        : 'bg-white dark:bg-gray-800 border border-amber-300 text-amber-600 hover:bg-amber-50'}`}
                                 >
                                     <i className="pi pi-box text-sm"></i>
                                     <span>En cave</span>
+                                    {/* Indicateur actif */}
+                                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showEnCaveOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
                                 <button
                                     onClick={goFavoris}
-                                    className="px-4 py-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-medium rounded-lg shadow-sm hover:from-rose-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2"
+                                    aria-pressed={showFavoritesOnly}
+                                    className={`relative px-4 py-2 font-medium rounded-lg shadow-sm transition duration-300 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 ${showFavoritesOnly
+                                        ? //'bg-gradient-to-r from-rose-500 to-red-600 text-white focus:ring-2 focus:ring-rose-400' 
+                                        'bg-gray-400 text-white focus:ring-2 focus:ring-stone-50'
+                                        : 'bg-white dark:bg-gray-800 border border-rose-300 text-rose-600 hover:bg-rose-50'}
+                                    `}
                                 >
                                     <i className="pi pi-heart text-sm"></i>
                                     <span>Favoris</span>
+                                    {/* Indicateur actif */}
+                                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showFavoritesOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
                                 <button
                                     ref={(el) => setFilterButtonRef(el)}
                                     onClick={() => setShowMobileFilters(true)}
-                                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-sm hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2"
+                                    //className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-sm hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2"
+                                    className="px-4 py-2 font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2 hover:bg-blue-100 text-blue-600 border border-blue-600 ring-blue-400"
+
                                 >
                                     <i className="pi pi-filter text-sm"></i>
                                     <span>Filtres</span>
@@ -1177,7 +1217,7 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                 <button
                                     ref={(el) => setSortButtonRef(el)}
                                     onClick={toggleSort}
-                                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-lg shadow-sm hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2"
+                                    className="px-4 py-2  text-purple-600 font-medium rounded-lg shadow-sm hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2 border border-purple-600"
                                 >
                                     <i className={`pi ${sortOrder === 1 ? 'pi-sort-alpha-down' : 'pi-sort-alpha-up'} text-sm`}></i>
                                     <span>Tri</span>
@@ -1186,14 +1226,17 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                         )}
                     </div>
 
-                    {/* VirtualScroller unifié */}
-                    <div style={{ height: 'calc(100vh - 160px)' }}>
-                        <VirtualScroller
+                    {/* Grille responsive de cartes */}
+                    <div className="pb-8">
+                        <CaveGrid
                             items={filteredVisibleData}
-                            itemSize={isMobile ? 120 : 140}
-                            itemTemplate={vinItemTemplate}
-                            className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
-                            style={{ width: '100%', height: '100%' }}
+                            isMobile={isMobile}
+                            onToggleFavori={(uuid, shouldBeLiked, e) => toggleFavori(uuid, shouldBeLiked, e)}
+                            onDelete={(vin) => {
+                                // éviter toute propagation indésirable ici si nécessaire
+                                confirmDeleteVin(vin);
+                            }}
+                            formatRegionName={formatRegionName}
                         />
                     </div>
                 </div>

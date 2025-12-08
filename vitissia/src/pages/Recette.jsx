@@ -32,7 +32,6 @@ const Recette = () => {
         loadRecetteFromAPI();
     }, []);
 
-    // Récupère l'état de favori depuis l'API une fois la recette chargée
     useEffect(() => {
         const tryFetchFav = async () => {
             try {
@@ -42,19 +41,21 @@ const Recette = () => {
                 const UUID_Met = recette?.UUID_Met || recette?.UUID_ || recetteUUID;
                 if (!UUID_User || !UUID_Met) return;
 
-                const url = `${config.apiBaseUrl}/4DACTION/react_getRecetteFavori?UUID_User=${encodeURIComponent(UUID_User)}&UUID_Met=${encodeURIComponent(UUID_Met)}`;
+                const url = `${config.apiBaseUrl}/4DACTION/react_getRecetteFavori?UUID_User=${encodeURIComponent(
+                    UUID_User
+                )}&UUID_Met=${encodeURIComponent(UUID_Met)}`;
                 const resp = await fetch(url, { method: 'GET', headers: authHeader() });
                 if (!resp.ok) return;
                 const data = await resp.json();
-                // data.Recette_Utilisateur?.Favori (boolean)
                 const fav = !!(data && (data.Recette_Utilisateur?.Favori ?? data.Favori));
                 setIsFav(fav);
-                const save = !!(data && (
-                    data.Recette_Utilisateur?.Enregistre ??
-                    data.Recette_Utilisateur?.Enregistrer ??
-                    data.Enregistre ??
-                    data.Enregistrer
-                ));
+                const save = !!(
+                    data &&
+                    (data.Recette_Utilisateur?.Enregistre ??
+                        data.Recette_Utilisateur?.Enregistrer ??
+                        data.Enregistre ??
+                        data.Enregistrer)
+                );
                 setIsEnregistre(save);
             } catch (e) {
                 // ignore
@@ -67,7 +68,6 @@ const Recette = () => {
         try {
             setIsLoading(true);
 
-            // Récupérer les paramètres depuis le sessionStorage
             const metName = sessionStorage.getItem('metName');
             const recetteUUID = sessionStorage.getItem('recetteUUID');
             const vinName = sessionStorage.getItem('vinName');
@@ -80,14 +80,16 @@ const Recette = () => {
 
             const params = new URLSearchParams({
                 met: metName,
-                uuidRecette: recetteUUID || ''
+                uuidRecette: recetteUUID || '',
             });
 
-            // Appeler l'API react_getRecette
-            const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_getRecette?${params}`, {
-                method: 'GET',
-                headers: authHeader(),
-            });
+            const response = await fetch(
+                `${config.apiBaseUrl}/4DACTION/react_getRecette?${params}`,
+                {
+                    method: 'GET',
+                    headers: authHeader(),
+                }
+            );
 
             if (response.ok) {
                 const data = await response.json();
@@ -96,11 +98,6 @@ const Recette = () => {
                 setVin(vinName);
                 setMet(metName);
                 loadInstructionSteps(data);
-
-                // Nettoyer le sessionStorage après utilisation
-                //sessionStorage.removeItem('metName');
-                //sessionStorage.removeItem('recetteUUID');
-                //sessionStorage.removeItem('vinName');
             } else {
                 setError('Impossible de charger la recette');
             }
@@ -118,7 +115,6 @@ const Recette = () => {
                 const decodedInstructions = JSON.parse(recetteData.instructionDetail);
                 setInstructionSteps(decodedInstructions);
 
-                // Initialiser les timers pour chaque étape
                 const timers = {};
                 decodedInstructions.forEach((step, index) => {
                     const minutes = parseInt(step.temps) || 0;
@@ -134,56 +130,52 @@ const Recette = () => {
 
     const parseIngredients = (text) => {
         if (!text) return [];
-        return text.split('\n')
-            .map(ingredient => ingredient.trim())
-            .filter(ingredient => ingredient.length > 0);
+        return text
+            .split('\n')
+            .map((ingredient) => ingredient.trim())
+            .filter((ingredient) => ingredient.length > 0);
     };
 
     const parseInstructions = (text) => {
         if (!text) return [];
         const trimmedText = text.trim();
 
-        // Vérifier s'il y a une numérotation
         const numberedRegex = /(?:(?:^|\n)\d+\.\s?)/g;
         const matches = trimmedText.match(numberedRegex);
 
         if (matches && matches.length > 1) {
-            // Séparer par numérotation
             const stepRegex = /(?<=\d+\.\s)([^0-9]+?)(?=(?:\d+\.\s)|$)/g;
             const steps = [];
             let match;
             while ((match = stepRegex.exec(trimmedText)) !== null) {
                 steps.push(match[1].trim());
             }
-            return steps.filter(step => step.length > 0);
+            return steps.filter((step) => step.length > 0);
         } else {
-            // Séparer par points
-            return trimmedText.split('.')
-                .map(instruction => instruction.trim())
-                .filter(instruction => instruction.length > 0);
+            return trimmedText
+                .split('.')
+                .map((instruction) => instruction.trim())
+                .filter((instruction) => instruction.length > 0);
         }
     };
 
     const toggleTimer = (index) => {
         if (activeTimers[index]) {
-            // Arrêter le timer
             clearInterval(activeTimers[index]);
-            setActiveTimers(prev => {
+            setActiveTimers((prev) => {
                 const newTimers = { ...prev };
                 delete newTimers[index];
                 return newTimers;
             });
         } else {
-            // Démarrer le timer
             const timerId = setInterval(() => {
-                setStepTimers(prev => {
+                setStepTimers((prev) => {
                     const newTimers = { ...prev };
                     if (newTimers[index] > 0) {
                         newTimers[index] = newTimers[index] - 1;
                     } else {
-                        // Timer terminé
                         clearInterval(activeTimers[index]);
-                        setActiveTimers(current => {
+                        setActiveTimers((current) => {
                             const updated = { ...current };
                             delete updated[index];
                             return updated;
@@ -193,22 +185,21 @@ const Recette = () => {
                 });
             }, 1000);
 
-            setActiveTimers(prev => ({ ...prev, [index]: timerId }));
+            setActiveTimers((prev) => ({ ...prev, [index]: timerId }));
         }
     };
 
     const markStepCompleted = (index) => {
-        // Arrêter le timer si actif
         if (activeTimers[index]) {
             clearInterval(activeTimers[index]);
-            setActiveTimers(prev => {
+            setActiveTimers((prev) => {
                 const newTimers = { ...prev };
                 delete newTimers[index];
                 return newTimers;
             });
         }
 
-        setCompletedSteps(prev => {
+        setCompletedSteps((prev) => {
             const newCompleted = new Set(prev);
             if (newCompleted.has(index)) {
                 newCompleted.delete(index);
@@ -222,16 +213,17 @@ const Recette = () => {
     const formatTime = (seconds) => {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds
+            .toString()
+            .padStart(2, '0')}`;
     };
 
-    // Génération étoiles difficulté
     const getDifficultyStars = (raw) => {
         const label = (raw || 'Moyenne').trim();
         const lower = label.toLowerCase();
-        let count = 2; // Moyenne par défaut
-        if (lower.startsWith('fac')) count = 1; // Facile
-        else if (lower.startsWith('dif')) count = 3; // Difficile
+        let count = 2;
+        if (lower.startsWith('fac')) count = 1;
+        else if (lower.startsWith('dif')) count = 3;
         const norm = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
         return { label: norm, count };
     };
@@ -247,7 +239,8 @@ const Recette = () => {
             const recetteUUID = sessionStorage.getItem('recetteUUID');
             const UUID_Met = recette?.UUID_Met || recette?.UUID_ || recetteUUID;
             if (!UUID_User || !UUID_Met) return;
-            if (action === 'favori') setFavLoading(true); else setSaveLoading(true);
+            if (action === 'favori') setFavLoading(true);
+            else setSaveLoading(true);
 
             const form = new FormData();
             form.append('UUID_User', UUID_User);
@@ -259,21 +252,43 @@ const Recette = () => {
             }
 
             const url = `${config.apiBaseUrl}/4DACTION/react_putRecetteUtilisateur`;
-            const resp = await fetch(url, { method: 'PUT', headers: authHeader(), body: form });
+            const resp = await fetch(url, {
+                method: 'PUT',
+                headers: authHeader(),
+                body: form,
+            });
             const json = await resp.json().catch(() => ({}));
-            if (resp.ok && (json.entete === 'succes' || json.success === true || json.status === 'ok')) {
+            if (
+                resp.ok &&
+                (json.entete === 'succes' || json.success === true || json.status === 'ok')
+            ) {
                 if (action === 'favori') {
                     setIsFav((v) => !v);
-                    toast.current?.show({ severity: 'success', summary: 'Succès', detail: 'Favori mis à jour', life: 2500 });
+                    toast.current?.show({
+                        severity: 'success',
+                        summary: 'Succès',
+                        detail: 'Favori mis à jour',
+                        life: 2500,
+                    });
                 } else if (action === 'enregistrer') {
                     setIsEnregistre((v) => !v);
-                    toast.current?.show({ severity: 'success', summary: 'Enregistré', detail: 'État d\'enregistrement mis à jour', life: 2500 });
+                    toast.current?.show({
+                        severity: 'success',
+                        summary: 'Enregistré',
+                        detail: "État d'enregistrement mis à jour",
+                        life: 2500,
+                    });
                 }
             } else {
                 throw new Error('update-failed');
             }
         } catch (e) {
-            toast.current?.show({ severity: 'error', summary: 'Erreur', detail: 'Impossible de mettre à jour', life: 3000 });
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Impossible de mettre à jour',
+                life: 3000,
+            });
         } finally {
             setFavLoading(false);
             setSaveLoading(false);
@@ -281,22 +296,22 @@ const Recette = () => {
     };
 
     const toggleFavoriRecette = async () => {
-        // action favori avec bool toggle
         return updateRecetteUtilisateur('favori', !isFav);
     };
 
     const enregistrerRecette = async () => {
-        // envoyer bool comme pour favori: toggle de l'état actuel
         return updateRecetteUtilisateur('enregistrer', !isEnregistre);
     };
 
     if (isLoading) {
         return (
             <Layout>
-                <div className="flex justify-center items-center h-screen">
+                <div className="flex justify-center items-center h-screen bg-[#3B0B15] font-['Work_Sans',sans-serif]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                        <p className="text-xl font-semibold text-gray-600 dark:text-gray-300">Chargement de la recette...</p>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mx-auto mb-4"></div>
+                        <p className="text-xl font-semibold text-gray-200">
+                            Chargement de la recette...
+                        </p>
                     </div>
                 </div>
             </Layout>
@@ -306,12 +321,17 @@ const Recette = () => {
     if (error) {
         return (
             <Layout>
-                <div className="flex justify-center items-center h-screen">
-                    <div className="text-center">
-                        <i className="pi pi-exclamation-triangle text-red-500 text-6xl mb-4"></i>
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Erreur</h2>
-                        <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-                        <Button label="Retour" icon="pi pi-arrow-left" onClick={() => navigate(-1)} />
+                <div className="flex justify-center items-center h-screen bg-[#3B0B15] font-['Work_Sans',sans-serif]">
+                    <div className="text-center bg-gray-900/80 px-8 py-6 rounded-2xl border border-red-500/40 shadow-[0_18px_50px_rgba(0,0,0,0.85)]">
+                        <i className="pi pi-exclamation-triangle text-red-400 text-6xl mb-4"></i>
+                        <h2 className="text-2xl font-bold text-gray-50 mb-2">Erreur</h2>
+                        <p className="text-gray-300 mb-4">{error}</p>
+                        <Button
+                            label="Retour"
+                            icon="pi pi-arrow-left"
+                            onClick={() => navigate(-1)}
+                            className="p-button-rounded p-button-text text-sm"
+                        />
                     </div>
                 </div>
             </Layout>
@@ -320,18 +340,21 @@ const Recette = () => {
 
     return (
         <Layout>
-            <Toast ref={toast} position="bottom-right" />
+            {/* <Toast ref={toast} />*/}
 
-            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-                {/* Header avec bouton retour + favori */}
-                <div className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6">
+            <div className="min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-gray-100">
+                {/* Header */}
+                <div className=" px-4 py-6
+                        border-b border-black/30
+                        shadow-[0_18px_30px_-18px_rgba(0,0,0,0.9)]
+                        bg-transparent">
                     <div className="max-w-6xl mx-auto">
                         <div className="flex items-center gap-4 justify-between">
                             <div className="flex items-center gap-4">
                                 <Button
                                     icon="pi pi-arrow-left"
                                     label="Retour"
-                                    className="p-button-outlined"
+                                    className="p-button-outlined p-button-sm md:p-button-md border-gray-600 text-gray-100 hover:bg-gray-800 px-4 py-2"
                                     onClick={() => {
                                         const origin = sessionStorage.getItem('recetteOrigin');
                                         if (origin === 'METS_VINS') {
@@ -339,69 +362,88 @@ const Recette = () => {
                                             navigate('/mets-vins');
                                         } else if (origin === 'VIN_DETAIL') {
                                             const uuid = sessionStorage.getItem('vinDetailUUID');
-                                            if (uuid) navigate(`/vin/${uuid}`); else navigate(-1);
+                                            if (uuid) navigate(`/vin/${uuid}`);
+                                            else navigate(-1);
                                         } else {
                                             navigate(-1);
                                         }
                                     }}
                                 />
-                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Recette</h1>
+                                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-50">
+                                    Recette
+                                </h1>
                             </div>
-                            <div className="flex items-center gap-2">
-                                {/* Bouton Favori */}
+                            <div className="flex items-center gap-3">
+                                {/* Favori */}
                                 <button
                                     onClick={() => {
                                         toggleFavoriRecette();
-                                        // Lance l’animation au clic
                                         const btn = document.getElementById('btn-fav');
                                         if (btn) {
                                             btn.classList.add('animate-bounce-once');
-                                            setTimeout(() => btn.classList.remove('animate-bounce-once'), 600);
+                                            setTimeout(
+                                                () => btn.classList.remove('animate-bounce-once'),
+                                                600
+                                            );
                                         }
                                     }}
                                     disabled={favLoading}
                                     id="btn-fav"
                                     className={`
-            relative inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-gray-300 transition-all
-            ${isFav ? 'text-red-600 bg-red-50 scale-110' : 'text-gray-500 hover:bg-red-50 hover:scale-105'}
-        `}
+                                        relative inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-gray-700 bg-gray-900/70 transition-all duration-200
+                                        ${isFav ? 'text-red-400 scale-110 shadow-[0_0_0_1px_rgba(248,113,113,0.4)]' : 'text-gray-400 hover:bg-gray-800 hover:scale-105'}
+                                    `}
                                     title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                                     aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                                 >
                                     <i
-                                        className={`pi pi-heart text-xl transition-all duration-300 ${isFav ? 'text-red-600' : 'text-gray-500'
+                                        className={`pi pi-heart text-xl transition-all duration-300 ${isFav ? 'text-red-400' : 'text-gray-400'
                                             }`}
                                     />
                                     {favLoading && (
-                                        <span className="absolute inset-0 rounded-full bg-red-100 opacity-50 animate-ping"></span>
+                                        <span className="absolute inset-0 rounded-full bg-red-400/20 opacity-70 animate-ping"></span>
                                     )}
                                 </button>
 
-                                {/* Bouton Enregistrer */}
+                                {/* Enregistrer */}
                                 <button
                                     onClick={() => {
                                         enregistrerRecette();
                                         const btn = document.getElementById('btn-save');
                                         if (btn) {
                                             btn.classList.add('animate-bounce-once');
-                                            setTimeout(() => btn.classList.remove('animate-bounce-once'), 600);
+                                            setTimeout(
+                                                () => btn.classList.remove('animate-bounce-once'),
+                                                600
+                                            );
                                         }
                                     }}
                                     disabled={saveLoading}
                                     id="btn-save"
                                     className={`
-            relative inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-gray-300 transition-all
-            ${isEnregistre ? 'text-yellow-500 bg-yellow-50 scale-110' : 'text-gray-500 hover:bg-yellow-50 hover:scale-105'}
-        `}
-                                    title={isEnregistre ? 'Déjà enregistrée' : 'Enregistrer la recette'}
-                                    aria-label={isEnregistre ? 'Déjà enregistrée' : 'Enregistrer la recette'}
+                                        relative inline-flex items-center justify-center h-10 w-10 rounded-full ring-1 ring-gray-700 bg-gray-900/70 transition-all duration-200
+                                        ${isEnregistre
+                                            ? 'text-amber-400 scale-110 shadow-[0_0_0_1px_rgba(251,191,36,0.4)]'
+                                            : 'text-gray-400 hover:bg-gray-800 hover:scale-105'
+                                        }
+                                    `}
+                                    title={
+                                        isEnregistre
+                                            ? 'Déjà enregistrée'
+                                            : 'Enregistrer la recette'
+                                    }
+                                    aria-label={
+                                        isEnregistre
+                                            ? 'Déjà enregistrée'
+                                            : 'Enregistrer la recette'
+                                    }
                                 >
                                     <i
-                                        className={`pi pi-bookmark text-xl transition-all duration-300 ${isEnregistre ? 'text-yellow-500' : 'text-gray-500'
+                                        className={`pi pi-bookmark text-xl transition-all duration-300 ${isEnregistre ? 'text-amber-400' : 'text-gray-400'
                                             }`}
                                     />
                                     {saveLoading && (
-                                        <span className="absolute inset-0 rounded-full bg-yellow-100 opacity-50 animate-ping"></span>
+                                        <span className="absolute inset-0 rounded-full bg-amber-300/20 opacity-70 animate-ping"></span>
                                     )}
                                 </button>
                             </div>
@@ -410,70 +452,108 @@ const Recette = () => {
                 </div>
 
                 <div className="max-w-6xl mx-auto">
-                    {/* Image héro */}
-                    <div className="relative h-64 md:h-80 bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400">
-                        {recette?.imageBase64 ? (
-                            <img
-                                src={`data:image/jpeg;base64,${recette.imageBase64}`}
-                                alt={recette.nomPlat}
-                                className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => setShowImagePopup(true)}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center text-white">
-                                    <i className="pi pi-image text-6xl mb-4 opacity-80"></i>
-                                    <p className="text-lg opacity-70">Image non disponible</p>
+                    {/* Hero */}
+                    <div
+                        className="
+                            relative
+                            rounded-t-3xl
+                            overflow-hidden
+                            border border-gray-800/80
+                            bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950
+                            shadow-[0_22px_60px_rgba(0,0,0,0.9)]
+                        "
+                    >
+                        {/* Container ratio pour une belle hauteur */}
+                        <div className="relative w-full pt-[46%] md:pt-[36%]">
+                            {recette?.imageBase64 ? (
+                                <img
+                                    src={`data:image/jpeg;base64,${recette.imageBase64}`}
+                                    alt={recette.nomPlat}
+                                    className="
+                                        absolute inset-0
+                                        w-full h-full
+                                        object-cover
+                                        cursor-pointer
+                                        transition-transform duration-700 ease-out
+                                        hover:scale-[1.05]
+                                    "
+                                    onClick={() => setShowImagePopup(true)}
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="text-center text-gray-100">
+                                        <i className="pi pi-image text-6xl mb-4 opacity-70"></i>
+                                        <p className="text-lg opacity-70">Image non disponible</p>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                        </div>
                     </div>
 
                     {/* Contenu principal */}
-                    <div className="bg-white dark:bg-gray-800 -mt-8 mx-4 rounded-t-3xl shadow-2xl">
+                    <div className="bg-gray-950/90 border border-gray-800 rounded-b-3xl shadow-[0_22px_60px_rgba(0,0,0,0.95)] backdrop-blur-sm">
                         <div className="p-6 md:p-8 space-y-8">
-                            {/* En-tête */}
-                            <div>
-                                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                            <div className="space-y-2">
+                                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-50 mb-2">
                                     {recette?.nomPlat}
                                 </h1>
-                                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                <div className="flex items-center gap-2 text-rose-300">
                                     <i className="pi pi-glass text-xl"></i>
-                                    {vin && <span className="text-lg font-medium italic">Accompagné de {vin}</span>}
+                                    {vin && (
+                                        <span className="text-lg font-medium italic">
+                                            Accompagné de {vin}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Cartes d'informations */}
+                            {/* Cartes infos */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {recette?.prixMet && (
-                                    <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl text-center border border-green-200 dark:border-green-800">
-                                        <i className="pi pi-euro text-2xl text-green-600 dark:text-green-400 mb-2"></i>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Prix</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">{recette.prixMet}</p>
+                                    <div className="bg-emerald-900/30 p-6 rounded-xl text-center border border-emerald-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-emerald-300/80">
+                                        <i className="pi pi-euro text-2xl text-emerald-300 mb-2"></i>
+                                        <p className="text-xs uppercase tracking-[0.15em] text-emerald-200/80">
+                                            Prix
+                                        </p>
+                                        <p className="mt-1 text-lg font-semibold text-gray-50">
+                                            {recette.prixMet}
+                                        </p>
                                     </div>
                                 )}
 
                                 {recette?.tempsPrepaMet && (
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl text-center border border-blue-200 dark:border-blue-800">
-                                        <i className="pi pi-clock text-2xl text-blue-600 dark:text-blue-400 mb-2"></i>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Préparation</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">{recette.tempsPrepaMet}</p>
+                                    <div className="bg-sky-900/30 p-6 rounded-xl text-center border border-sky-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-sky-300/80">
+                                        <i className="pi pi-clock text-2xl text-sky-300 mb-2"></i>
+                                        <p className="text-xs uppercase tracking-[0.15em] text-sky-200/80">
+                                            Préparation
+                                        </p>
+                                        <p className="mt-1 text-lg font-semibold text-gray-50">
+                                            {recette.tempsPrepaMet}
+                                        </p>
                                     </div>
                                 )}
 
-                                {/* Carte Difficulté dynamique */}
                                 {(() => {
                                     const { label, count } = getDifficultyStars(recette?.difficulte);
                                     return (
-                                        <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl text-center border border-orange-200 dark:border-orange-800">
-                                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Difficulté</p>
-                                            <div className="flex items-center justify-center gap-2 mb-2">
+                                        <div className="bg-amber-900/30 p-6 rounded-xl text-center border border-amber-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-amber-300/80">
+                                            <p className="text-xs uppercase tracking-[0.15em] text-amber-200/80 mb-2">
+                                                Difficulté
+                                            </p>
+                                            <div className="flex items-center justify-center gap-2 mb-1">
                                                 {Array.from({ length: count }).map((_, i) => (
-                                                    <i key={i} className="pi pi-star text-2xl text-orange-600 dark:text-orange-400" />
+                                                    <i
+                                                        key={i}
+                                                        className="pi pi-star text-2xl text-amber-300"
+                                                    />
                                                 ))}
                                                 <span className="sr-only">{count} étoile(s)</span>
                                             </div>
-                                            <p className="font-semibold text-gray-900 dark:text-white">{label}</p>
+                                            <p className="text-lg font-semibold text-gray-50">
+                                                {label}
+                                            </p>
                                         </div>
                                     );
                                 })()}
@@ -482,18 +562,27 @@ const Recette = () => {
                             {/* Ingrédients */}
                             <div>
                                 <div className="flex items-center gap-3 mb-6">
-                                    <i className="pi pi-list text-2xl text-green-600 dark:text-green-400"></i>
-                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Ingrédients</h2>
+                                    <i className="pi pi-list text-2xl text-emerald-300"></i>
+                                    <h2 className="text-2xl font-bold text-gray-50">
+                                        Ingrédients
+                                    </h2>
                                 </div>
 
-                                <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
+                                <div className="bg-gray-900/70 p-6 rounded-xl border border-gray-800 shadow-[0_12px_35px_rgba(0,0,0,0.8)]">
                                     <div className="space-y-3">
-                                        {parseIngredients(recette?.ingredientsMet).map((ingredient, index) => (
-                                            <div key={index} className="flex items-start gap-3">
-                                                <div className="w-2 h-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
-                                                <span className="text-gray-900 dark:text-white">{ingredient}</span>
-                                            </div>
-                                        ))}
+                                        {parseIngredients(recette?.ingredientsMet).map(
+                                            (ingredient, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-start gap-3 group"
+                                                >
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0 group-hover:scale-125 transition-transform" />
+                                                    <span className="text-gray-100">
+                                                        {ingredient}
+                                                    </span>
+                                                </div>
+                                            )
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -502,60 +591,103 @@ const Recette = () => {
                             <div>
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
-                                        <i className="pi pi-file-text text-2xl text-blue-600 dark:text-blue-400"></i>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Instructions</h2>
+                                        <i className="pi pi-file-text text-2xl text-sky-300"></i>
+                                        <h2 className="text-2xl font-bold text-gray-50">
+                                            Instructions
+                                        </h2>
                                     </div>
                                 </div>
 
-                                <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                                <div className="bg-gray-900/70 p-6 rounded-xl border border-gray-800 shadow-[0_12px_35px_rgba(0,0,0,0.8)]">
                                     {instructionSteps.length > 0 ? (
-                                        // Instructions détaillées avec timers
                                         <div className="space-y-6">
                                             {instructionSteps.map((step, index) => {
                                                 const isCompleted = completedSteps.has(index);
                                                 const timeRemaining = stepTimers[index] || 0;
-                                                const isTimerActive = activeTimers[index] != null;
+                                                const isTimerActive =
+                                                    activeTimers[index] != null;
 
                                                 return (
-                                                    <div key={index} className={`p-4 rounded-lg border ${isCompleted ? 'bg-gray-100 dark:bg-gray-700 opacity-60' : 'bg-white dark:bg-gray-800'} border-gray-200 dark:border-gray-600`}>
+                                                    <div
+                                                        key={index}
+                                                        className={`p-4 rounded-lg border transition-all duration-200 transform ${isCompleted
+                                                            ? 'bg-gray-800/40 border-gray-700 opacity-70'
+                                                            : 'bg-gray-950/80 border-gray-800 hover:-translate-y-0.5 hover:border-sky-400/70'
+                                                            }`}
+                                                    >
                                                         <div className="flex items-start gap-4">
-                                                            {/* Numéro d'étape */}
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}>
-                                                                {isCompleted ? <i className="pi pi-check"></i> : index + 1}
+                                                            <div
+                                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ${isCompleted
+                                                                    ? 'bg-emerald-500'
+                                                                    : 'bg-sky-500'
+                                                                    }`}
+                                                            >
+                                                                {isCompleted ? (
+                                                                    <i className="pi pi-check"></i>
+                                                                ) : (
+                                                                    index + 1
+                                                                )}
                                                             </div>
 
-                                                            {/* Contenu */}
                                                             <div className="flex-1">
-                                                                <p className={`text-gray-900 dark:text-white mb-3 ${isCompleted ? 'line-through text-gray-500' : ''}`}>
+                                                                <p
+                                                                    className={`text-gray-100 mb-3 ${isCompleted
+                                                                        ? 'line-through text-gray-500'
+                                                                        : ''
+                                                                        }`}
+                                                                >
                                                                     {step.instruction}
                                                                 </p>
 
-                                                                {/* Contrôles */}
                                                                 <div className="flex items-center gap-4 flex-wrap">
-                                                                    {/* Timer */}
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg">
-                                                                            <span className="text-sm font-mono text-orange-600 dark:text-orange-400">
+                                                                        <div className="bg-gray-900/70 border border-gray-700 px-3 py-1 rounded-lg">
+                                                                            <span className="text-sm font-mono text-amber-300">
                                                                                 <i className="pi pi-clock mr-1"></i>
-                                                                                {formatTime(timeRemaining)}
+                                                                                {formatTime(
+                                                                                    timeRemaining
+                                                                                )}
                                                                             </span>
                                                                         </div>
 
                                                                         <Button
-                                                                            icon={`pi ${isTimerActive ? 'pi-pause' : 'pi-play'}`}
-                                                                            className={`p-button-rounded p-button-sm ${isTimerActive ? 'p-button-danger' : 'p-button-warning'}`}
-                                                                            onClick={() => toggleTimer(index)}
+                                                                            icon={`pi ${isTimerActive
+                                                                                ? 'pi-pause'
+                                                                                : 'pi-play'
+                                                                                }`}
+                                                                            className={`p-button-rounded p-button-sm ${isTimerActive
+                                                                                ? 'p-button-danger'
+                                                                                : 'p-button-warning'
+                                                                                }`}
+                                                                            onClick={() =>
+                                                                                toggleTimer(
+                                                                                    index
+                                                                                )
+                                                                            }
                                                                             disabled={isCompleted}
                                                                             size="small"
                                                                         />
                                                                     </div>
 
-                                                                    {/* Bouton de completion */}
                                                                     <Button
-                                                                        label={isCompleted ? 'Annuler' : 'Réalisé'}
-                                                                        icon={`pi ${isCompleted ? 'pi-undo' : 'pi-check'}`}
-                                                                        className={`p-button-sm ${isCompleted ? 'p-button-secondary' : 'p-button-success'}`}
-                                                                        onClick={() => markStepCompleted(index)}
+                                                                        label={
+                                                                            isCompleted
+                                                                                ? 'Annuler'
+                                                                                : 'Réalisé'
+                                                                        }
+                                                                        icon={`pi ${isCompleted
+                                                                            ? 'pi-undo'
+                                                                            : 'pi-check'
+                                                                            }`}
+                                                                        className={`p-button-sm ${isCompleted
+                                                                            ? 'p-button-secondary'
+                                                                            : 'p-button-success'
+                                                                            }`}
+                                                                        onClick={() =>
+                                                                            markStepCompleted(
+                                                                                index
+                                                                            )
+                                                                        }
                                                                         size="small"
                                                                     />
                                                                 </div>
@@ -566,14 +698,20 @@ const Recette = () => {
                                             })}
                                         </div>
                                     ) : (
-                                        // Instructions simples
                                         <div className="space-y-4">
-                                            {parseInstructions(recette?.instructionMet).map((instruction, index) => (
-                                                <div key={index} className="flex items-start gap-4">
-                                                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                            {parseInstructions(
+                                                recette?.instructionMet
+                                            ).map((instruction, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-start gap-4"
+                                                >
+                                                    <div className="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-md">
                                                         {index + 1}
                                                     </div>
-                                                    <span className="text-gray-900 dark:text-white">{instruction}</span>
+                                                    <span className="text-gray-100">
+                                                        {instruction}
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>
@@ -585,12 +723,16 @@ const Recette = () => {
                             {recette?.indicationMet && (
                                 <div>
                                     <div className="flex items-center gap-3 mb-6">
-                                        <i className="pi pi-lightbulb text-2xl text-orange-600 dark:text-orange-400"></i>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Conseils du chef</h2>
+                                        <i className="pi pi-lightbulb text-2xl text-amber-300"></i>
+                                        <h2 className="text-2xl font-bold text-gray-50">
+                                            Conseils du chef
+                                        </h2>
                                     </div>
 
-                                    <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800">
-                                        <p className="text-gray-900 dark:text-white leading-relaxed">{recette.indicationMet}</p>
+                                    <div className="bg-amber-900/25 p-6 rounded-xl border border-amber-500/40 shadow-[0_12px_35px_rgba(0,0,0,0.8)]">
+                                        <p className="text-gray-100 leading-relaxed">
+                                            {recette.indicationMet}
+                                        </p>
                                     </div>
                                 </div>
                             )}
@@ -599,12 +741,12 @@ const Recette = () => {
                 </div>
             </div>
 
-            {/* Popup d'image */}
+            {/* Popup image */}
             <Dialog
                 visible={showImagePopup}
                 onHide={() => setShowImagePopup(false)}
                 header={recette?.nomPlat}
-                className="w-full max-w-4xl mx-4"
+                className="w-full max-w-4xl mx-4 vitissia-dialog"
                 modal
                 draggable={false}
                 resizable={false}
@@ -619,9 +761,13 @@ const Recette = () => {
                     </div>
                 )}
             </Dialog>
+
             <LoginRequiredModal
                 visible={showLoginModal}
-                onLogin={() => { setShowLoginModal(false); navigate('/login'); }}
+                onLogin={() => {
+                    setShowLoginModal(false);
+                    navigate('/login');
+                }}
                 onCancel={() => setShowLoginModal(false)}
             />
         </Layout>

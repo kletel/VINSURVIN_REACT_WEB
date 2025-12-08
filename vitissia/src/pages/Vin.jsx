@@ -16,9 +16,13 @@ import imageCompression from "browser-image-compression";
 import useFetchEnums from '../hooks/useFetchEnums';
 import { Slider } from 'primereact/slider';
 import { ThemeContext } from '../context/ThemeContext';
-import { Dialog } from 'primereact/dialog'; // Importer Dialog
+import { Dialog } from 'primereact/dialog';
 import Layout from '../components/Layout';
 import FancyNoteSlider from '../components/FancyNoteSlider';
+import { motion } from 'framer-motion';
+
+const MotionDiv = motion.div;
+const MotionButton = motion.button;
 
 const Vin = () => {
     const { UUID_ } = useParams();
@@ -32,31 +36,59 @@ const Vin = () => {
     const { lesPays, fetchLesPays } = useFetchPays();
     const { regions, fetchRegions } = useFetchRegions();
     const { darkMode } = useContext(ThemeContext);
-    const [distinctCaves, setDistinctCaves] = useState([]); // État pour les valeurs distinctes des caves
-    const [showAddCaveDialog, setShowAddCaveDialog] = useState(false); // État pour afficher le dialogue d'ajout de cave
-    const [newCaveName, setNewCaveName] = useState(""); // État pour le nom de la nouvelle cave
+    const [distinctCaves, setDistinctCaves] = useState([]);
+    const [showAddCaveDialog, setShowAddCaveDialog] = useState(false);
+    const [newCaveName, setNewCaveName] = useState("");
     const [associationsMets, setAssociationsMets] = useState([]);
     const [loadingRecipeForMet, setLoadingRecipeForMet] = useState(null);
-    // Ajout: suppression
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+    const CAVES_CACHE_KEY = 'vitissia_caves_cache';
+
     const confirmDelete = () => setShowDeleteDialog(true);
     const handleDelete = async () => {
         try {
-            const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_supprimerCave?UUID_=${UUID_}`, {
-                method: 'GET',
-                headers: authHeader(),
-            });
+            const response = await fetch(
+                `${config.apiBaseUrl}/4DACTION/react_supprimerCave?UUID_=${UUID_}`,
+                {
+                    method: 'GET',
+                    headers: authHeader(),
+                }
+            );
             if (!response.ok) throw new Error('Erreur lors de la suppression');
             const data = await response.json();
             if (data.etat === 'succes') {
-                toast.current?.show({ severity: 'success', summary: 'Supprimé', detail: 'Le vin a été supprimé.', life: 2500 });
-                fetchCaves();
+                try {
+                    const raw = localStorage.getItem(CAVES_CACHE_KEY);
+                    if (raw) {
+                        const arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) {
+                            const next = arr.filter((v) => v.UUID_ !== UUID_);
+                            localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erreur mise à jour cache après suppression', e);
+                }
+
+                toast.current?.show({
+                    severity: 'success',
+                    summary: 'Supprimé',
+                    detail: 'Le vin a été supprimé.',
+                    life: 2500
+                });
+
                 navigate('/cave');
             } else {
                 throw new Error('Echec API');
             }
         } catch (e) {
-            toast.current?.show({ severity: 'error', summary: 'Erreur', detail: "Suppression impossible.", life: 3000 });
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: "Suppression impossible.",
+                life: 3000
+            });
         } finally {
             setShowDeleteDialog(false);
         }
@@ -71,26 +103,13 @@ const Vin = () => {
     const handleCaveChange = (value) => {
         setVin((prevVin) => ({
             ...prevVin,
-            Cave: value, // Mettre à jour la cave sélectionnée
+            Cave: value,
         }));
     };
 
-
     useEffect(() => {
-        if (!lesPays || lesPays.length === 0) {
-            fetchLesPays(); // Appeler uniquement si lesPays est vide
-        }
-    }, [lesPays, fetchLesPays]);
-    useEffect(() => {
-        if (!regions || regions.length === 0) {
-            fetchRegions(); // Appeler uniquement si lesPays est vide
-        }
-    }, [regions, fetchRegions]);
-
-    useEffect(() => {
-        fetchEnums(); // Appeler fetchEnums au montage du composant
+        fetchEnums();
     }, [fetchEnums]);
-
 
     const optionTypeVin = useMemo(() => {
         const typeVinEnum = enums.find((item) => item.titre === "Type de vin");
@@ -99,6 +118,7 @@ const Vin = () => {
             value: val.Libelle,
         })) || [];
     }, [enums]);
+
     const optionsPays = useMemo(() => lesPays.map((pays) => ({
         label: pays.Nom_Fr,
         value: pays.Ref_Pays,
@@ -108,16 +128,17 @@ const Vin = () => {
         label: region.Nom_Fr,
         value: region.Ref_Pays,
     })), [regions]);
+
     const [filteredRegions, setFilteredRegions] = useState(optionsRegions);
     useEffect(() => {
         setFilteredRegions(optionsRegions);
     }, [optionsRegions]);
 
-    const defaultCountry = "" //optionsPays.find((pays) => pays.label === "France");
+    const defaultCountry = "";
     const defaultCountryValue = vin?.Pays
-        ? optionsPays.find((pays) => pays.label === vin.Pays) // Trouver l'option correspondant à vin.Pays
+        ? optionsPays.find((pays) => pays.label === vin.Pays)
         : defaultCountry;
-    const defaultRegion = ""//optionsRegions.find((region) => region.label === "Bourgogne");
+    const defaultRegion = "";
     const defaultRegionValue = vin?.Région
         ? optionsRegions.find((region) => region.label === vin.Région)
         : defaultRegion;
@@ -129,12 +150,12 @@ const Vin = () => {
         { label: 'Rouge', value: 'Rouge' },
         { label: 'Blanc', value: 'Blanc' },
         { label: 'Rosé', value: 'Rosé' },
-    ]
-    const handleCountryChange = (selectedOption) => {
-        const selectedCountry = selectedOption?.value || ''; // Récupérer la valeur du pays sélectionné
-        handleInputChange(selectedOption?.label || '', 'Pays'); // Mettre à jour le pays dans l'état `vin`
+    ];
 
-        // Filtrer les régions en fonction du pays sélectionné (seulement si c'est un pays des options)
+    const handleCountryChange = (selectedOption) => {
+        const selectedCountry = selectedOption?.value || '';
+        handleInputChange(selectedOption?.label || '', 'Pays');
+
         const matchingCountryOption = optionsPays.find(pays => pays.label === selectedOption?.label);
         if (matchingCountryOption) {
             const newFilteredRegions = optionsRegions.filter(
@@ -142,11 +163,9 @@ const Vin = () => {
             );
             setFilteredRegions(newFilteredRegions);
         } else {
-            // Si c'est un pays personnalisé, afficher toutes les régions
             setFilteredRegions(optionsRegions);
         }
     };
-
 
     useEffect(() => {
         fetchCave(UUID_);
@@ -155,7 +174,6 @@ const Vin = () => {
     useEffect(() => {
         setVin(cave);
         setInitialVin(cave);
-        // Appeler fetchDegustationVin après avoir récupéré les données du vin
         if (cave && cave.Nom) {
             fetchDegustationVin(cave);
         }
@@ -192,7 +210,6 @@ const Vin = () => {
             const newFilteredRegions = optionsRegions.filter(
                 (region) => region.value === selectedCountry
             );
-            // Ne mettez à jour que si les régions filtrées sont différentes
             if (JSON.stringify(filteredRegions) !== JSON.stringify(newFilteredRegions)) {
                 setFilteredRegions(newFilteredRegions);
             }
@@ -234,41 +251,102 @@ const Vin = () => {
     const handleSave = async () => {
         const token = sessionStorage.getItem('token');
         if (!token) {
-            toast.current?.show({ severity: 'warn', summary: 'Connexion requise', detail: 'Connectez-vous pour enregistrer des modifications.', life: 3000 });
+            toast.current?.show({
+                severity: 'warn',
+                summary: 'Connexion requise',
+                detail: 'Connectez-vous pour enregistrer des modifications.',
+                life: 3000
+            });
             return;
         }
+
+        if (!vin) return;
+
         const modifiedVin = getModifiedFields();
-        /*if (Object.keys(modifiedVin).length === 0) {
-          toast.current.show({ severity: 'info', summary: 'Info', detail: "Aucune modification.", life: 3000 });
-          return;
-        }*/
+
         try {
             const formData = new FormData();
             formData.append("UUID_", vin.UUID_);
             formData.append("champsModif", JSON.stringify(modifiedVin));
-            // Ajouter le token pour 4D en paramètre supplémentaire
-            formData.append('token', token);
-            const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_putCave?UUID_=${vin.UUID_}`, {
-                method: 'PUT',
-                headers: authHeader(),
-                body: formData,
-            });
-            if (!response.ok) throw new Error('Erreur sauvegarde');
-            const updated = await response.json();
+            formData.append("token", token);
+
+            const headers = authHeader();
+            // ⚠️ si authHeader met un Content-Type: application/json, on le retire pour FormData
+            if (headers['Content-Type']) {
+                delete headers['Content-Type'];
+            }
+
+            const response = await fetch(
+                `${config.apiBaseUrl}/4DACTION/react_putCave?UUID_=${vin.UUID_}`,
+                {
+                    method: 'PUT',
+                    headers,
+                    body: formData,
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                console.error('Erreur HTTP putCave', response.status, errorText);
+                throw new Error('Erreur sauvegarde');
+            }
+
+            // 🧠 On essaye de parser, mais on ne casse plus tout si c'est vide
+            let updated;
+            const rawText = await response.text();  // <-- IMPORTANT : une seule lecture du body
+
+            if (rawText && rawText.trim() !== '') {
+                try {
+                    updated = JSON.parse(rawText);
+                } catch (err) {
+                    console.warn('Réponse non-JSON du serveur, on garde les données locales :', rawText);
+                    updated = { ...vin, ...modifiedVin }; // fallback local
+                }
+            } else {
+                // 204 No Content ou corps vide => on reconstruit avec ce qu’on connaît
+                updated = { ...vin, ...modifiedVin };
+            }
+
             setVin(updated);
             setInitialVin(updated);
             setIsEditing(false);
-            toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Modifications enregistrées.', life: 3000 });
-            fetchCave(vin.UUID_);
-            fetchCaves();
-        } catch {
-            toast.current.show({ severity: 'error', summary: 'Erreur', detail: 'Erreur lors de la sauvegarde.', life: 3000 });
+
+            // 🔄 Mise à jour du cache local
+            try {
+                const raw = localStorage.getItem(CAVES_CACHE_KEY);
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr)) {
+                        const next = arr.map((item) =>
+                            item.UUID_ === updated.UUID_ ? { ...item, ...updated } : item
+                        );
+                        localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                    }
+                }
+            } catch (e) {
+                console.warn('Erreur mise à jour cache caves après édition', e);
+            }
+
+            toast.current.show({
+                severity: 'success',
+                summary: 'Succès',
+                detail: 'Modifications enregistrées.',
+                life: 3000
+            });
+        } catch (e) {
+            console.error(e);
+            toast.current.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Erreur lors de la sauvegarde.',
+                life: 3000
+            });
         }
     };
 
     const handleCancel = () => {
-        setVin(initialVin); // Réinitialiser les valeurs de vin à leur état initial
-        setIsEditing(false); // Désactiver le mode édition
+        setVin(initialVin);
+        setIsEditing(false);
     };
 
     const customBase64Uploader = async (event) => {
@@ -278,7 +356,6 @@ const Vin = () => {
                 const sizeMB = file.size / 1024 / 1024;
 
                 if (sizeMB <= 0.256) {
-                    // Si le fichier est déjà assez petit, on ne le compresse pas
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
                     reader.onload = () => {
@@ -286,7 +363,6 @@ const Vin = () => {
                         setVin((prevVin) => ({ ...prevVin, base64_etiquette: base64String }));
                     };
                 } else {
-                    // Options de compression seulement si le fichier est trop volumineux
                     const options = {
                         maxSizeMB: 0.256,
                         maxWidthOrHeight: 1024,
@@ -310,7 +386,7 @@ const Vin = () => {
         <div>
             <button
                 onClick={() => setShowAddCaveDialog(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition mr-2"
+                className="px-4 py-2 rounded-lg border border-white/20 text-white/80 bg-transparent hover:bg-white/10 transition-all duration-200"
             >
                 Annuler
             </button>
@@ -319,20 +395,19 @@ const Vin = () => {
                     if (newCaveName.trim() !== "" && !distinctCaves.some(cave => cave.label === newCaveName)) {
                         const updatedCaves = [...distinctCaves, { label: newCaveName, value: newCaveName }];
                         setDistinctCaves(updatedCaves);
-                        localStorage.setItem("distinctCaves", JSON.stringify(updatedCaves.map(c => c.value))); // Stocker uniquement les valeurs
-                        setVin((prevVin) => ({ ...prevVin, Cave: newCaveName })); // Sélectionner la nouvelle cave
+                        localStorage.setItem("distinctCaves", JSON.stringify(updatedCaves.map(c => c.value)));
+                        setVin((prevVin) => ({ ...prevVin, Cave: newCaveName }));
                         setShowAddCaveDialog(false);
                         setNewCaveName("");
                     }
                 }}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                className="px-4 py-2 rounded-lg bg-white/20 text-white font-semibold hover:bg-white/30 shadow-[0_10px_30px_rgba(0,0,0,0.7)] transition-all duration-200"
             >
                 Ajouter
             </button>
         </div>
     );
 
-    // Gestion de la liste des mets en interne
     const associationMetsList = useMemo(() => {
         if (vin?.Association_Mets) {
             return vin.Association_Mets.split(',').map(item => item.trim()).filter(item => item);
@@ -397,12 +472,10 @@ const Vin = () => {
         return region;
     }, []);
 
-
     const handleMetClick = async (met) => {
-        // Sauvegarder l'origine avant de naviguer
         sessionStorage.setItem('recetteOrigin', 'VIN_DETAIL');
         sessionStorage.setItem('vinDetailUUID', UUID_);
-        sessionStorage.removeItem('metsVinsState'); // éviter collision
+        sessionStorage.removeItem('metsVinsState');
 
         setLoadingRecipeForMet(met.nomMet);
         try {
@@ -429,60 +502,81 @@ const Vin = () => {
         }
     };
 
-    if (loading) return <div className="flex justify-center items-center h-screen text-white">Chargement...</div>;
-    if (error) return <div className="flex justify-center items-center h-screen text-red-400">Erreur: {error}</div>;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-white">
+                Chargement...
+            </div>
+        );
+    }
 
-    // Fonction pour afficher la description selon la note
+    if (error) {
+        return (
+            <div className="flex justify-center items-center h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-red-300">
+                Erreur: {error}
+            </div>
+        );
+    }
+
     const getNoteDescription = (value) => {
         if (value === 0) return 'Non noté';
-        if (value < 82) return 'Médiocre';
-        if (value < 85) return 'Correct';
-        if (value < 87) return 'Bon';
-        if (value < 90) return 'Très bon';
-        if (value < 93) return 'Excellent';
-        if (value < 97) return 'Exceptionnel';
-        return 'Grand Cru';
+        if (value < 84) return 'Médiocre';
+        if (value >= 84 && value <= 86) return 'Acceptable';
+        if (value >= 87 && value <= 90) return 'Bon';
+        if (value >= 91 && value <= 94) return 'Très bon';
+        if (value >= 95 && value <= 99) return 'Excellent';
+        if (value === 100) return 'Exceptionnel';
     };
 
     return (
         <Layout>
-            <div className="">
-                {/* <div className="w-full flex justify-end mb-4">
-        <ThemeToggle />
-      </div> */}
-                <Toast ref={toast} position="bottom-right" />
+            <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] min-h-screen font-['Work_Sans',sans-serif] text-white">
+                {/* <Toast ref={toast} />*/}
+                <div className="max-w-6xl mx-auto px-4 pt-6">
+                    <MotionButton
+                        whileHover={{ scale: 1.03, x: -2 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/25 text-sm text-white/90 hover:bg-white/20 hover:text-white shadow-[0_10px_25px_rgba(0,0,0,0.6)] transition-all duration-200"
+                    >
+                        <i className="pi pi-arrow-left text-xs" />
+                        <span>Retour</span>
+                    </MotionButton>
+                </div>
+
                 {vin && (
-                    <div>
-                        <div className='grid grid-cols-1 md:grid-cols-2 '>
-                            <div className='flex bg-gray-100 dark:bg-[#2b2b2b] justify-center items-center border-gray-400 md:border-r border-b md:border-b-0'>
+                    <div className="max-w-6xl mx-auto px-4 py-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Image */}
+                            <MotionDiv
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                                className="flex justify-center items-center bg-gray-900/70 border border-white/10 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.9)] p-6"
+                            >
                                 <img
                                     src={`data:image/jpeg;base64,${vin.base64_etiquettecomplet}`}
                                     alt="Cave"
-                                    className="dark:object-cover  w-96 h-118 object-contain transition-all duration-300 ease-in-out hover:scale-105 border-2 border-gray-400 rounded-lg shadow-md hover:shadow-lg cursor-pointer"
-                                /> {/*dark:w-full dark:h-full*/}
-                                {/* {isEditing && (
-                                    <div className="mt-4">
-                                    <FileUpload
-                                        name="demo[]"
-                                        mode='basic'
-                                        chooseLabel="Importer une image"
-                                        accept="image/*"
-                                        maxFileSize={12000000}
-                                        customUpload={true}
-                                        onSelect={customBase64Uploader}
-                                        className="p-button-secondary"
-                                    />
-                                    </div>
-                                )} */}
-                            </div>
+                                    className="w-72 sm:w-80 md:w-96 h-[26rem] object-contain transition-transform duration-300 ease-out hover:scale-105 border border-white/20 rounded-2xl shadow-[0_18px_45px_rgba(0,0,0,0.85)] cursor-pointer bg-black/40"
+                                />
+                            </MotionDiv>
 
-                            <div className='flex-auto bg-white dark:bg-[#1a1a1a] p-6'>
-                                {/* Actions: modifier / supprimer */}
-                                <div className='relative flex bg-gray-100 dark:bg-[#2b2b2b] justify-center items-center border-gray-400 md:border-r border-b md:border-b-0'>
-                                    <button
-                                        className={`absolute top-3 right-3 w-10 h-10 rounded-lg border transition-all duration-200 flex items-center justify-center ${vin.Coup_de_Coeur
-                                            ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
-                                            : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-500'
+                            {/* Infos vin */}
+                            <MotionDiv
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeOut', delay: 0.05 }}
+                                className="flex-auto p-6 bg-gray-900/70 border border-white/10 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.9)]"
+                            >
+                                {/* Favori */}
+                                <div className="relative flex justify-end mb-4">
+                                    <MotionButton
+                                        whileHover={{ scale: 1.1, rotate: vin.Coup_de_Coeur ? 0 : 5 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                                        className={`w-11 h-11 rounded-xl border flex items-center justify-center shadow-[0_0_25px_rgba(0,0,0,0.7)] backdrop-blur-sm ${vin.Coup_de_Coeur
+                                            ? 'bg-white/20 border-rose-400/70 text-rose-300 shadow-[0_0_30px_rgba(251,113,133,0.7)]'
+                                            : 'bg-white/10 border-white/30 text-white/70 hover:bg-white/20 hover:text-white'
                                             }`}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -503,82 +597,80 @@ const Vin = () => {
                                                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                                             />
                                         </svg>
-                                    </button>
+                                    </MotionButton>
                                 </div>
 
                                 {isEditing ? (
                                     <input
                                         type="text"
-                                        variant="standard"
                                         name="Nom"
                                         value={vin.Nom || ''}
                                         onChange={handleInputChange}
                                         readOnly={!isEditing}
-                                        className="w-full bg-transparent dark:text-[#f0cd7b] border-b border-gray-300 focus:outline-none focus:border-blue-500 text-gray-800 placeholder-gray-400 py-1 text-2xl"
+                                        className="w-full bg-transparent text-2xl font-semibold text-white border-b border-white/30 focus:outline-none focus:border-white focus:ring-0 pb-1"
                                     />
                                 ) : (
-                                    <h1 className="text-2xl font-medium text-gray-900 dark:text-[#f0cd7b] mb-2">{vin.Nom}</h1>
+                                    <h1 className="text-2xl font-semibold text-white mb-2">{vin.Nom}</h1>
                                 )}
+
                                 {isEditing ? (
-                                    <div className="flex items-center gap-2">
-                                        <i className="pi pi-building text-gray-500 dark:text-gray-400" style={{ fontSize: '1rem' }}></i>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <i className="pi pi-building text-white text-sm" />
                                         <input
                                             type="text"
-                                            variant="standard"
                                             name="Domaine"
                                             value={vin.Domaine || ''}
                                             onChange={handleInputChange}
                                             readOnly={!isEditing}
                                             placeholder='Domaine'
-                                            className="w-full bg-transparent dark:text-[#f0cd7b] border-b border-gray-300 focus:outline-none focus:border-blue-500 text-gray-800 placeholder-gray-400 py-1 text-md font-medium mt-2"
+                                            className="w-full bg-transparent border-b border-white/25 focus:outline-none focus:border-white text-sm text-white placeholder-white/40 py-1"
                                         />
                                     </div>
                                 ) : (
-                                    <div className="flex items-center gap-2">
-                                        <i className="pi pi-building text-gray-500 dark:text-gray-400" style={{ fontSize: '1rem' }}></i>
-                                        <p className="text-md font-medium text-gray-800 dark:text-[#f0cd7b] mt-2">
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <i className="pi pi-building text-white text-sm" />
+                                        <p className="text-sm font-medium text-white/80">
                                             Domaine : {vin.Domaine}
                                         </p>
                                     </div>
                                 )}
 
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                <p className="text-xs text-white/60 mt-2 mb-6">
                                     {vin.Appellation} · {vin.Millesime} · {vin.Type}
                                 </p>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}> {/*md:border-b-2*/}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                                    {/* Pays */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
-                                        >Pays :</label>
+                                        >
+                                            Pays :
+                                        </label>
                                         {isEditing ? (
                                             <CreatableSelect
                                                 styles={{
                                                     control: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
-                                                        borderRadius: '0',
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black',
-                                                        border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
+                                                        boxShadow: state.isFocused ? '0 0 0 1px rgba(255,255,255,0.35)' : 'none',
+                                                        borderRadius: 10,
+                                                        backgroundColor: 'rgba(15,23,42,0.8)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black',
+                                                        color: 'white',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
+                                                        backgroundColor: '#020617',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0')
-                                                            : (darkMode ? '#2b2b2b' : 'white'),
-                                                        color: darkMode ? 'white' : 'black',
+                                                        backgroundColor: state.isFocused ? 'rgba(148,163,184,0.25)' : 'transparent',
+                                                        color: 'white',
                                                     }),
                                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                                 }}
@@ -593,41 +685,41 @@ const Vin = () => {
                                                 formatCreateLabel={(inputValue) => `Créer "${inputValue}"`}
                                             />
                                         ) : (
-                                            <p className="text-md text-gray-500 dark:text-gray-400">{vin.Pays || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Pays || '-'}</p>
                                         )}
                                     </div>
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b' : ''}`}>
+
+                                    {/* Région */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
-                                        >Région :</label>
+                                        >
+                                            Région :
+                                        </label>
                                         {isEditing ? (
                                             <CreatableSelect
                                                 styles={{
                                                     control: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
-                                                        borderRadius: '0',
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black', // Texte adapté au mode
-                                                        border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
+                                                        boxShadow: state.isFocused ? '0 0 0 1px rgba(255,255,255,0.35)' : 'none',
+                                                        borderRadius: 10,
+                                                        backgroundColor: 'rgba(15,23,42,0.8)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black', // Texte sélectionné
+                                                        color: 'white',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Fond du menu
+                                                        backgroundColor: '#020617',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0') // Survol
-                                                            : (darkMode ? '#2b2b2b' : 'white'),
-                                                        color: darkMode ? 'white' : 'black',
+                                                        backgroundColor: state.isFocused ? 'rgba(148,163,184,0.25)' : 'transparent',
+                                                        color: 'white',
                                                     }),
                                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                                 }}
@@ -642,31 +734,33 @@ const Vin = () => {
                                                 formatCreateLabel={(inputValue) => `Créer "${inputValue}"`}
                                             />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Région || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Région || '-'}</p>
                                         )}
                                     </div>
 
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b' : ''}`}>
+                                    {/* Sous région */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
-                                        >Sous région :</label>
+                                        >
+                                            Sous région :
+                                        </label>
                                         {isEditing ? (
                                             <input
                                                 type="text"
                                                 name="Sous_Region"
                                                 value={vin.Sous_Region || ''}
                                                 onChange={handleInputChange}
-                                                className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
+                                                className="w-full p-2 rounded-lg bg-gray-900/70 border border-white/20 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/60"
                                                 placeholder="Sous région"
                                             />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Sous_Region || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Sous_Region || '-'}</p>
                                         )}
                                     </div>
 
+                                    {/* Appellation / Producteur / Millesime / Cépage / Alcool */}
                                     {[
                                         ['Appellation', vin.Appellation],
                                         ['Producteur', vin.Producteur],
@@ -674,11 +768,9 @@ const Vin = () => {
                                         ['Cépage', vin.Cepage],
                                         ['Alcool', vin.Alcool],
                                     ].map(([label, value], idx) => (
-                                        <div key={idx} className={`mb-4 ${!isEditing ? 'pb-1 border-b' : ''}`}>
+                                        <div key={idx} className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                             <label
-                                                className={`block text-sm font-semibold mb-1 ${isEditing
-                                                    ? 'text-gray-600 dark:text-gray-400'
-                                                    : 'text-gray-800 dark:text-gray-300'
+                                                className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                     }`}
                                             >
                                                 {label}
@@ -690,18 +782,18 @@ const Vin = () => {
                                                     name={label}
                                                     value={value || ''}
                                                     onChange={handleInputChange}
-                                                    className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
+                                                    className="w-full p-2 rounded-lg bg-gray-900/70 border border-white/20 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/60"
                                                 />
                                             ) : (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">{value || '-'}</p>
+                                                <p className="text-sm text-white/70">{value || '-'}</p>
                                             )}
                                         </div>
                                     ))}
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+
+                                    {/* Couleur */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Couleur
@@ -712,26 +804,24 @@ const Vin = () => {
                                                 styles={{
                                                     control: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
-                                                        borderRadius: '0',
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
-                                                        color: darkMode ? 'white' : 'black',
-                                                        border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
+                                                        boxShadow: state.isFocused ? '0 0 0 1px rgba(255,255,255,0.35)' : 'none',
+                                                        borderRadius: 10,
+                                                        backgroundColor: 'rgba(15,23,42,0.8)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black',
+                                                        color: 'white',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white',
+                                                        backgroundColor: '#020617',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0') // Survol
-                                                            : (darkMode ? '#2b2b2b' : 'white'),
-                                                        color: darkMode ? 'white' : 'black',
+                                                        backgroundColor: state.isFocused ? 'rgba(148,163,184,0.25)' : 'transparent',
+                                                        color: 'white',
                                                     }),
                                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                                 }}
@@ -744,15 +834,14 @@ const Vin = () => {
                                                 formatCreateLabel={(inputValue) => `Créer "${inputValue}"`}
                                             />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Couleur || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Couleur || '-'}</p>
                                         )}
                                     </div>
 
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+                                    {/* Type */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Type
@@ -763,26 +852,24 @@ const Vin = () => {
                                                 styles={{
                                                     control: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
-                                                        borderRadius: '0',
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Utilisation de darkMode
-                                                        color: darkMode ? 'white' : 'black', // Texte adapté au mode
-                                                        border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
+                                                        boxShadow: state.isFocused ? '0 0 0 1px rgba(255,255,255,0.35)' : 'none',
+                                                        borderRadius: 10,
+                                                        backgroundColor: 'rgba(15,23,42,0.8)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
                                                     }),
                                                     singleValue: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        color: darkMode ? 'white' : 'black', // Texte sélectionné
+                                                        color: 'white',
                                                     }),
                                                     menu: (baseStyles) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: darkMode ? '#2b2b2b' : 'white', // Fond du menu
+                                                        backgroundColor: '#020617',
                                                     }),
                                                     option: (baseStyles, state) => ({
                                                         ...baseStyles,
-                                                        backgroundColor: state.isFocused
-                                                            ? (darkMode ? '#444' : '#f0f0f0') // Survol
-                                                            : (darkMode ? '#2b2b2b' : 'white'),
-                                                        color: darkMode ? 'white' : 'black',
+                                                        backgroundColor: state.isFocused ? 'rgba(148,163,184,0.25)' : 'transparent',
+                                                        color: 'white',
                                                     }),
                                                     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                                 }}
@@ -795,108 +882,86 @@ const Vin = () => {
                                                 formatCreateLabel={(inputValue) => `Créer "${inputValue}"`}
                                             />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Type || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Type || '-'}</p>
                                         )}
                                     </div>
 
-
-
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+                                    {/* Valeur */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Valeur (€)
                                         </label>
                                         {isEditing ? (
-                                            <>
-                                                <input
-                                                    type={isEditing ? 'number' : 'text'}
-                                                    name="Valeur"
-                                                    value={
-                                                        !isEditing
-                                                            ? vin.Valeur?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || ''
-                                                            : vin.Valeur || ''
-                                                    }
-                                                    onChange={handleInputChange}
-                                                    readOnly={!isEditing}
-                                                    className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
-                                                />
-                                            </>
+                                            <input
+                                                type="number"
+                                                name="Valeur"
+                                                value={vin.Valeur || ''}
+                                                onChange={handleInputChange}
+                                                className="w-full p-2 rounded-lg bg-gray-900/70 border border-white/20 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/60"
+                                            />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Valeur?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '-'}</p>
+                                            <p className="text-sm text-white/70">
+                                                {vin.Valeur?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '-'}
+                                            </p>
                                         )}
                                     </div>
 
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+                                    {/* Cave */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Cave
                                         </label>
                                         {isEditing ? (
-                                            <>
-                                                <div className="flex items-center gap-2 w-full">
-                                                    <Select
-                                                        classNamePrefix="Cave"
-                                                        styles={{
-                                                            control: (baseStyles, state) => ({
-                                                                ...baseStyles,
-                                                                boxShadow: state.isFocused ? '0 0 0 1px grey' : 'none',
-                                                                borderRadius: '0',
-                                                                backgroundColor: darkMode ? '#2b2b2b' : 'white',
-                                                                color: darkMode ? 'white' : 'black',
-                                                                border: `1px solid ${darkMode ? '#444' : '#ccc'} !important`,
-                                                            }),
-                                                            singleValue: (baseStyles) => ({
-                                                                ...baseStyles,
-                                                                color: darkMode ? 'white' : 'black',
-                                                            }),
-                                                            menu: (baseStyles) => ({
-                                                                ...baseStyles,
-                                                                backgroundColor: darkMode ? '#2b2b2b' : 'white',
-                                                            }),
-                                                            option: (baseStyles, state) => ({
-                                                                ...baseStyles,
-                                                                backgroundColor: state.isFocused
-                                                                    ? (darkMode ? '#444' : '#f0f0f0')
-                                                                    : (darkMode ? '#2b2b2b' : 'white'),
-                                                                color: darkMode ? 'white' : 'black',
-                                                            }),
-                                                        }}
-                                                        value={distinctCaves.find((option) => option.value === vin?.Cave) || null}
-                                                        isClearable={isClearable}
-                                                        isSearchable={isSearchable}
-                                                        name="Cave"
-                                                        placeholder="Cave"
-                                                        options={distinctCaves}
-                                                        onChange={(selectedOption) => handleInputChange(selectedOption?.value || '', 'Cave')}
-                                                    />
-                                                    {/* <button
-                            onClick={() => setShowAddCaveDialog(true)}
-                            className="p-1 text-gray-500 bg-gray-200 rounded-full hover:bg-gray-300 hover:text-gray-700 transition-all duration-200"
-                            title="Ajouter une cave"
-                          >
-                            +
-                          </button> */}
-                                                </div>
-                                            </>
+                                            <div className="flex items-center gap-2 w-full">
+                                                <Select
+                                                    classNamePrefix="Cave"
+                                                    styles={{
+                                                        control: (baseStyles, state) => ({
+                                                            ...baseStyles,
+                                                            boxShadow: state.isFocused ? '0 0 0 1px rgba(255,255,255,0.35)' : 'none',
+                                                            borderRadius: 10,
+                                                            backgroundColor: 'rgba(15,23,42,0.8)',
+                                                            color: 'white',
+                                                            border: '1px solid rgba(255,255,255,0.2)',
+                                                        }),
+                                                        singleValue: (baseStyles) => ({
+                                                            ...baseStyles,
+                                                            color: 'white',
+                                                        }),
+                                                        menu: (baseStyles) => ({
+                                                            ...baseStyles,
+                                                            backgroundColor: '#020617',
+                                                        }),
+                                                        option: (baseStyles, state) => ({
+                                                            ...baseStyles,
+                                                            backgroundColor: state.isFocused ? 'rgba(148,163,184,0.25)' : 'transparent',
+                                                            color: 'white',
+                                                        }),
+                                                    }}
+                                                    value={distinctCaves.find((option) => option.value === vin?.Cave) || null}
+                                                    isClearable={isClearable}
+                                                    isSearchable={isSearchable}
+                                                    name="Cave"
+                                                    placeholder="Cave"
+                                                    options={distinctCaves}
+                                                    onChange={(selectedOption) => handleInputChange(selectedOption?.value || '', 'Cave')}
+                                                />
+                                            </div>
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Cave || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Cave || '-'}</p>
                                         )}
                                     </div>
 
-                                    {/* Étagère */}
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+                                    {/* Lieu stockage */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing
-                                                ? 'text-gray-600 dark:text-gray-400'
-                                                : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-xs font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Lieu de stockage
@@ -907,17 +972,18 @@ const Vin = () => {
                                                 name="Etagere"
                                                 value={vin.Etagere || ''}
                                                 onChange={handleInputChange}
-                                                className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888] rounded"
+                                                className="w-full p-2 rounded-lg bg-gray-900/70 border border-white/20 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/60"
                                                 placeholder="Étagère"
                                             />
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{vin.Etagere || '-'}</p>
+                                            <p className="text-sm text-white/70">{vin.Etagere || '-'}</p>
                                         )}
                                     </div>
 
-                                    <div className={`mb-4 ${!isEditing ? 'pb-1 border-b ' : ''}`}>
+                                    {/* Note */}
+                                    <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                         <label
-                                            className={`block text-sm font-semibold mb-1 ${isEditing ? 'text-gray-600 dark:text-gray-400' : 'text-gray-800 dark:text-gray-300'
+                                            className={`block text-sm font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                 }`}
                                         >
                                             Note
@@ -938,42 +1004,41 @@ const Vin = () => {
                                                         }
                                                     />
 
-                                                    <span className="text-lg font-semibold w-16 text-center dark:text-white">
+                                                    <span className="text-lg font-semibold w-16 text-center">
                                                         {vin?.Note_sur_20}/100
                                                     </span>
                                                 </div>
 
-                                                <div className="text-sm text-gray-400 mt-1 italic">
+                                                <div className="text-xs text-white/60 mt-1 italic">
                                                     {getNoteDescription(vin?.Note_sur_20)}
                                                 </div>
                                             </>
                                         ) : (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            <p className="text-sm text-white/70">
                                                 {vin?.Note_sur_20 || '-'} / 100 ({getNoteDescription(vin?.Note_sur_20)})
                                             </p>
                                         )}
                                     </div>
 
-                                    {/* Section Association vin */}
+                                    {/* Associations vin */}
                                     {(associationsMets.length > 0 || associationMetsList.length > 0) && (
-                                        <div className={`mb-4 ${!isEditing ? 'pb-1 border-b' : ''}`}>
+                                        <div className={`mb-3 ${!isEditing ? 'pb-1 border-b border-white/10' : ''}`}>
                                             <label
-                                                className={`block text-sm font-semibold mb-1 ${isEditing
-                                                    ? 'text-gray-600 dark:text-gray-400'
-                                                    : 'text-gray-800 dark:text-gray-300'
+                                                className={`block text-sm font-semibold mb-1 ${isEditing ? 'text-white/70' : 'text-white/80'
                                                     }`}
-                                            >Association vin :</label>
+                                            >
+                                                Association vin :
+                                            </label>
 
                                             {isEditing ? (
                                                 <>
                                                     {associationsMets.length > 0 && (
                                                         <div className="mb-2">
-                                                            {/* <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Suggestions personnalisées :</p> */}
                                                             <div className="flex flex-wrap gap-1">
                                                                 {associationsMets.map((met, index) => (
                                                                     <span
                                                                         key={index}
-                                                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800"
+                                                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-900/40 text-green-200 border border-green-500/40"
                                                                     >
                                                                         {met.nomMet}
                                                                     </span>
@@ -981,23 +1046,11 @@ const Vin = () => {
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {/*
-                                                        <textarea
-                                                        name="Association_Mets"
-                                                        value={vin.Association_Mets || ''}
-                                                        onChange={handleInputChange}
-                                                        rows={3}
-                                                        className="w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888]"
-                                                        placeholder="Associations avec les mets..."
-                                                    />*/}
                                                 </>
-
                                             ) : (
                                                 <div>
-                                                    {/* Affichage des mets de l'API */}
                                                     {associationsMets.length > 0 && (
                                                         <div className="mb-2">
-                                                            {/* <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Suggestions personnalisées :</p> */}
                                                             <div className="flex flex-wrap gap-1">
                                                                 {associationsMets.map((met, index) => (
                                                                     <button
@@ -1005,13 +1058,13 @@ const Vin = () => {
                                                                         onClick={() => handleMetClick(met)}
                                                                         disabled={loadingRecipeForMet === met.nomMet}
                                                                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs border transition-colors cursor-pointer ${loadingRecipeForMet === met.nomMet
-                                                                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-                                                                            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-800/50'
+                                                                            ? 'bg-white/10 text-white border-white/30'
+                                                                            : 'bg-green-900/40 text-green-200 border-green-500/40 hover:bg-green-700/50'
                                                                             }`}
                                                                     >
                                                                         {loadingRecipeForMet === met.nomMet ? (
                                                                             <>
-                                                                                <div className="animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent mr-1"></div>
+                                                                                <div className="animate-spin rounded-full h-3 w-3 border border-green-400 border-t-transparent mr-1"></div>
                                                                                 Chargement...
                                                                             </>
                                                                         ) : (
@@ -1022,53 +1075,34 @@ const Vin = () => {
                                                             </div>
                                                         </div>
                                                     )}
-
-                                                    {/* Affichage des mets du champ Association_Mets
-                          {associationMetsList.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Autres suggestions :</p>
-                              <div className="flex flex-wrap gap-1">
-                                {associationMetsList.map((mets, index) => (
-                                  <span
-                                    key={index}
-                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                  >
-                                    {mets}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          //{/* Si aucune association /}
-                          {associationsMets.length === 0 && associationMetsList.length === 0 && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Aucune association disponible</p>
-                          )}*/}
                                                 </div>
                                             )}
                                         </div>
                                     )}
 
+                                    {/* Remarques */}
                                     <textarea
                                         value={vin.Remarques}
                                         name="Remarques"
                                         disabled={!isEditing}
                                         rows={4}
-                                        className="mb-4 w-full p-2 bg-white dark:bg-[#2b2b2b] border border-gray-300 dark:border-[#444] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-[#888] col-span-1 md:col-span-2"
+                                        className="mb-4 w-full p-3 rounded-xl bg-gray-900/70 border border-white/20 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/60 col-span-1 md:col-span-2"
                                         placeholder="Description..."
                                         onChange={handleInputChange}
                                     />
 
-                                    <div className="flex items-center border border-gray-400 px-4 py-2 w-fit select-none dark:border-[#444]">
+                                    {/* Quantité */}
+                                    <div className="flex items-center border border-white/25 rounded-xl px-4 py-2 w-fit select-none bg-white/5">
                                         <button
-                                            // onClick={() => setVin({ ...vin, Qte: Math.max((vin.Qte || 0) - 1, 0) })}
                                             onClick={() => {
                                                 const newQte = Math.max((vin.Qte || 0) - 1, 0);
                                                 handleInputChange(newQte, 'Qte');
                                             }}
                                             disabled={!isEditing}
-                                            className="text-xl font-light px-2 hover:text-blue-600 disabled:text-gray-300 dark:text-white"
-                                        > − </button>
+                                            className="text-xl font-light px-2 hover:text-white disabled:text-white/30"
+                                        >
+                                            −
+                                        </button>
                                         <input
                                             type="number"
                                             min="0"
@@ -1078,103 +1112,201 @@ const Vin = () => {
                                                 isEditing && handleInputChange(newQte, 'Qte');
                                             }}
                                             readOnly={!isEditing}
-                                            className="no-spinner mx-4 w-12 text-center bg-transparent text-md font-medium text-black focus:outline-none dark:text-white"
+                                            className="no-spinner mx-4 w-12 text-center bg-transparent text-md font-medium text-white focus:outline-none"
                                         />
                                         <button
-                                            //onClick={() => setVin({ ...vin, Qte: (vin.Qte || 0) + 1 })}
                                             onClick={() => {
                                                 const newQte = (vin.Qte || 0) + 1;
                                                 handleInputChange(newQte, 'Qte');
                                             }}
                                             disabled={!isEditing}
-                                            className="text-xl font-light px-2 hover:text-blue-600 disabled:text-gray-300 dark:text-white"
-                                        > + </button>
+                                            className="text-xl font-light px-2 hover:text-white disabled:text-white/30"
+                                        >
+                                            +
+                                        </button>
                                     </div>
                                 </div>
 
+                                {/* Boutons actions */}
                                 <div className="mt-6 flex justify-end space-x-4">
                                     {isEditing ? (
                                         <>
-                                            <button
+                                            <MotionButton
+                                                whileHover={{ scale: 1.03, y: -1 }}
+                                                whileTap={{ scale: 0.96 }}
                                                 onClick={confirmDelete}
-                                                className="px-6 py-2 bg-red-600 text-white text-sm font-semibold hover:bg-gray-800 transition dark:text-black dark:hover:bg-red-600 dark:transition dark:bg-red-600 dark:text-black hover:scale-105 dark:hover:scale-100 transition-all duration-300"
+                                                className="px-6 py-2 rounded-xl bg-red-600/90 text-white text-sm font-semibold hover:bg-red-500 shadow-[0_12px_30px_rgba(220,38,38,0.6)] transition-all duration-200"
                                             >
                                                 Supprimer
-                                            </button>
-                                            <button
+                                            </MotionButton>
+                                            <MotionButton
+                                                whileHover={{ scale: 1.03, y: -1 }}
+                                                whileTap={{ scale: 0.96 }}
                                                 onClick={handleSave}
-                                                className="px-6 py-2 bg-black text-white text-sm font-semibold hover:bg-gray-800 transition dark:text-black dark:hover:bg-[#ffde9b] dark:transition dark:bg-[#ffde9b] dark:text-black hover:scale-105 dark:hover:scale-100 transition-all duration-300"
+                                                className="px-6 py-2 rounded-xl bg-white/20 text-white text-sm font-semibold border border-white/30 hover:bg-white/30 shadow-[0_12px_30px_rgba(0,0,0,0.8)] transition-all duration-200"
                                             >
                                                 Enregistrer
-                                            </button>
+                                            </MotionButton>
                                             <button
-                                                onClick={handleCancel} // Appeler handleCancel lors du clic
-                                                className="px-6 py-2 border border-gray-700 text-gray-800 dark:text-white text-sm hover:bg-gray-100 dark:hover:bg-[#2b2b2b] transition"
+                                                onClick={handleCancel}
+                                                className="px-6 py-2 rounded-xl border border-white/25 text-white/80 text-sm hover:bg-white/10 transition-all duration-200"
                                             >
                                                 Annuler
                                             </button>
                                         </>
                                     ) : (
-                                        <button
-                                            onClick={() => setIsEditing(true)}
-                                            className="px-6 py-2 bg-green-200 border border-gray-700 text-gray-800 dark:hover:text-white text-sm hover:bg-green-100 dark:hover:bg-[#2b2b2b] transition"
+                                        <MotionButton
+                                            whileHover={{ scale: 1.03, y: -1 }}
+                                            whileTap={{ scale: 0.96 }}
+                                            onClick={() => {
+                                                setIsEditing(true);
+
+                                                if (!lesPays || lesPays.length === 0) {
+                                                    fetchLesPays();
+                                                }
+                                                if (!regions || regions.length === 0) {
+                                                    fetchRegions();
+                                                }
+                                            }}
+                                            className="px-6 py-2 rounded-xl bg-white/20 text-white text-sm font-semibold border border-white/30 hover:bg-white/30 shadow-[0_12px_30px_rgba(0,0,0,0.8)] transition-all duration-200"
                                         >
                                             Modifier
-                                        </button>
+                                        </MotionButton>
                                     )}
                                 </div>
 
-                                {/* Dialog suppression */}
+                                {/* Dialog suppression – même style que la liste */}
                                 <Dialog
                                     visible={showDeleteDialog}
                                     onHide={() => setShowDeleteDialog(false)}
-                                    header="Confirmation de suppression"
-                                    className="max-w-md"
-                                    footer={
-                                        <div className="flex gap-3 justify-end p-4">
+                                    modal
+                                    dismissableMask
+                                    closable={false}
+                                    className="w-full max-w-md vitissia-delete-dialog"
+                                    breakpoints={{ '960px': '90vw', '640px': '95vw' }}
+                                >
+                                    <div
+                                        className="
+            relative overflow-hidden rounded-2xl
+            bg-slate-950/95 border border-red-500/50
+            shadow-[0_22px_55px_rgba(0,0,0,0.9)]
+            transition-all duration-200
+            font-['Work_Sans',sans-serif]
+        "
+                                    >
+                                        {/* Glows rouges décoratifs */}
+                                        <div className="pointer-events-none absolute -top-16 -right-10 w-40 h-40 rounded-full bg-red-500/35 blur-3xl" />
+                                        <div className="pointer-events-none absolute -bottom-20 -left-10 w-40 h-40 rounded-full bg-rose-500/25 blur-3xl" />
+
+                                        {/* Contenu principal */}
+                                        <div className="relative z-10 px-5 pt-5 pb-4">
+                                            <div className="flex items-start gap-4">
+                                                {/* Icône corbeille rouge (sans animation) */}
+                                                <div
+                                                    className="
+                        flex-shrink-0 w-12 h-12 rounded-2xl
+                        bg-gradient-to-br from-[#f97373] via-[#d41132] to-[#8C2438]
+                        flex items-center justify-center
+                        shadow-[0_12px_30px_rgba(0,0,0,0.8)]
+                    "
+                                                >
+                                                    <i className="pi pi-trash text-white text-xl" />
+                                                </div>
+
+                                                {/* Texte */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-base md:text-lg font-semibold text-white mb-1">
+                                                        Supprimer ce vin ?
+                                                    </h3>
+                                                    <p className="text-xs md:text-sm text-white/70 leading-snug">
+                                                        Cette action est <span className="font-semibold text-red-300">irréversible</span>.
+                                                        Le vin sera définitivement retiré de votre cave.
+                                                    </p>
+
+                                                    {/* Récap du vin courant */}
+                                                    {vin && (
+                                                        <div className="
+                            mt-3 px-3 py-2 rounded-xl
+                            bg-white/5 border border-white/10
+                            text-xs md:text-sm text-white/80
+                            flex flex-col gap-0.5
+                        ">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="font-semibold truncate">
+                                                                    {vin.Nom || 'Vin sans nom'}
+                                                                </span>
+                                                                {vin.Millesime && (
+                                                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                                                                        {vin.Millesime}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[11px] text-white/60 truncate">
+                                                                {[vin.Appellation, vin.Région, vin.Pays]
+                                                                    .filter(Boolean)
+                                                                    .join(' • ')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Footer / boutons */}
+                                        <div className="
+            relative z-10 px-5 py-3
+            flex items-center justify-end gap-3
+            bg-slate-950/90 border-t border-white/10
+        ">
                                             <button
-                                                className="px-4 py-2 border rounded border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                type="button"
                                                 onClick={() => setShowDeleteDialog(false)}
+                                                className="
+                    px-4 py-2 rounded-xl text-xs md:text-sm font-medium
+                    border border-white/20 text-white/80
+                    bg-white/5 hover:bg-white/10
+                    transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-white/30
+                "
                                             >
                                                 Annuler
                                             </button>
+
                                             <button
-                                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                                type="button"
                                                 onClick={handleDelete}
+                                                className="
+                    inline-flex items-center gap-2
+                    px-4 py-2 rounded-xl text-xs md:text-sm font-semibold
+                    bg-gradient-to-r from-[#f97373] via-[#d41132] to-[#8C2438]
+                    text-white
+                    shadow-[0_14px_35px_rgba(0,0,0,0.9)]
+                    hover:brightness-110
+                    transition-all duration-200
+                    transform hover:-translate-y-[1px] active:translate-y-[1px]
+                    focus:outline-none focus:ring-2 focus:ring-red-400/70
+                "
                                             >
-                                                Confirmer
+                                                <i className="pi pi-check text-sm" />
+                                                <span>Supprimer définitivement</span>
                                             </button>
-                                        </div>
-                                    }
-                                >
-                                    <div className="flex items-center gap-4 p-4">
-                                        <div className="flex-shrink-0 w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                                            <i className="pi pi-exclamation-triangle text-orange-600 dark:text-orange-400 text-xl"></i>
-                                        </div>
-                                        <div>
-                                            <h3 className="font-medium text-gray-900 dark:text-gray-100">Supprimer ce vin</h3>
-                                            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Cette action est irréversible.</p>
                                         </div>
                                     </div>
                                 </Dialog>
 
-                                {/* <div className="mt-4">
-                  <FileUpload
-                    name="demo[]"
-                    mode='basic'
-                    chooseLabel="Importer une image"
-                    accept="image/*"
-                    maxFileSize={12000000}
-                    customUpload={true}
-                    onSelect={customBase64Uploader}
-                    className="p-button-secondary"
-                  />
-                </div> */}
-                            </div>
+                            </MotionDiv>
                         </div>
 
-                        <div> {/*<div className="mt-4 w-full mx-auto dadrk:bg-[#1e1e1e] dark:bg-opacity-90 rounded-2xl dark:shadow-lg dark:text黑色 dark:border  dark:bg-[#2a2a2a] dark:text白色 ">*/}
-                            <VinTabs vin={vin} setVin={setVin} isEditing={isEditing} handleInputChange={handleInputChange} />
+                        {/* Onglets vin */}
+                        <div className="mt-8">
+                            <div className="rounded-3xl bg-gray-900/70 border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.95)] overflow-hidden">
+                                <VinTabs
+                                    vin={vin}
+                                    setVin={setVin}
+                                    isEditing={isEditing}
+                                    handleInputChange={handleInputChange}
+                                />
+                            </div>
                         </div>
 
                         <Dialog
@@ -1182,20 +1314,20 @@ const Vin = () => {
                             onHide={() => setShowAddCaveDialog(false)}
                             header="Ajouter une nouvelle cave"
                             footer={addCaveDialogFooter}
+                            className="max-w-md"
                         >
                             <input
                                 type="text"
                                 value={newCaveName}
                                 onChange={(e) => setNewCaveName(e.target.value)}
                                 placeholder="Nom de la cave"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full p-2 rounded-lg bg-gray-900/70 border border-white/25 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/60"
                             />
                         </Dialog>
                     </div>
-                )
-                }
-            </div >
-        </Layout >
+                )}
+            </div>
+        </Layout>
     );
 };
 

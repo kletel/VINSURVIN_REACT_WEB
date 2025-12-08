@@ -380,7 +380,7 @@ const StepContent = ({ title, items, onSelect, icon, color, bgColor, borderColor
                                 <span className="font-medium text-gray-900 dark:text-white pr-4 line-clamp-2">
                                     {item}
                                 </span>
-                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-blue-600 text-white text-[10px] shadow-md group-hover:scale-110 transition-transform">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white text-[10px] shadow-md group-hover:scale-110 transition-transform">
                                     <i className="pi pi-chevron-right text-xs"></i>
                                 </span>
                             </div>

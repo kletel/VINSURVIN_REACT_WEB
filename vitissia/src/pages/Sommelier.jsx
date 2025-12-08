@@ -1,15 +1,41 @@
 import React, { useEffect, useState } from 'react';
-
 import { useNavigate } from 'react-router-dom';
 
 const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
     const navigate = useNavigate();
+    const [loaded, setLoaded] = useState(false);
+    const imgRef = React.useRef(null);
+
+    // Debug : suivre l'état loaded
+    useEffect(() => {
+        console.log(`[Card:${id}] render - loaded =`, loaded);
+    }, [loaded, id]);
+
+    // Gère le cas où l'image est déjà en cache
+    useEffect(() => {
+        const imgEl = imgRef.current;
+        console.log(`[Card:${id}] useEffect cache check`, imgEl);
+
+        if (!imgEl) return;
+
+        if (imgEl.complete && imgEl.naturalWidth !== 0) {
+            console.log(`[Card:${id}] image déjà en cache, on déclenche le loaded avec petite latence`);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => setLoaded(true));
+            });
+        }
+    }, [id]);
 
     return (
         <div
-            className={`aspect-[4/5] sm:aspect-square cursor-pointer relative overflow-hidden rounded-2xl bg-white border shadow-sm hover:shadow-md transition-all duration-700 ease-out group ${
-                mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-            }`}
+            className={`
+                cursor-pointer relative overflow-hidden
+                rounded-2xl border border-white/10 shadow-md hover:shadow-xl
+                transition-all duration-700 ease-out group
+                h-56 sm:h-64 lg:h-[23rem] max-h-[23rem]
+                bg-black
+                ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
+            `}
             onClick={() => {
                 const isLoggedIn = !!sessionStorage.getItem("token");
                 if (isLoggedIn) {
@@ -19,18 +45,77 @@ const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
                 }
             }}
         >
+            {/* 🟣 IMAGE */}
             <img
+                ref={imgRef}
                 src={img}
                 alt={title}
-				className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+                onLoad={() => {
+                    console.log(`[Card:${id}] onLoad déclenché pour ${img}`);
+                    // Petite latence pour voir l’anim
+                    setTimeout(() => {
+                        console.log(`[Card:${id}] onLoad -> setLoaded(true)`);
+                        setLoaded(true);
+                    }, 80);
+                }}
+                className={`
+                    absolute inset-0 z-10 h-full w-full object-cover
+                    transition-[opacity,transform,filter] duration-700 ease-out
+                    group-hover:scale-105
+                    ${loaded
+                        ? "opacity-100 scale-100 blur-0"
+                        : "opacity-0 scale-105 blur-xl"
+                    }
+                `}
             />
-            <div className="absolute inset-0 bg-black/30 z-0" />
-            <div className="absolute inset-0 z-10 m-3 sm:m-5 rounded-xl bg-white/60 backdrop-blur-sm p-3 sm:p-5 ring-1 ring-emerald-900/10 flex items-center justify-center">
-                <div className="flex flex-col items-center text-center space-y-1 sm:space-y-2">
-                    <h3 className="text-base sm:text-lg md:text-2xl font-semibold tracking-tight text-emerald-900">
+
+            {/* 🌓 Dégradé sombre au-dessus de l’image (visible uniquement quand loaded=true) */}
+            <div
+                className={`
+                    absolute inset-0 z-20
+                    bg-gradient-to-t from-black/80 via-black/55 to-black/25
+                    transition-opacity duration-500 ease-out
+                    ${loaded ? "opacity-100" : "opacity-0"}
+                `}
+            />
+
+            {/* ✨ OVERLAY LUXUEUX DE CHARGEMENT (TEXTE + LOADER) */}
+            {!loaded && (
+                <>
+                    {console.log(`[Card:${id}] Loader affiché (loaded = ${loaded})`)}
+                    <div
+                        className="
+                            absolute inset-0 z-40
+                            flex flex-col items-center justify-center
+                            bg-gradient-to-br from-[#2b0b13]/95 via-[#4f1022]/95 to-[#7b1d33]/95
+                            backdrop-blur-sm
+                            border border-white/10
+                            shadow-[0_0_40px_rgba(0,0,0,0.9)]
+                        "
+                    >
+                        {/* Cercle qui tourne */}
+                        <div className="h-12 w-12 rounded-full border-4 border-rose-200/40 border-t-rose-400 animate-spin shadow-[0_0_20px_rgba(251,113,133,0.7)]" />
+                        {/* Texte principal */}
+                        <p className="mt-4 text-sm sm:text-base text-rose-50 font-medium tracking-wide">
+                            Image en cours de chargement...
+                        </p>
+                        {/* Sous-texte stylé */}
+                        <p className="mt-1 text-[11px] sm:text-xs text-rose-100/70 italic">
+                            Gabriel prépare votre expérience visuelle 🍷
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {/* 📝 Contenu texte au-dessus de l’image (et du loader) */}
+            <div className="relative z-50 flex h-full flex-col items-center justify-center px-3 sm:px-5">
+                <div className="space-y-1 sm:space-y-2 text-center max-w-[340px] mx-auto">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
                         {title}
                     </h3>
-                    <p className="text-xs sm:text-sm md:text-lg text-emerald-900/80 line-clamp-4">
+                    <p className="text-sm sm:text-base md:text-lg text-gray-100/90 line-clamp-4">
                         {description}
                     </p>
                 </div>
@@ -39,88 +124,102 @@ const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
     );
 };
 
-
-
-
-
 const Sommelier = () => {
-
-    //Animation d'entrée
     const [mounted, setMounted] = useState(false);
     const [showPopup, setShowPopup] = useState(false);
 
-    useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
-
     const cards = [
-         {
+        {
             id: 'plat',
-            img: '/bg-menu.jpg',
+            img: '/bg-menu.webp',
             title: 'Choisir une boisson, un vin pour un menu ou un plat',
             description: 'Indiquez votre menu ou votre plat, notre IA sélectionne le ou les boissons dans votre cave ou sur le marché',
-        }, {
+        },
+        {
             id: 'cave',
-            img: '/cave-card.png',
+            img: '/cave-card.webp',
             title: 'Analyser et équilibrer ma cave',
             description: 'Notre IA analyse votre cave et vous donne des conseils pour mieux la diversifier.',
-        },{
+        },
+        {
             id: 'rayon',
-            img: '/bg-grande_surface.jpg',
+            img: '/bg-grande_surface.webp',
             title: 'Choisir un vin dans un rayon',
             description: 'Photographiez un rayon chez un caviste ou en grande surface et obtenez une analyse instantanée.',
-        },{
+        },
+        {
             id: 'restaurant',
-            img: '/met-card.png',
+            img: '/met-card.webp',
             title: 'Choisir un vin au restaurant',
             description: 'Indiquez votre menu et photographiez la carte des vins, notre IA sélectionne les vins pour vous.',
         },
-        
-       
     ];
 
-    return (
-        <div className='mt-4'>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg border-b border-gray-200 dark:border-gray-700 px-4 py-6 flex justify-center items-center">
-                <div className='flex-col items-center text-center'>
-                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Gabriel vous conseille dans le choix des vins et la gestion de votre cave</h1>
-                    {/*<p className="mt-1 text-sm md:text-base text-gray-600 dark:text-gray-300">Gabriel vous donne des conseils</p>*/}
-                </div>
-            </div>
+    // ⚠️ Important : sans ça, mounted reste false → les cards restent invisibles
+    useEffect(() => {
+        console.log('[Sommelier] useEffect -> setMounted(true)');
+        const t = setTimeout(() => setMounted(true), 50);
+        return () => clearTimeout(t);
+    }, []);
 
-            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-6 px-4 my-16">
-                {cards.map((card, index) => (
-                    <Card
-                        key={card.id}
-                        id={card.id}
-                        img={card.img}
-                        title={card.title}
-                        description={card.description}
-                        mounted={mounted}
-                        setShowPopup={setShowPopup}
-                    />))}
-            </div>
-            {showPopup && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowPopup(false)} />
-                    <div className="relative mx-4 w-full max-w-md rounded-2xl overflow-hidden backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/40 dark:border-gray-800 shadow-2xl">
-                        <div className="p-5">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                                    <i className="pi pi-info-circle" />
+    return (
+        <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15]">
+            <div className="font-['Work_Sans',sans-serif] max-w-6xl mx-auto px-4 pb-10 pt-10">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+                        Gabriel vous conseille dans le choix des vins et la gestion de votre cave
+                    </h1>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 my-10">
+                    {cards.map((card) => (
+                        <Card
+                            key={card.id}
+                            id={card.id}
+                            img={card.img}
+                            title={card.title}
+                            description={card.description}
+                            mounted={mounted}
+                            setShowPopup={setShowPopup}
+                        />
+                    ))}
+                </div>
+
+                {/* Popup login requis */}
+                {showPopup && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+                        <div
+                            className="absolute inset-0 bg-black/40"
+                            onClick={() => setShowPopup(false)}
+                        />
+                        <div className="relative mx-4 w-full max-w-md rounded-2xl overflow-hidden backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/40 dark:border-gray-800 shadow-2xl">
+                            <div className="p-5">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                        <i className="pi pi-info-circle" />
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                        Mon œnologue
+                                    </h3>
                                 </div>
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Mon œnologue</h3>
-                            </div>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">  Vous restez sur le tableau de bord. Veuillez vous connecter pour y accéder.</p>
-                            <div className="mt-4 flex justify-end gap-2">
-                                <button onClick={() => setShowPopup(false)} className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">Fermer</button>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                    Vous restez sur le tableau de bord. Veuillez vous connecter pour y accéder.
+                                </p>
+                                <div className="mt-4 flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setShowPopup(false)}
+                                        className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    >
+                                        Fermer
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-
+                )}
+            </div>
         </div>
     );
 };
-
 
 export default Sommelier;

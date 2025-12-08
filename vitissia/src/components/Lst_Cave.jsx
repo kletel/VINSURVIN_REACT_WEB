@@ -15,12 +15,23 @@ import config from '../config/config';
 import authHeader from '../config/authHeader';
 import CaveGrid from './CaveGrid';
 
-export default function LstCave({ listeCaves, refreshCaves }) {
+const CAVE_STATE_KEY = 'caveListState';
+
+export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
+    let initialPersisted = {};
+    try {
+        const raw = sessionStorage.getItem(CAVE_STATE_KEY);
+        if (raw) {
+            initialPersisted = JSON.parse(raw) || {};
+        }
+    } catch (e) {
+        initialPersisted = {};
+    }
     const toast = useRef(null);
     const navigate = useNavigate();
     const [caves, setCaves] = useState(listeCaves);
     const [selectedCaves, setSelectedCaves] = useState(null);
-    const [globalFilter, setGlobalFilter] = useState(null);
+    const [globalFilter, setGlobalFilter] = useState(initialPersisted.globalFilter ?? null);
     const dt = useRef(null);
     const [filters, setFilters] = useState({
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -39,20 +50,35 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     const [showSortDialog, setShowSortDialog] = useState(false);
     const [filterButtonRef, setFilterButtonRef] = useState(null);
     const [sortButtonRef, setSortButtonRef] = useState(null);
-    const [mobileFilters, setMobileFilters] = useState({
-        caves: [],
-        pays: null,
-        couleur: null,
-        type: null,
-        douceur: null,
-        contenant: null,
-        millesime: null,
-        note: null
-    });
-    const [sortField, setSortField] = useState('Nom');
-    const [sortOrder, setSortOrder] = useState(1); // 1 = ASC, -1 = DESC
-    const [showEnCaveOnly, setShowEnCaveOnly] = useState(false);
-    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    const [mobileFilters, setMobileFilters] = useState(
+        initialPersisted.mobileFilters ?? {
+            caves: [],
+            pays: null,
+            couleur: null,
+            type: null,
+            douceur: null,
+            contenant: null,
+            millesime: null,
+            note: null,
+        }
+    );
+    const [sortField, setSortField] = useState(initialPersisted.sortField ?? 'Nom');
+    const [sortOrder, setSortOrder] = useState(initialPersisted.sortOrder ?? 1);
+    const [showEnCaveOnly, setShowEnCaveOnly] = useState(initialPersisted.showEnCaveOnly ?? false);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(initialPersisted.showFavoritesOnly ?? false);
+
+    useEffect(() => {
+        const stateToSave = {
+            globalFilter,
+            mobileFilters,
+            sortField,
+            sortOrder,
+            showEnCaveOnly,
+            showFavoritesOnly,
+        };
+        sessionStorage.setItem(CAVE_STATE_KEY, JSON.stringify(stateToSave));
+    }, [globalFilter, mobileFilters, sortField, sortOrder, showEnCaveOnly, showFavoritesOnly]);
+
 
     // Filtres optimisés avec useMemo
     const { regions, pays, types, millesime, totalPrice, totalResteFiltered, couleurs, douceurs, contenants } = useMemo(() => {
@@ -72,10 +98,8 @@ export default function LstCave({ listeCaves, refreshCaves }) {
     const [selectedCave, setSelectedCave] = useState(null);
     const [distinctCaves, setDistinctCaves] = useState([]);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    // UUID utilisateur (plusieurs clés possibles en sessionStorage)
     const uuidUser = useMemo(() => sessionStorage.getItem('uuid_user'), []);
 
-    // Récupération des caves distinctes via l'API (remplace le calcul local)
     useEffect(() => {
         if (!uuidUser) return;
         let aborted = false;
@@ -219,6 +243,7 @@ export default function LstCave({ listeCaves, refreshCaves }) {
         }
     };
 
+    // 🔄 MISE À JOUR : toggleFavori sans popup / toast
     const toggleFavori = async (uuid, shouldBeLiked, event) => {
         event.stopPropagation();
 
@@ -244,9 +269,7 @@ export default function LstCave({ listeCaves, refreshCaves }) {
             });
 
             const data = await response.json();
-            if (data.entete === "succes") {
-                toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Favori mis à jour.', life: 3000 });
-            } else {
+            if (data.entete !== "succes") {
                 throw new Error();
             }
         } catch (err) {
@@ -260,7 +283,6 @@ export default function LstCave({ listeCaves, refreshCaves }) {
             if (isMobile) {
                 setVisibleData(revertCaves);
             }
-            toast.current.show({ severity: 'error', summary: 'Erreur', detail: 'Impossible de mettre à jour le favori.', life: 3000 });
         }
     };
 
@@ -273,20 +295,13 @@ export default function LstCave({ listeCaves, refreshCaves }) {
 
     const exportCSV = () => dt.current.exportCSV();
     const ajouterVin = () => navigate('/creation-vin');
-    const goFavoris = () => {
-        setShowFavoritesOnly((prev) => {
-            const next = !prev;
-            toast.current?.show?.({
-                severity: next ? 'info' : 'warn',
-                summary: 'Favoris',
-                detail: next ? 'Filtre favoris activé' : 'Filtre favoris désactivé',
-                life: 1500
-            });
-            return next;
-        });
-    };
-    // Filtrer les données visibles en temps réel pour mobile et desktop
 
+    // 🔄 MISE À JOUR : goFavoris sans toast
+    const goFavoris = () => {
+        setShowFavoritesOnly((prev) => !prev);
+    };
+
+    // Filtrer les données visibles en temps réel pour mobile et desktop
     const normalizeString = (str) =>
         str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -341,195 +356,22 @@ export default function LstCave({ listeCaves, refreshCaves }) {
         return stars;
     }, []);
 
-    // Template pour VirtualScroller - Version unifiée mobile/desktop
-    // const vinItemTemplate = (vin) => (
-    //     <div className="px-2 py-1">
-    //         <div
-    //             onClick={() => navigate(`/vin/${vin.UUID_}`)}
-    //             className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden group hover:border-blue-300 dark:hover:border-blue-600"
-    //         >
-    //             {/* Barre de couleur selon le type de vin */}
-    //             <div className={`absolute top-0 left-0 w-1 h-full ${
-    //                 vin.Couleur?.toLowerCase().includes('rouge') ? 'bg-red-500' :
-    //                 vin.Couleur?.toLowerCase().includes('blanc') ? 'bg-yellow-400' :
-    //                 vin.Couleur?.toLowerCase().includes('rosé') || vin.Couleur?.toLowerCase().includes('rose') ? 'bg-pink-400' :
-    //                 'bg-gray-400'
-    //             }`}></div>
-
-    //             <div className="flex items-center p-4 gap-4">
-    //                 {/* Image */}
-    //                 <div className="relative flex-shrink-0">
-    //                     <img
-    //                         src={`data:image/jpeg;base64,${vin.base64_etiquette}`}
-    //                         alt={vin.Nom}
-    //                         className={`object-cover rounded border border-gray-200 dark:border-gray-600 shadow-sm group-hover:shadow-md transition-shadow duration-300 ${
-    //                             isMobile ? 'w-14 h-18' : 'w-18 h-24'
-    //                         }`}
-    //                         loading="lazy"
-    //                     />
-    //                     {vin.Coup_de_Coeur && (
-    //                         <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center shadow-sm">
-    //                             <div className="w-2 h-2 bg-white rounded-full"></div>
-    //                         </div>
-    //                     )}
-    //                 </div>
-
-    //                 {/* Informations principales */}
-    //                 <div className="flex-1 min-w-0">
-    //                     <div className="flex items-start justify-between mb-2">
-    //                         <div className="flex-1 min-w-0">
-    //                             <h3 className={`font-semibold text-gray-900 dark:text-gray-100 truncate ${
-    //                                 isMobile ? 'text-sm' : 'text-base'
-    //                             }`}>
-    //                                 {vin.Nom}
-    //                             </h3>
-    //                             <p className={`text-gray-500 dark:text-gray-400 truncate ${
-    //                                 isMobile ? 'text-xs' : 'text-sm' } mt-0.5`}>
-    //                                  • {vin.Millesime} • {vin.Producteur}
-    //                             </p>
-    //                         </div>
-
-    //                         {/* Note avec étoiles */}
-    //                         <div className="flex items-center gap-1 ml-2">
-    //                             <div className="flex gap-0.5">
-    //                                 {getStarsForNote(vin.Note_sur_20)}
-    //                             </div>
-    //                             <span className={`font-medium text-gray-700 dark:text-gray-300 ${
-    //                                 isMobile ? 'text-xs' : 'text-sm'
-    //                             }`}>
-    //                                 {vin.Note_sur_20 || 0}
-    //                             </span>
-    //                         </div>
-    //                     </div>
-
-    //                     {/* Localisation */}
-    //                     <div className={`text-gray-600 dark:text-gray-400 mb-2 ${
-    //                         isMobile ? 'text-xs' : 'text-sm'
-    //                     }`}>
-    //                         <span className="inline-flex items-center gap-1">
-    //                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-    //                             {vin.Appellation}
-    //                             {vin.Région && (
-    //                                 <>
-    //                                     <span className="mx-1">•</span>
-    //                                     {formatRegionName(vin.Région)}
-    //                                 </>
-    //                             )}
-    //                             <span className="mx-1">•</span>
-    //                             {vin.Pays}
-    //                         </span>
-    //                     </div>
-
-    //                     {/* Informations détaillées */}
-    //                     <div className={`grid gap-x-4 gap-y-1 ${
-    //                         isMobile ? 'grid-cols-2 text-xs' : 'grid-cols-4 text-sm'
-    //                     }`}>
-    //                         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-    //                             <span className="font-medium text-gray-700 dark:text-gray-300">Type:</span>
-    //                             <span className="truncate">{vin.Type}</span>
-    //                         </div>
-
-    //                         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-    //                             <span className="font-medium text-gray-700 dark:text-gray-300">Stock:</span>
-    //                             <span className={`font-medium ${
-    //                                 vin.Reste_en_Cave > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-    //                             }`}>
-    //                                 {vin.Reste_en_Cave || 0}
-    //                             </span>
-    //                         </div>
-
-    //                         {!isMobile && (
-    //                             <>
-    //                                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-    //                                     <span className="font-medium text-gray-700 dark:text-gray-300">Cave:</span>
-    //                                     <span className="truncate">{vin.Cave}</span>
-    //                                 </div>
-
-    //                                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-    //                                     <span className="font-medium text-gray-700 dark:text-gray-300">Format:</span>
-    //                                     <span className="truncate">{vin.Flacon}</span>
-    //                                 </div>
-    //                             </>
-    //                         )}
-    //                     </div>
-    //                 </div>
-
-    //                 {/* Actions et prix */}
-    //                 <div className="flex flex-col items-end gap-3 ml-2">
-    //                     {/* Prix */}
-    //                     <div className="text-right">
-    //                         <div className={`font-bold text-gray-900 dark:text-gray-100 ${
-    //                             isMobile ? 'text-sm' : 'text-base'
-    //                         }`}>
-    //                             {formatCurrency(vin.valeurCave || vin.Valeur_Euro || 0)}/stock
-    //                         </div>
-    //                         <div className={`text-gray-500 dark:text-gray-400 ${
-    //                             isMobile ? 'text-xs' : 'text-sm'
-    //                         }`}>
-    //                             {formatCurrency(vin.Valeur || 0)}/unité
-    //                         </div>
-    //                     </div>
-
-    //                     {/* Actions */}
-    //                     <div className="flex items-center gap-2">
-    //                         <button
-    //                             className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border transition-all duration-200 flex items-center justify-center ${
-    //                                 vin.Coup_de_Coeur
-    //                                     ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
-    //                                     : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-500'
-    //                             }`}
-    //                             onClick={(e) => toggleFavori(vin.UUID_, !vin.Coup_de_Coeur, e)}
-    //                             title={vin.Coup_de_Coeur ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-    //                         >
-    //                             <svg
-    //                                 className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`}
-    //                                 fill={vin.Coup_de_Coeur ? 'currentColor' : 'none'}
-    //                                 stroke="currentColor"
-    //                                 viewBox="0 0 24 24"
-    //                             >
-    //                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-    //                             </svg>
-    //                         </button>
-
-    //                         {/* Bouton supprimer visible en mobile et desktop */}
-    //                         <button
-    //                             className={`${isMobile ? 'w-8 h-8' : 'w-9 h-9'} rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:border-gray-600 dark:text-gray-500 dark:hover:bg-red-900/20 dark:hover:border-red-800 dark:hover:text-red-400 transition-all duration-200 flex items-center justify-center`}
-    //                             onClick={(e) => {
-    //                                 e.stopPropagation();
-    //                                 confirmDeleteVin(vin);
-    //                             }}
-    //                             title="Supprimer"
-    //                         >
-    //                             <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    //                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    //                             </svg>
-    //                         </button>
-    //                     </div>
-    //                 </div>
-    //             </div>
-
-    //             {/* Indicateur d'état en bas */}
-    //             <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
-    //         </div>
-    //     </div>
-    // );
-
     const header = (
-        <div className="flex gap-3 align-center justify-between p-0 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600">
+        <div className="flex gap-3 align-center justify-between p-0 bg-gray-900/60 dark:bg-gray-950/70 rounded-2xl shadow-lg border border-white/10 font-['Work_Sans',sans-serif]">
             <IconField iconPosition="left" className="flex-1">
                 <InputText
                     type="search"
                     onInput={(e) => setGlobalFilter(e.target.value)}
-                    className="w-full p-3 border border-gray-200 dark:border-gray-500 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition duration-300 dark:bg-gray-700 dark:text-white bg-white"
+                    className="w-full px-3 py-2 text-sm border border-white/10 rounded-xl bg-black/40 text-gray-100 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/70 focus:border-emerald-400/70 transition duration-300 pl-8"
                     placeholder="Rechercher un vin..."
                 />
             </IconField>
             <button
                 onClick={ajouterVin}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl shadow-md hover:from-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-opacity-50 transition duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 rounded-xl font-medium text-sm bg-gradient-to-r from-[#f97373] via-[#d41132] to-[#7f0b21] text-white shadow-md shadow-black/40 hover:shadow-lg hover:shadow-red-500/30 focus:outline-none focus:ring-2 focus:ring-red-400/70 focus:ring-offset-0 transition duration-300 transform hover:-translate-y-[1px] hover:scale-[1.02] active:scale-[0.97] flex items-center justify-center gap-2"
             >
-                <i className="pi pi-plus mr-2"></i>
-                Ajouter un Vin
+                <i className="pi pi-plus text-sm"></i>
+                <span>Ajouter un vin</span>
             </button>
         </div>
     );
@@ -583,11 +425,11 @@ export default function LstCave({ listeCaves, refreshCaves }) {
             filteredData = filteredData.filter(cave => {
                 const note = cave.Note_sur_20 || 0;
                 switch (noteRange) {
-                    case '95-100': return note >= 95 && note <= 100;
-                    case '90-94': return note >= 90 && note < 95;
-                    case '85-89': return note >= 85 && note < 90;
-                    case '80-84': return note >= 80 && note < 85;
-                    case '0-79': return note < 80;
+                    case '100': return note === 100;
+                    case '95-99': return note >= 95 && note < 99;
+                    case '91-94': return note >= 91 && note < 94;
+                    case '87-90': return note >= 87 && note < 90;
+                    case '84-87': return note >= 84 && note < 87;
                     default: return true;
                 }
             });
@@ -614,14 +456,46 @@ export default function LstCave({ listeCaves, refreshCaves }) {
         if (isMobile) {
             setVisibleData(filteredData.slice(0, 20));
         }
-        //}, [mobileFilters, listeCaves, isMobile]);
     }, [listeCaves, mobileFilters, sortField, sortOrder, isMobile]);
 
     useEffect(() => {
         applyMobileFilters();
     }, [applyMobileFilters]);
 
-    // Fonction pour réinitialiser les filtres
+    useEffect(() => {
+        // Nettoyage des anciens filtres persistés (caves / pays objets -> strings)
+        setMobileFilters(prev => {
+            if (!prev) return prev;
+
+            const cleaned = { ...prev };
+
+            // pays : si c'est un objet { label, value } -> on garde une string
+            if (cleaned.pays && typeof cleaned.pays === 'object') {
+                cleaned.pays = cleaned.pays.value || cleaned.pays.label || String(cleaned.pays);
+            }
+
+            // caves : tableau de strings
+            if (Array.isArray(cleaned.caves)) {
+                cleaned.caves = cleaned.caves.map(c =>
+                    typeof c === 'string'
+                        ? c
+                        : (c.value || c.label || String(c))
+                );
+            }
+
+            return cleaned;
+        });
+    }, []);
+
+    const paysOptions = useMemo(() => {
+        return (pays || [])
+            .filter(Boolean)
+            .map((p) => ({
+                label: p,
+                value: p,
+            }));
+    }, [pays]);
+
     const resetMobileFilters = () => {
         setMobileFilters({
             caves: [],
@@ -640,75 +514,182 @@ export default function LstCave({ listeCaves, refreshCaves }) {
         setShowSortDialog(true);
     };
 
+    useEffect(() => {
+        const shouldLock = showMobileFilters || showSortDialog;
+
+        if (shouldLock) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [showMobileFilters, showSortDialog]);
+
     return (
         <PrimeReactProvider value={{ hideOverlaysOnDocumentScrolling: true }}>
             <div className="h-full bg-gray-50 dark:bg-gray-900">
-                <Toast ref={toast} />
+                {/* <Toast ref={toast} />
 
+                Dialog de confirmation de suppression */}
                 {/* Dialog de confirmation de suppression */}
                 <Dialog
                     visible={showDeleteDialog}
                     onHide={() => setShowDeleteDialog(false)}
-                    header="Confirmation de suppression"
-                    className="max-w-md"
-                    footer={
-                        <div className="flex gap-3 justify-end p-4">
-                            <Button
-                                label="Annuler"
-                                icon="pi pi-times"
-                                className="p-button-outlined border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors duration-200 p-2"
-                                onClick={() => setShowDeleteDialog(false)}
-                            />
-                            <Button
-                                label="Confirmer"
-                                icon="pi pi-check"
-                                className="bg-red-500 hover:bg-red-600 border-red-500 text-white transition-colors duration-200 p-2"
-                                onClick={handleDeleteVin}
-                            />
-                        </div>
-                    }
+                    modal
+                    dismissableMask
+                    closable={false}
+                    className="w-full max-w-md vitissia-delete-dialog"
+                    breakpoints={{ '960px': '90vw', '640px': '95vw' }}
                 >
-                    <div className="flex items-center gap-4 p-4">
-                        <div className="flex-shrink-0 w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                            <i className="pi pi-exclamation-triangle text-orange-600 dark:text-orange-400 text-xl"></i>
+                    <div
+                        className="
+                            relative overflow-hidden rounded-2xl
+                            bg-slate-950/100 border border-red-500/50
+                            shadow-[0_22px_55px_rgba(0,0,0,0.9)]
+                            transition-all duration-200
+                            font-['Work_Sans',sans-serif]
+                        "
+                    >
+                        {/* Glows décoratifs rouges */}
+                        <div className="pointer-events-none absolute -top-16 -right-10 w-40 h-40 rounded-full bg-red-500/35 blur-3xl" />
+                        <div className="pointer-events-none absolute -bottom-20 -left-10 w-40 h-40 rounded-full bg-rose-500/25 blur-3xl" />
+
+                        {/* Contenu */}
+                        <div className="relative z-10 px-5 pt-5 pb-4">
+                            <div className="flex items-start gap-4">
+                                {/* Icône corbeille rouge – sans animation */}
+                                <div
+                                    className="
+                        flex-shrink-0 w-12 h-12 rounded-2xl
+                        bg-gradient-to-br from-[#f97373] via-[#d41132] to-[#8C2438]
+                        flex items-center justify-center
+                        shadow-[0_12px_30px_rgba(0,0,0,0.8)]
+                    "
+                                >
+                                    <i className="pi pi-trash text-white text-xl" />
+                                </div>
+
+                                {/* Texte principal */}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base md:text-lg font-semibold text-white mb-1">
+                                        Supprimer ce vin ?
+                                    </h3>
+                                    <p className="text-xs md:text-sm text-white/70 leading-snug">
+                                        Cette action est <span className="font-semibold text-red-300">irréversible</span>.
+                                        Le vin sera définitivement retiré de votre cave.
+                                    </p>
+
+                                    {/* Récap du vin */}
+                                    {vinToDelete && (
+                                        <div className="
+                            mt-3 px-3 py-2 rounded-xl
+                            bg-white/5 border border-white/10
+                            text-xs md:text-sm text-white/80
+                            flex flex-col gap-0.5
+                        ">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-semibold truncate">
+                                                    {vinToDelete.Nom || 'Vin sans nom'}
+                                                </span>
+                                                {vinToDelete.Millesime && (
+                                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                                                        {vinToDelete.Millesime}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] text-white/60 truncate">
+                                                {[vinToDelete.Appellation, vinToDelete.Région, vinToDelete.Pays]
+                                                    .filter(Boolean)
+                                                    .join(' • ')}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-medium text-gray-900 dark:text-gray-100">Supprimer ce vin</h3>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Cette action est irréversible.</p>
+
+                        {/* Footer / boutons */}
+                        <div className="
+            relative z-10 px-5 py-3
+            flex items-center justify-end gap-3
+            bg-slate-950/90 border-t border-white/10
+        ">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteDialog(false)}
+                                className="
+                    px-4 py-2 rounded-xl text-xs md:text-sm font-medium
+                    border border-white/20 text-white/80
+                    bg-white/5 hover:bg-white/10
+                    transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-white/30
+                "
+                            >
+                                Annuler
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleDeleteVin}
+                                className="
+                    inline-flex items-center gap-2
+                    px-4 py-2 rounded-xl text-xs md:text-sm font-semibold
+                    bg-gradient-to-r from-[#f97373] via-[#d41132] to-[#8C2438]
+                    text-white
+                    shadow-[0_14px_35px_rgba(0,0,0,0.9)]
+                    hover:brightness-110
+                    transition-all duration-200
+                    transform hover:-translate-y-[1px] active:translate-y-[1px]
+                    focus:outline-none focus:ring-2 focus:ring-red-400/70
+                "
+                            >
+                                <i className="pi pi-check text-sm" />
+                                <span>Supprimer définitivement</span>
+                            </button>
                         </div>
                     </div>
                 </Dialog>
 
-                {/* Dialog des filtres mobiles - Version optimisée mobile */}
+                {/* Dialog des filtres mobiles - Version optimisée */}
                 <Dialog
                     visible={showMobileFilters}
                     onHide={() => setShowMobileFilters(false)}
+                    closable={!isMobile}
                     header={
                         isMobile ? (
-                            <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center justify-between w-full font-['Work_Sans',sans-serif]">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-blue-500 rounded-md flex items-center justify-center">
-                                        <i className="pi pi-filter text-white text-xs"></i>
+                                    <div className="w-7 h-7 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shadow-sm shadow-black/40">
+                                        <i className="pi pi-filter text-emerald-300 text-xs"></i>
                                     </div>
-                                    <span className="text-base font-medium">Filtres</span>
+                                    <span className="text-base font-semibold text-gray-50">
+                                        Filtres de la cave
+                                    </span>
                                 </div>
                                 <button
                                     onClick={() => setShowMobileFilters(false)}
-                                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                    className="w-8 h-8 rounded-full bg.white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
                                 >
-                                    <i className="pi pi-times text-gray-600 dark:text-gray-300 text-sm"></i>
+                                    <i className="pi pi-times text-gray-300 text-sm"></i>
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3">
-                                {/*<div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                                    <i className="pi pi-filter text-white text-sm"></i>
-                                </div>*/}
-                                <span>Filtres de recherche</span>
+                            <div className="flex items-center gap-3 font-['Work_Sans',sans-serif]">
+                                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shadow-sm shadow-black/40">
+                                    <i className="pi pi-filter text-emerald-300 text-sm"></i>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-50">
+                                    Filtres de recherche
+                                </span>
                             </div>
                         )
                     }
-                    className={isMobile ? "w-screen m-0" : "w-96"}
+                    className={isMobile
+                        ? "vitissia-dialog cave-filters-dialog w-screen m-0 bg-transparent"
+                        : "vitissia-dialog cave-filters-dialog"}
                     style={isMobile ? {
                         margin: 0,
                         borderRadius: 0,
@@ -716,46 +697,48 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                         maxHeight: '80vh'
                     } : {}}
                     position={isMobile ? "center" : "top-right"}
-                    modal={isMobile}
+                    modal
+                    blockScroll
+                    dismissableMask
                     draggable={false}
                     resizable={false}
-                    appendTo={isMobile ? document.body : filterButtonRef}
+                    appendTo={document.body}
                     footer={
                         isMobile ? (
-                            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 grid grid-cols-2 gap-3">
+                            <div className="absolute bottom-0 left-0 right-0 bg-gray-950/95 border-t border-white/10 p-4 grid grid-cols-2 gap-3">
                                 <button
                                     onClick={resetMobileFilters}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg border border-white/15 text-gray-200 bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium"
                                 >
-                                    <i className="pi pi-refresh text-sm"></i>
-                                    <span className="text-sm font-medium">Réinitialiser</span>
+                                    <i className="pi pi-refresh text-xs opacity-80"></i>
+                                    <span>Réinitialiser</span>
                                 </button>
                                 <button
                                     onClick={() => setShowMobileFilters(false)}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/30 hover:from-emerald-600 hover:to-teal-600 transition-colors text-sm font-semibold"
                                 >
-                                    <i className="pi pi-check text-sm"></i>
-                                    <span className="text-sm font-medium">Appliquer</span>
+                                    <i className="pi pi-check text-xs"></i>
+                                    <span>Appliquer</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex gap-2 justify-between p-4 bg-gray-50 dark:bg-gray-800">
+                            <div className="flex gap-2 justify-between p-4 bg-gray-950/90 border-t border-white/10">
                                 <Button
                                     label="Réinitialiser"
                                     icon="pi pi-refresh"
-                                    className="p-button-outlined text-sm border-gray-300 text-gray-600 hover:bg-gray-100"
+                                    className="p-button-outlined text-xs font-medium border-white/20 text-gray-200 hover:bg-white/5"
                                     onClick={resetMobileFilters}
                                 />
                                 <div className="flex gap-2">
                                     <Button
                                         label="Annuler"
-                                        className="p-button-text text-sm text-gray-600 p-2 bg-gray-300"
+                                        className="p-button-text text-xs text-gray-300 p-2 bg-white/5 hover:bg-white/10 border border-white/10"
                                         onClick={() => setShowMobileFilters(false)}
                                     />
                                     <Button
                                         label="Appliquer"
                                         icon="pi pi-check"
-                                        className="bg-blue-500 hover:bg-blue-600 text-sm p-2 text-white"
+                                        className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-xs p-2 text-white border-none shadow-md shadow-emerald-500/30"
                                         onClick={() => setShowMobileFilters(false)}
                                     />
                                 </div>
@@ -763,141 +746,159 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                         )
                     }
                 >
-                    <div className={isMobile ? "p-2 pb-16 overflow-y-auto" : "p-3"} style={isMobile ? { height: 'calc(70vh - 100px)' } : {}}>
-                        <div className={isMobile ? "space-y-6" : "space-y-4"}>
+                    <div
+                        className={isMobile ? "p-3 pb-16 overflow-y-auto" : "p-4"}
+                        style={isMobile ? { height: 'calc(70vh - 100px)' } : {}}
+                    >
+                        <div className={isMobile ? "space-y-5" : "space-y-4 font-['Work_Sans',sans-serif]"}>
                             {/* Section Localisation */}
-                            <div className={`rounded-lg ${isMobile ? 'p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700' : 'p-3 bg-gray-50 dark:bg-gray-700'}`}>
-                                <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${isMobile ? 'mb-4 text-base' : 'mb-3'} flex items-center gap-2`}>
-                                    <i className="pi pi-map-marker text-blue-500"></i>
+                            <div
+                                className={`rounded-2xl border shadow-lg backdrop-blur-md ${isMobile
+                                    ? 'p-4 bg-gray-950/90 border-white/10'
+                                    : 'p-3 bg-gray-950/80 border-white/10'
+                                    }`}
+                            >
+                                <h3 className={`font-semibold text-gray-50 ${isMobile ? 'mb-4 text-base' : 'mb-3 text-sm'} flex items-center gap-2`}>
+                                    <i className="pi pi-map-marker text-emerald-400"></i>
                                     Localisation
                                 </h3>
                                 <div className={isMobile ? "space-y-4" : "space-y-3"}>
                                     <div>
-                                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Caves</label>
+                                        <label className="block text-xs font-medium mb-2 text-gray-300">
+                                            Caves
+                                        </label>
                                         <MultiSelect
                                             value={mobileFilters.caves}
-                                            options={distinctCaves.filter(c => c.value !== 'Toutes').map(c => ({ label: c.label, value: c.value }))}
-                                            onChange={(e) => setMobileFilters(prev => ({ ...prev, caves: e.value }))}
+                                            options={distinctCaves
+                                                .filter(c => c.value !== 'Toutes')
+                                                .map(c => ({ label: c.label, value: c.value }))}
+                                            onChange={(e) =>
+                                                setMobileFilters(prev => ({ ...prev, caves: e.value }))
+                                            }
                                             placeholder="Toutes les caves"
-                                            className={isMobile ? "w-full" : "w-64"}
+                                            className="w-full text-xs"
                                             maxSelectedLabels={isMobile ? 1 : 2}
                                             filter
                                             scrollHeight="200px"
                                             dropdownIcon="pi pi-chevron-down"
-                                            panelStyle={{
-                                                position: 'relative',
-                                                top: '0',
-                                                left: '0',
-                                                width: isMobile ? '100%' : '256px',
-                                                maxHeight: '200px',
-                                                overflow: 'auto'
-                                            }}
+                                            panelClassName="cave-filters-panel"
+                                            optionLabel="label"
+                                            optionValue="value"
                                         />
+
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Pays</label>
+                                        <label className="block text-xs font-medium mb-2 text-gray-300">
+                                            Pays
+                                        </label>
                                         <Dropdown
                                             value={mobileFilters.pays}
-                                            options={pays.map(p => ({ label: p, value: p }))}
-                                            onChange={(e) => setMobileFilters(prev => ({ ...prev, pays: e.value }))}
+                                            options={paysOptions}
+                                            onChange={(e) =>
+                                                setMobileFilters(prev => ({ ...prev, pays: e.value }))
+                                            }
                                             placeholder="Tous les pays"
-                                            className="w-full"
+                                            className="w-full text-xs"
                                             showClear
                                             filter
-                                            appendTo="self"
-                                            panelClassName="max-h-60"
-                                            panelStyle={{ position: 'absolute', zIndex: 9999 }}
+                                            panelClassName="cave-filters-panel"
+                                            optionLabel="label"
+                                            optionValue="value"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* Section Caractéristiques */}
-                            <div className={`rounded-lg ${isMobile ? 'p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700' : 'p-3 bg-gray-50 dark:bg-gray-700'}`}>
-                                <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${isMobile ? 'mb-4 text-base' : 'mb-3'} flex items-center gap-2`}>
-                                    <i className="pi pi-tags text-green-500"></i>
+                            <div
+                                className={`rounded-2xl border shadow-lg backdrop-blur-md ${isMobile
+                                    ? 'p-4 bg-gray-950/90 border-white/10'
+                                    : 'p-3 bg-gray-950/80 border-white/10'
+                                    }`}
+                            >
+                                <h3 className={`font-semibold text-gray-50 ${isMobile ? 'mb-4 text-base' : 'mb-3 text-sm'} flex items-center gap-2`}>
+                                    <i className="pi pi-tags text-emerald-400"></i>
                                     Caractéristiques
                                 </h3>
                                 <div className={isMobile ? "space-y-4" : "space-y-3"}>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Couleur</label>
+                                            <label className="block text-xs font-medium mb-2 text-gray-300">
+                                                Couleur
+                                            </label>
                                             <Dropdown
                                                 value={mobileFilters.couleur}
                                                 options={couleurs.map(c => ({ label: c, value: c }))}
                                                 onChange={(e) => setMobileFilters(prev => ({ ...prev, couleur: e.value }))}
                                                 placeholder="Toutes"
-                                                className="w-full"
+                                                className="w-full text-xs"
                                                 showClear
-                                                appendTo="self"
-                                                panelClassName="max-h-60"
-                                                panelStyle={{ position: 'absolute', zIndex: 9999 }}
+                                                panelClassName="cave-filters-panel"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Type</label>
+                                            <label className="block text-xs font-medium mb-2 text-gray-300">
+                                                Type
+                                            </label>
                                             <Dropdown
                                                 value={mobileFilters.type}
                                                 options={types.map(t => ({ label: t, value: t }))}
                                                 onChange={(e) => setMobileFilters(prev => ({ ...prev, type: e.value }))}
                                                 placeholder="Tous"
-                                                className="w-full"
+                                                className="w-full text-xs"
                                                 showClear
-                                                appendTo="self"
-                                                panelClassName="max-h-60"
-                                                panelStyle={{ position: 'absolute', zIndex: 9999 }}
+                                                panelClassName="cave-filters-panel"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Contenant</label>
+                                            <label className="block text-xs font-medium mb-2 text-gray-300">
+                                                Contenant
+                                            </label>
                                             <Dropdown
                                                 value={mobileFilters.contenant}
                                                 options={contenants.map(c => ({ label: c, value: c }))}
                                                 onChange={(e) => setMobileFilters(prev => ({ ...prev, contenant: e.value }))}
                                                 placeholder="Tous"
-                                                className="w-full"
+                                                className="w-full text-xs"
                                                 showClear
-                                                appendTo="self"
-                                                panelClassName="max-h-60"
-                                                panelStyle={{ position: 'absolute', zIndex: 9999 }}
+                                                panelClassName="cave-filters-panel"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Millésime</label>
+                                            <label className="block text-xs font-medium mb-2 text-gray-300">
+                                                Millésime
+                                            </label>
                                             <Dropdown
                                                 value={mobileFilters.millesime}
                                                 options={millesime.sort((a, b) => b - a).map(m => ({ label: m, value: m }))}
                                                 onChange={(e) => setMobileFilters(prev => ({ ...prev, millesime: e.value }))}
                                                 placeholder="Tous"
-                                                className="w-full"
+                                                className="w-full text-xs"
                                                 showClear
                                                 filter
-                                                appendTo="self"
-                                                panelClassName="max-h-60"
-                                                panelStyle={{ position: 'absolute', zIndex: 9999 }}
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Douceur conditionnelle */}
                                     {mobileFilters.type && douceurs.length > 0 && (
                                         <div>
-                                            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Douceur</label>
+                                            <label className="block text-xs font-medium mb-2 text-gray-300">
+                                                Douceur
+                                            </label>
                                             <Dropdown
                                                 value={mobileFilters.douceur}
                                                 options={douceurs.map(d => ({ label: d, value: d }))}
                                                 onChange={(e) => setMobileFilters(prev => ({ ...prev, douceur: e.value }))}
                                                 placeholder="Toutes"
-                                                className="w-full"
+                                                className="w-full text-xs"
                                                 showClear
-                                                appendTo="self"
-                                                panelClassName={isMobile ? "max-h-60" : ""}
+                                                panelClassName="cave-filters-panel"
                                             />
                                         </div>
                                     )}
@@ -905,21 +906,28 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             </div>
 
                             {/* Section Qualité */}
-                            <div className={`rounded-lg ${isMobile ? 'p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700' : 'p-3 bg-gray-50 dark:bg-gray-700'}`}>
-                                <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${isMobile ? 'mb-4 text-base' : 'mb-3'} flex items-center gap-2`}>
-                                    <i className="pi pi-star text-yellow-500"></i>
+                            <div
+                                className={`rounded-2xl border shadow-lg backdrop-blur-md ${isMobile
+                                    ? 'p-4 bg-gray-950/90 border-white/10'
+                                    : 'p-3 bg-gray-950/80 border-white/10'
+                                    }`}
+                            >
+                                <h3 className={`font-semibold text-gray-50 ${isMobile ? 'mb-4 text-base' : 'mb-3 text-sm'} flex items-center gap-2`}>
+                                    <i className="pi pi-star text-amber-400"></i>
                                     Qualité
                                 </h3>
                                 <div>
-                                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Note</label>
+                                    <label className="block text-xs font-medium mb-2 text-gray-300">
+                                        Note
+                                    </label>
                                     {isMobile ? (
                                         <div className="space-y-2">
                                             {[
-                                                { label: '95-100 (Exceptionnel)', value: '95-100' },
-                                                { label: '90-94 (Excellent)', value: '90-94' },
-                                                { label: '85-89 (Très bon)', value: '85-89' },
-                                                { label: '80-84 (Bon)', value: '80-84' },
-                                                { label: '0-79 (Acceptable)', value: '0-79' }
+                                                { label: '100 (Exceptionnel)', value: '100' },
+                                                { label: '95-99 (Excellent)', value: '95-99' },
+                                                { label: '91-94 (Très bon)', value: '91-94' },
+                                                { label: '87-90 (Bon)', value: '87-90' },
+                                                { label: '84-87 (Acceptable)', value: '84-87' },
                                             ].map((option) => (
                                                 <button
                                                     key={option.value}
@@ -927,14 +935,14 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                                         ...prev,
                                                         note: prev.note === option.value ? null : option.value
                                                     }))}
-                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 ${mobileFilters.note === option.value
-                                                            ? 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-600 dark:text-yellow-300'
-                                                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                                                    className={`w-full flex items-center justify-between p-3 rounded-lg border text-xs transition-all duration-200 transform hover:-translate-y-[1px] ${mobileFilters.note === option.value
+                                                        ? 'bg-emerald-500/15 border-emerald-400/80 text-emerald-200 shadow-sm shadow-emerald-500/30'
+                                                        : 'bg-gray-900/60 border-white/10 text-gray-200 hover:bg-gray-900/80'
                                                         }`}
                                                 >
-                                                    <span className="text-sm font-medium">{option.label}</span>
+                                                    <span className="font-medium">{option.label}</span>
                                                     {mobileFilters.note === option.value && (
-                                                        <i className="pi pi-check text-yellow-500"></i>
+                                                        <i className="pi pi-check text-emerald-400 text-xs"></i>
                                                     )}
                                                 </button>
                                             ))}
@@ -943,17 +951,19 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                         <Dropdown
                                             value={mobileFilters.note}
                                             options={[
-                                                { label: '95-100 (Exceptionnel)', value: '95-100' },
-                                                { label: '90-94 (Excellent)', value: '90-94' },
-                                                { label: '85-89 (Très bon)', value: '85-89' },
-                                                { label: '80-84 (Bon)', value: '80-84' },
-                                                { label: '0-79 (Acceptable)', value: '0-79' }
+                                                { label: '100 (Exceptionnel)', value: '100' },
+                                                { label: '95-99 (Excellent)', value: '95-99' },
+                                                { label: '91-94 (Très bon)', value: '91-94' },
+                                                { label: '87-90 (Bon)', value: '87-90' },
+                                                { label: '84-87 (Acceptable)', value: '84-87' },
                                             ]}
-                                            onChange={(e) => setMobileFilters(prev => ({ ...prev, note: e.value }))}
+                                            onChange={(e) =>
+                                                setMobileFilters(prev => ({ ...prev, note: e.value }))
+                                            }
                                             placeholder="Toutes les notes"
-                                            className="w-full"
+                                            className="w-full text-xs"
                                             showClear
-                                            appendTo="self"
+                                            panelClassName="cave-filters-panel"
                                         />
                                     )}
                                 </div>
@@ -962,54 +972,56 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                     </div>
                 </Dialog>
 
-                {/* Dialog de tri - Nouveau popup dédié */}
+                {/* Dialog de tri */}
                 <Dialog
                     visible={showSortDialog}
                     onHide={() => setShowSortDialog(false)}
                     header={
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                        <div className="flex items-center gap-3 font-['Work_Sans',sans-serif]">
+                            <div className="w-8 h-8 rounded-xl bg-[#8C2438] flex items-center justify-center shadow-md shadow-black/40">
                                 <i className="pi pi-sort text-white text-sm"></i>
                             </div>
-                            <span>Options de tri</span>
+                            <span className="text-sm font-semibold text-slate-100">
+                                Options de tri
+                            </span>
                         </div>
                     }
-                    className={isMobile ? "w-screen h-screen m-0" : "w-96"}
+                    className={isMobile ? "sort-dialog w-screen h-screen m-0" : "sort-dialog w-96"}
                     style={isMobile ? { margin: 0, borderRadius: 0 } : {}}
                     position={isMobile ? "center" : "top-right"}
                     modal={isMobile}
                     draggable={false}
                     resizable={false}
-                    appendTo={isMobile ? document.body : sortButtonRef}
+                    appendTo={document.body}
                     footer={
                         isMobile ? (
-                            <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 grid grid-cols-2 gap-3">
+                            <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800 p-4 grid grid-cols-2 gap-3">
                                 <button
                                     onClick={() => setShowSortDialog(false)}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    className="flex items-center justify-center gap-2 py-3 px-4 border border-slate-700 text-slate-200 rounded-lg hover:bg-slate-900 transition-colors"
                                 >
                                     <i className="pi pi-times text-sm"></i>
                                     <span className="text-sm font-medium">Annuler</span>
                                 </button>
                                 <button
                                     onClick={() => setShowSortDialog(false)}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
+                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-[#8C2438] hover:bg-[#a52b42] text-white rounded-lg transition-colors shadow-md shadow-black/40"
                                 >
                                     <i className="pi pi-check text-sm"></i>
                                     <span className="text-sm font-medium">Appliquer</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex justify-end gap-2 p-4 bg-gray-50 dark:bg-gray-800">
+                            <div className="flex justify-end gap-2 p-4 bg-slate-950/95 border-t border-slate-800">
                                 <Button
                                     label="Annuler"
-                                    className="p-button-text text-sm text-gray-600 p-2"
+                                    className="p-button-text text-sm text-slate-200 p-2 hover:bg-slate-900 border border-slate-700"
                                     onClick={() => setShowSortDialog(false)}
                                 />
                                 <Button
                                     label="Appliquer"
                                     icon="pi pi-check"
-                                    className="bg-purple-500 hover:bg-purple-600 text-sm p-2 text-white"
+                                    className="bg-[#8C2438] hover:bg-[#a52b42] text-sm p-2 text-white border-none shadow-md shadow-black/40"
                                     onClick={() => setShowSortDialog(false)}
                                 />
                             </div>
@@ -1020,7 +1032,10 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                         <div className={isMobile ? "space-y-6" : "space-y-4"}>
                             {/* Champ de tri */}
                             <div>
-                                <label className={`block text-sm font-medium ${isMobile ? 'mb-3' : 'mb-2'} text-gray-700 dark:text-gray-300`}>
+                                <label
+                                    className={`block text-sm font-medium ${isMobile ? 'mb-3' : 'mb-2'
+                                        } text-slate-100`}
+                                >
                                     Trier par
                                 </label>
                                 <div className="grid grid-cols-1 gap-2">
@@ -1037,15 +1052,21 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                             key={option.value}
                                             onClick={() => setSortField(option.value)}
                                             className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${sortField === option.value
-                                                    ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
-                                                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                                                ? // ✅ ÉTAT SÉLECTIONNÉ : même couleur que les filtres mais plus claire
+                                                'bg-[#8C2438] border-[#f97373] text-slate-50 shadow-md shadow-black/40'
+                                                : // ✅ ÉTAT NORMAL
+                                                'bg-slate-950/85 border-slate-700 text-slate-200 hover:bg-slate-900'
                                                 }`}
                                         >
-                                            <i className={`pi ${option.icon} text-lg ${sortField === option.value ? 'text-purple-500' : 'text-gray-400'
-                                                }`}></i>
+                                            <i
+                                                className={`pi ${option.icon} text-lg ${sortField === option.value
+                                                    ? 'text-amber-200'
+                                                    : 'text-slate-400'
+                                                    }`}
+                                            ></i>
                                             <span className="font-medium">{option.label}</span>
                                             {sortField === option.value && (
-                                                <i className="pi pi-check text-purple-500 ml-auto"></i>
+                                                <i className="pi pi-check text-amber-200 ml-auto text-xs"></i>
                                             )}
                                         </button>
                                     ))}
@@ -1054,15 +1075,18 @@ export default function LstCave({ listeCaves, refreshCaves }) {
 
                             {/* Ordre de tri */}
                             <div>
-                                <label className={`block text-sm font-medium ${isMobile ? 'mb-3' : 'mb-2'} text-gray-700 dark:text-gray-300`}>
+                                <label
+                                    className={`block text-sm font-medium ${isMobile ? 'mb-3' : 'mb-2'
+                                        } text-slate-100`}
+                                >
                                     Ordre de tri
                                 </label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setSortOrder(1)}
                                         className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === 1
-                                                ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
-                                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                                            ? 'bg-[#8C2438] border-[#f97373] text-slate-50 shadow-md shadow-black/40'
+                                            : 'bg-slate-950/85 border-slate-700 text-slate-200 hover:bg-slate-900'
                                             }`}
                                     >
                                         <i className="pi pi-sort-alpha-down text-lg"></i>
@@ -1071,8 +1095,8 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                     <button
                                         onClick={() => setSortOrder(-1)}
                                         className={`flex items-center justify-center gap-2 p-4 rounded-lg border transition-all duration-200 ${sortOrder === -1
-                                                ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-600 dark:text-purple-300'
-                                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                                            ? 'bg-[#8C2438] border-[#f97373] text-slate-50 shadow-md shadow-black/40'
+                                            : 'bg-slate-950/85 border-slate-700 text-slate-200 hover:bg-slate-900'
                                             }`}
                                     >
                                         <i className="pi pi-sort-alpha-up text-lg"></i>
@@ -1082,11 +1106,12 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             </div>
 
                             {/* Aperçu du tri actuel */}
-                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                                    <i className="pi pi-info-circle"></i>
+                            <div className="bg-slate-950/85 border border-slate-700 rounded-lg p-3">
+                                <div className="flex items-center gap-2 text-slate-100">
+                                    <i className="pi pi-info-circle text-sky-300"></i>
                                     <span className="text-sm font-medium">
-                                        Tri actuel: {[
+                                        Tri actuel :{' '}
+                                        {[
                                             { label: 'Nom', value: 'Nom' },
                                             { label: 'Pays', value: 'Pays' },
                                             { label: 'Région', value: 'Région' },
@@ -1094,7 +1119,8 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                             { label: 'Millésime', value: 'Millesime' },
                                             { label: 'Note', value: 'Note_sur_20' },
                                             { label: 'Valeur', value: 'Valeur' }
-                                        ].find(f => f.value === sortField)?.label} ({sortOrder === 1 ? 'A→Z' : 'Z→A'})
+                                        ].find(f => f.value === sortField)?.label}{' '}
+                                        ({sortOrder === 1 ? 'A→Z' : 'Z→A'})
                                     </span>
                                 </div>
                             </div>
@@ -1102,8 +1128,10 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                     </div>
                 </Dialog>
 
+
+
                 {/* Interface unifiée pour mobile et desktop */}
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 min-h-screen">
+                <div className="p-2 bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] min-h-screen">
                     {/* Header avec recherche et compteur */}
                     <div className="flex gap-2 mb-2">
                         <div className="flex-1">
@@ -1112,112 +1140,187 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                                 <InputText
                                     type="search"
                                     onInput={(e) => setGlobalFilter(e.target.value)}
-                                    className="w-full p-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition duration-300 dark:bg-gray-700 dark:text-white bg-white pl-7"
+                                    className="
+                                        w-full px-3 py-2.5 text-sm
+                                        rounded-xl
+                                        bg-slate-950/70 dark:bg-slate-950/80
+                                        border border-slate-700
+                                        text-slate-100 placeholder:text-slate-400
+                                        shadow-sm
+                                        focus:outline-none
+                                        focus:ring-2 focus:ring-rose-500/70 focus:border-rose-500/70
+                                        transition duration-300
+                                        pl-9
+                                    "
                                     placeholder="Rechercher..."
                                 />
                             </IconField>
                         </div>
-                        <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg px-2 py-1.5 border border-gray-100 dark:border-gray-700 shadow-sm min-w-fit">
-                            <i className="pi pi-info-circle text-slate-500 dark:text-slate-400 text-xs mr-1"></i>
-                            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">
+                        <div className="
+                                flex items-center
+                                rounded-xl
+                                px-3 py-2
+                                bg-slate-950/70
+                                border border-rose-500/70
+                                shadow-sm shadow-black/40
+                                min-w-fit
+                            "
+                        >
+                            <i className="pi pi-info-circle text-slate-500 text-white text-xs mr-1"></i>
+                            <span className="text-xs text-slate-600 font-medium text-white whitespace-nowrap">
                                 {filteredVisibleData.length}/{listeCaves.length}
                             </span>
                         </div>
                     </div>
 
-                    {/* Boutons de contrôle */}
-                    <div className={`gap-2 mb-2 ${isMobile ? 'grid grid-cols-5' : 'flex justify-between'}`}>
+                    {/* 🔄 BOUTONS DE CONTRÔLE MIS À JOUR */}
+                    <div className={`gap-2 mb-3 ${isMobile ? 'grid grid-cols-2 sm:grid-cols-5' : 'flex justify-between items-center'}`}>
+                        {/* Ajouter un vin */}
                         <button
                             onClick={ajouterVin}
-                            className="px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-lg shadow-sm hover:from-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-1"
+                            className="px-3 py-2 rounded-lg font-medium text-xs sm:text-sm bg-gradient-to-r from-[#f97373] via-[#d41132] to-[#7f0b21] text-white shadow-md shadow-black/40 hover:shadow-lg hover:shadow-red-500/30 focus:outline-none focus:ring-2 focus:ring-red-400/70 focus:ring-opacity-70 transition duration-300 transform hover:-translate-y-[1px] hover:scale-[1.02] active:scale-[0.97] flex items-center justify-center gap-1 col-span-2 sm:col-span-2 md:col-span-1"
                         >
                             <i className="pi pi-plus text-sm"></i>
-                            {!isMobile && <span>Ajouter un vin</span>}
+                            <span>Ajouter un vin</span>
                         </button>
 
                         {isMobile ? (
                             <>
+                                {/* Favoris (mobile) */}
                                 <button
                                     onClick={goFavoris}
                                     aria-pressed={showFavoritesOnly}
-                                    className={`relative px-3 py-2 font-medium rounded-lg shadow-sm focus:outline-none transition duration-300 flex items-center justify-center gap-1 ${showFavoritesOnly
+                                    className={`relative px-2 py-2 rounded-lg shadow-sm focus:outline-none transition duration-300 flex items-center justify-center ${showFavoritesOnly
                                         ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white focus:ring-2 focus:ring-rose-400'
-                                        : 'bg-white dark:bg-gray-800 border border-rose-300 text-rose-600 hover:bg-rose-50'}
-                                    `}
-                                    title="Basculer les favoris"
+                                        : 'bg-white/95 dark:bg-gray-900/90 border border-rose-300 text-rose-600 hover:bg-rose-50/80'
+                                        }`}
+                                    title="Filtrer par favoris"
                                 >
-                                    <i className="pi pi-heart text-sm"></i>
-                                    {/* Indicateur actif */}
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <i className="pi pi-heart text-xs"></i>
+                                        <span className="text-[10px] font-medium">Favoris</span>
+                                    </div>
                                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showFavoritesOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
+
+                                {/* Filtres (mobile) */}
                                 <button
                                     ref={(el) => setFilterButtonRef(el)}
                                     onClick={() => setShowMobileFilters(true)}
-                                    className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-sm hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-1"
+                                    className={`px-2 py-2 rounded-lg shadow-sm flex items-center justify-center transition duration-300
+    border border-blue-400/70
+    ${showMobileFilters
+                                            ? 'bg-blue-600 text-white focus:ring-2 focus:ring-blue-400/80'
+                                            : 'bg-slate-950/70 text-blue-200 hover:bg-slate-900/80 focus:ring-2 focus:ring-blue-400/60'
+                                        }`}
+
                                 >
-                                    <i className="pi pi-filter text-sm"></i>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <i className="pi pi-filter text-xs"></i>
+                                        <span className="text-[10px] font-medium">Filtres</span>
+                                    </div>
                                 </button>
+
+                                {/* Tri (mobile) */}
                                 <button
                                     ref={(el) => setSortButtonRef(el)}
                                     onClick={toggleSort}
-                                    className="px-3 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-lg shadow-sm hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-1"
+                                    className={`px-2 py-2 rounded-lg shadow-sm flex items-center justify-center transition duration-300
+    border border-purple-400/70
+    ${showSortDialog
+                                            ? 'bg-purple-600 text-white focus:ring-2 focus:ring-purple-400/80'
+                                            : 'bg-slate-950/70 text-purple-200 hover:bg-slate-900/80 focus:ring-2 focus:ring-purple-400/60'
+                                        }`}
+
                                 >
-                                    <i className={`pi ${sortOrder === 1 ? 'pi-sort-alpha-down' : 'pi-sort-alpha-up'} text-sm`}></i>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <i className={`pi ${sortOrder === 1 ? 'pi-sort-alpha-down' : 'pi-sort-alpha-up'} text-xs`}></i>
+                                        <span className="text-[10px] font-medium">Tri</span>
+                                    </div>
                                 </button>
+
+                                {/* En cave (mobile) */}
                                 <button
                                     onClick={() => setShowEnCaveOnly(prev => !prev)}
                                     aria-pressed={showEnCaveOnly}
-                                    className={`relative px-3 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-1 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-0 ${showEnCaveOnly ? 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' : 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 hover:from-amber-200 hover:to-yellow-200 focus:ring-amber-300'}`}
+                                    className={`relative px-2 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-0 ${showEnCaveOnly
+                                        ? 'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400'
+                                        : 'bg-gradient-to-r from-amber-50 to-yellow-100 text-amber-700 hover:from-amber-100 hover:to-yellow-200 focus:ring-amber-300'
+                                        }`}
                                     title="Afficher uniquement les vins avec stock > 0"
                                 >
-                                    <i className="pi pi-box text-sm"></i>
-                                    {/* Indicateur actif */}
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <i className="pi pi-box text-xs"></i>
+                                        <span className="text-[10px] font-medium">En cave</span>
+                                    </div>
                                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showEnCaveOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
                             </>
                         ) : (
-                            <div className="flex gap-2 ">
+                            <div className="flex gap-2 items-center">
+                                {/* En cave (desktop) */}
                                 <button
                                     onClick={() => setShowEnCaveOnly(prev => !prev)}
                                     aria-pressed={showEnCaveOnly}
-                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition duration-300 focus:outline-none focus:ring-2 ${showEnCaveOnly
-                                        ? //'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400' 
-                                        'bg-gray-400 text-white focus:ring-2 focus:ring-stone-50'
-                                        : 'bg-white dark:bg-gray-800 border border-amber-300 text-amber-600 hover:bg-amber-50'}`}
+                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm
+            flex items-center justify-center gap-2
+            transition duration-300 focus:outline-none
+            ${showEnCaveOnly
+                                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border border-amber-400 focus:ring-2 focus:ring-amber-300/80'
+                                            : 'bg-slate-950/70 text-amber-200 border border-amber-400/70 hover:bg-slate-900/80 focus:ring-2 focus:ring-amber-300/60'
+                                        }`}
+
                                 >
                                     <i className="pi pi-box text-sm"></i>
                                     <span>En cave</span>
-                                    {/* Indicateur actif */}
                                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showEnCaveOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
+
+                                {/* Favoris (desktop) */}
                                 <button
                                     onClick={goFavoris}
                                     aria-pressed={showFavoritesOnly}
-                                    className={`relative px-4 py-2 font-medium rounded-lg shadow-sm transition duration-300 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 ${showFavoritesOnly
-                                        ? //'bg-gradient-to-r from-rose-500 to-red-600 text-white focus:ring-2 focus:ring-rose-400' 
-                                        'bg-gray-400 text-white focus:ring-2 focus:ring-stone-50'
-                                        : 'bg-white dark:bg-gray-800 border border-rose-300 text-rose-600 hover:bg-rose-50'}
-                                    `}
+                                    className={`relative px-4 py-2 rounded-lg font-medium shadow-sm
+            flex items-center justify-center gap-2
+            transition duration-300 focus:outline-none
+            ${showFavoritesOnly
+                                            ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white border border-rose-400 focus:ring-2 focus:ring-rose-300/80'
+                                            : 'bg-slate-950/70 text-rose-200 border border-rose-400/70 hover:bg-slate-900/80 focus:ring-2 focus:ring-rose-300/60'
+                                        }`}
+
                                 >
                                     <i className="pi pi-heart text-sm"></i>
                                     <span>Favoris</span>
-                                    {/* Indicateur actif */}
                                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${showFavoritesOnly ? 'bg-lime-400' : 'bg-transparent'}`}></span>
                                 </button>
+
+                                {/* Filtres (desktop) */}
                                 <button
                                     ref={(el) => setFilterButtonRef(el)}
                                     onClick={() => setShowMobileFilters(true)}
-                                    //className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-sm hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2"
-                                    className="px-4 py-2 font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2 hover:bg-blue-100 text-blue-600 border border-blue-600 ring-blue-400"
+                                    className={`px-4 py-2 font-medium rounded-lg shadow-sm flex items-center justify-center gap-2
+    border border-blue-500/70
+    ${showMobileFilters
+                                            ? 'bg-blue-600 text-white focus:ring-2 focus:ring-blue-400/80'
+                                            : 'bg-slate-950/70 text-blue-200 hover:bg-slate-900/80 focus:ring-2 focus:ring-blue-400/60'
+                                        }`}
 
                                 >
                                     <i className="pi pi-filter text-sm"></i>
                                     <span>Filtres</span>
                                 </button>
+
+                                {/* Tri (desktop) */}
                                 <button
                                     ref={(el) => setSortButtonRef(el)}
                                     onClick={toggleSort}
-                                    className="px-4 py-2  text-purple-600 font-medium rounded-lg shadow-sm hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-50 transition duration-300 flex items-center justify-center gap-2 border border-purple-600"
+                                    className={`px-4 py-2 font-medium rounded-lg shadow-sm flex items-center justify-center gap-2
+    border border-blue-500/70
+    ${showMobileFilters
+                                            ? 'bg-blue-600 text-white focus:ring-2 focus:ring-blue-400/80'
+                                            : 'bg-slate-950/70 text-blue-200 hover:bg-slate-900/80 focus:ring-2 focus:ring-blue-400/60'
+                                        }`}
+
                                 >
                                     <i className={`pi ${sortOrder === 1 ? 'pi-sort-alpha-down' : 'pi-sort-alpha-up'} text-sm`}></i>
                                     <span>Tri</span>
@@ -1233,7 +1336,6 @@ export default function LstCave({ listeCaves, refreshCaves }) {
                             isMobile={isMobile}
                             onToggleFavori={(uuid, shouldBeLiked, e) => toggleFavori(uuid, shouldBeLiked, e)}
                             onDelete={(vin) => {
-                                // éviter toute propagation indésirable ici si nécessaire
                                 confirmDeleteVin(vin);
                             }}
                             formatRegionName={formatRegionName}

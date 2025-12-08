@@ -32,6 +32,7 @@ import MesRecettes from './pages/MesRecettes';
 import Sommelier from './pages/Sommelier';
 import SommelierForm from './pages/SommelierForm';
 import ScrollToTop from './components/ScrollToTop';
+import { PrimeReactProvider } from 'primereact/api';
 
 function AppContent() {
   const isLoggedIn = !!sessionStorage.getItem('token');
@@ -46,14 +47,16 @@ function AppContent() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Pages où on ne veut pas afficher la navbar et bottombar
+    useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   const hideNavigation = ["/login", "/inscription", "/forgot-password", "/reset-password"].includes(location.pathname);
-
-
 
   return (
     <>
-      {/* Navbar desktop et mobile */}
       {!hideNavigation && <Navbar />}
 
       <Routes>
@@ -88,10 +91,6 @@ function AppContent() {
   {/* BottomBar mobile - Affichée en mobile, même sans authentification, sauf pages masquées */}
   {!hideNavigation && isMobile && (
         <>
-          {/* Debug temporaire - à supprimer après test
-          <div className="fixed bottom-20 right-4 bg-red-500 text-white p-2 rounded text-xs z-50">
-            BottomBar devrait être visible
-          </div>*/}
           <BottomBar />
         </>
       )}
@@ -103,16 +102,23 @@ function App() {
   const isAuthenticated = !!sessionStorage.getItem('token');
 
   return (
+    <PrimeReactProvider
+      value={{
+        ripple: true,
+        inputStyle: 'outlined'
+      }}
+    >
     <ThemeProvider>
       <Router>
          <ScrollToTop />
-        <div className="App min-h-screen flex flex-col">
+        <div className="App min-h-screen flex flex-col bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] ">
           <div className="flex-1">
             <AppContent />
           </div>
         </div>
       </Router>
     </ThemeProvider>
+    </PrimeReactProvider>
   );
 }
 

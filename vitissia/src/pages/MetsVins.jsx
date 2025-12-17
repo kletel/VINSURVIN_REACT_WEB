@@ -190,20 +190,49 @@ const MetsVins = () => {
         }
     };
 
-    // Recherche de plat: suggestions
-    const normalizeString = (str) =>
-        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizeString = (str = '') =>
+        str
+            .toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+
+    const tokenize = (str = '') =>
+        normalizeString(str)
+            .split(/\s+/)
+            .filter(Boolean);
+
 
     const searchMets = (e) => {
-        const q = normalizeString(e.query || '');
+        const rawQuery = e.query || '';
+        const queryTokens = tokenize(rawQuery);
         const all = Array.from(new Set(associations.map(a => a.Met).filter(Boolean)));
 
-        const filtered = q
-            ? all.filter(m => normalizeString(m).includes(q))
-            : all.slice(0, 30);
+        let filtered;
+
+        if (queryTokens.length === 0) {
+            filtered = all.slice(0, 30);
+        } else {
+            filtered = all.filter((met) => {
+                const metTokens = tokenize(met);
+
+                return queryTokens.every((qt) =>
+                    metTokens.some((mt) =>
+                        mt.startsWith(qt) || mt.includes(qt)
+                    )
+                );
+            });
+
+            if (filtered.length === 0) {
+                const qStr = normalizeString(rawQuery);
+                filtered = all.filter((m) => normalizeString(m).includes(qStr));
+            }
+        }
 
         setMetSuggestions(filtered.sort());
     };
+
 
     const applyProvenance = (prov, met) => {
         setSelectedCategorie(prov.categorie);

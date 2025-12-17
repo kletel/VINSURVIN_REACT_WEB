@@ -2141,46 +2141,55 @@ const SommelierForm = () => {
     const extractCaveMatchesFromVinResult = (vinResults) => {
         if (!vinResults || !Array.isArray(vinResults.conseil)) return [];
 
-        return vinResults.conseil
-            .filter(item => item && item.vinCave)
-            .map(item => {
-                const target = {
-                    plat: typeof item.plat === 'string'
+        const matches = [];
+
+        vinResults.conseil.forEach((item) => {
+            if (!item) return;
+
+            const target = {
+                plat:
+                    typeof item.plat === 'string'
                         ? item.plat
                         : item.plat?.plat || null,
-                    nomvin: item.nomvin || item.nom || item.Nom || '',
-                    couleur: item.couleur || item.Couleur || '',
-                    appellation: item.appellation || item.Appellation || '',
-                    region:
-                        item.region ||
-                        item.Region ||
-                        item.région ||
-                        item.Région ||
-                        'Non précisée',
-                };
+                nomvin: item.nomvin || item.nom || item.Nom || '',
+                couleur: item.couleur || item.Couleur || '',
+                appellation: item.appellation || item.Appellation || '',
+                region:
+                    item.region ||
+                    item.Region ||
+                    item.région ||
+                    item.Région ||
+                    'Non précisée',
+            };
 
-                const cave = item.vinCave || {};
-                const taux =
-                    typeof cave.tauxCorrespondance === 'number'
-                        ? cave.tauxCorrespondance
-                        : typeof item.tauxCorrespondance === 'number'
-                            ? item.tauxCorrespondance
+            // 🔹 Nouveau : on boucle sur item.vinsCave (tableau 0–3 vins de la cave)
+            if (Array.isArray(item.vinsCave)) {
+                item.vinsCave.forEach((vc) => {
+                    if (!vc || typeof vc !== 'object') return;
+
+                    const taux =
+                        typeof vc.tauxCorrespondanceCave === 'number'
+                            ? vc.tauxCorrespondanceCave
                             : null;
 
-                const commentaireComparaisonCave =
-                    typeof item.commentaireComparaisonCave === "string"
-                        ? item.commentaireComparaisonCave
-                        : null;
+                    matches.push({
+                        target,
+                        cave: vc,
+                        taux,
+                        commentaireCave:
+                            typeof vc.commentaireCave === 'string'
+                                ? vc.commentaireCave
+                                : null,
+                        commentaireComparaisonCave:
+                            typeof vc.commentaireComparaisonCave === 'string'
+                                ? vc.commentaireComparaisonCave
+                                : null,
+                    });
+                });
+            }
+        });
 
-                return {
-                    target,
-                    cave: {
-                        ...cave,
-                        tauxCorrespondance: taux,
-                    },
-                    commentaireComparaisonCave,
-                };
-            });
+        return matches;
     };
 
     const vinResultNormalize = (vinResults) => {
@@ -2882,6 +2891,16 @@ const SommelierForm = () => {
                                                                                                 {vin.Etagere}
                                                                                             </p>
                                                                                         )}
+
+                                                                                        {typeof vin.tauxCorrespondancePlat === 'number' && (
+                                                                                            <p className="mt-1 text-xs text-emerald-300">
+                                                                                                Taux de correspondance avec le plat :{' '}
+                                                                                                <span className="font-semibold">
+                                                                                                    {vin.tauxCorrespondancePlat}%
+                                                                                                </span>
+                                                                                            </p>
+                                                                                        )}
+
                                                                                     </div>
                                                                                 </div>
                                                                             ) : (
@@ -2924,6 +2943,16 @@ const SommelierForm = () => {
                                                                                                 : formatPrice(vin.prix)}
                                                                                         </div>
                                                                                     )}
+
+                                                                                    {typeof vin.tauxCorrespondancePlat === 'number' && (
+                                                                                        <p className="mt-1 text-xs text-emerald-300">
+                                                                                            Taux de correspondance avec le plat :{' '}
+                                                                                            <span className="font-semibold">
+                                                                                                {vin.tauxCorrespondancePlat}%
+                                                                                            </span>
+                                                                                        </p>
+                                                                                    )}
+
                                                                                 </div>
                                                                             )}
                                                                             {mainComment && (
@@ -3686,7 +3715,6 @@ const SommelierForm = () => {
 
                                     </div>
 
-                                    {/* Vins correspondants dans votre cave */}
                                     {caveMatches.length > 0 && (
                                         <div className="mt-12">
                                             <h2 className="text-2xl font-semibold text-center mb-6">
@@ -3701,9 +3729,13 @@ const SommelierForm = () => {
                                                         : '/images/default-avatar.jpg';
                                                     const isClickable = !!cave.UUID_;
                                                     const taux =
-                                                        typeof cave.tauxCorrespondance === 'number'
-                                                            ? cave.tauxCorrespondance
-                                                            : null;
+                                                        typeof match.taux === 'number'
+                                                            ? match.taux
+                                                            : typeof cave.tauxCorrespondanceCave === 'number'
+                                                                ? cave.tauxCorrespondanceCave
+                                                                : typeof cave.tauxCorrespondance === 'number'
+                                                                    ? cave.tauxCorrespondance
+                                                                    : null;
 
                                                     const targetLabelParts = [
                                                         target.nomvin,
@@ -3726,15 +3758,17 @@ const SommelierForm = () => {
                                                                     : 'cursor-default border-gray-700'
                                                                 }`}
                                                         >
+                                                            {/* Vin conseillé / plat cible */}
                                                             <p className="text-xs text-gray-300 mb-2 text-center min-h-[40px] flex flex-col items-center justify-center">
                                                                 <span className="font-semibold text-gray-100">
-                                                                    Vin conseillé :
+                                                                    Vin conseillé pour : {target.plat || 'le plat'}
                                                                 </span>
                                                                 <span className="mt-1 block text-[11px] sm:text-xs text-gray-200">
                                                                     {targetLabel || '—'}
                                                                 </span>
                                                             </p>
 
+                                                            {/* Fiche du vin de la cave */}
                                                             <div className="mt-3 flex flex-col items-center min-h-[170px]">
                                                                 <img
                                                                     src={imgSrc}
@@ -3761,7 +3795,7 @@ const SommelierForm = () => {
 
                                                                     {typeof taux === 'number' && (
                                                                         <p className="mt-1 text-xs text-emerald-300">
-                                                                            Taux de correspondance :{' '}
+                                                                            Taux de correspondance avec le plat :{' '}
                                                                             <span className="font-semibold">
                                                                                 {taux}%
                                                                             </span>
@@ -3770,8 +3804,15 @@ const SommelierForm = () => {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="mt-3 text-xs sm:text-sm text-emerald-100/95 italic leading-snug min-h-[56px]">
-                                                                {match.commentaireComparaisonCave ?? ''}
+                                                            {/* Commentaires sur le vin de cave */}
+                                                            <div className="mt-3 text-xs sm:text-sm text-emerald-100/95 italic leading-snug min-h-[56px] space-y-1">
+                                                                {match.commentaireCave && (
+                                                                    <p>{match.commentaireCave}</p>
+                                                                )}
+
+                                                                {match.commentaireComparaisonCave && (
+                                                                    <p>{match.commentaireComparaisonCave}</p>
+                                                                )}
                                                             </div>
                                                         </motion.div>
                                                     );

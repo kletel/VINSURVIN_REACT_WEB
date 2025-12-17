@@ -136,10 +136,10 @@ const Sommelier = () => {
             description: 'Indiquez votre menu ou votre plat, notre IA sélectionne le ou les boissons dans votre cave ou sur le marché',
         },
         {
-            id: 'cave',
-            img: '/cave-card.webp',
-            title: 'Analyser et équilibrer ma cave',
-            description: 'Notre IA analyse votre cave et vous donne des conseils pour mieux la diversifier.',
+            id: 'restaurant',
+            img: '/met-card.webp',
+            title: 'Choisir un vin au restaurant',
+            description: 'Indiquez votre menu et photographiez la carte des vins, notre IA sélectionne les vins pour vous.',
         },
         {
             id: 'rayon',
@@ -148,10 +148,10 @@ const Sommelier = () => {
             description: 'Photographiez un rayon chez un caviste ou en grande surface et obtenez une analyse instantanée.',
         },
         {
-            id: 'restaurant',
-            img: '/met-card.webp',
-            title: 'Choisir un vin au restaurant',
-            description: 'Indiquez votre menu et photographiez la carte des vins, notre IA sélectionne les vins pour vous.',
+            id: 'cave',
+            img: '/cave-card.webp',
+            title: 'Analyser et équilibrer ma cave',
+            description: 'Notre IA analyse votre cave et vous donne des conseils pour mieux la diversifier.',
         },
     ];
 

@@ -16,6 +16,7 @@ import authHeader from '../config/authHeader';
 import CaveGrid from './CaveGrid';
 
 const CAVE_STATE_KEY = 'caveListState';
+const CAVES_CACHE_KEY = 'vitissia_caves_cache';
 
 export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     let initialPersisted = {};
@@ -41,11 +42,9 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
         Millesime: { value: null, matchMode: FilterMatchMode.EQUALS },
     });
 
-    // Optimisation des données pour mobile
     const [visibleData, setVisibleData] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // États pour les filtres mobiles
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showSortDialog, setShowSortDialog] = useState(false);
     const [filterButtonRef, setFilterButtonRef] = useState(null);
@@ -80,7 +79,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     }, [globalFilter, mobileFilters, sortField, sortOrder, showEnCaveOnly, showFavoritesOnly]);
 
 
-    // Filtres optimisés avec useMemo
     const { regions, pays, types, millesime, totalPrice, totalResteFiltered, couleurs, douceurs, contenants } = useMemo(() => {
         const regions = [...new Set(listeCaves.map(cave => cave.Région))].filter(Boolean);
         const pays = [...new Set(listeCaves.map(cave => cave.Pays))].filter(Boolean);
@@ -112,7 +110,7 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
                     signal: controller.signal
                 });
                 if (!resp.ok) throw new Error('Erreur serveur');
-                const data = await resp.json(); // Doit être un tableau de chaînes
+                const data = await resp.json();
                 if (aborted) return;
                 if (Array.isArray(data)) {
                     setDistinctCaves([
@@ -140,7 +138,7 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     useEffect(() => {
         setCaves(listeCaves);
         if (isMobile) {
-            setVisibleData(listeCaves.slice(0, 20)); // Charger initialement 20 éléments
+            setVisibleData(listeCaves.slice(0, 20));
         }
     }, [listeCaves, isMobile]);
 
@@ -176,7 +174,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
         }, 100);
     }, [caves, visibleData, isLoading]);
 
-    // Optimisation des fonctions avec useCallback
     const formatCurrency = useCallback((value) => {
         return (value || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
     }, []);
@@ -226,24 +223,64 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
 
             const data = await response.json();
             if (data.etat === "succes") {
-                toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Vin supprimé avec succès.', life: 3000 });
-                setCaves((prevCaves) => prevCaves.filter((vin) => vin.UUID_ !== vinToDelete.UUID_));
+                toast.current?.show({
+                    severity: 'success',
+                    summary: 'Succès',
+                    detail: 'Vin supprimé avec succès.',
+                    life: 3000
+                });
+
+                setCaves((prevCaves) => {
+                    const updated = prevCaves.filter((vin) => vin.UUID_ !== vinToDelete.UUID_);
+
+                    try {
+                        const rawCache = localStorage.getItem(CAVES_CACHE_KEY);
+                        if (rawCache) {
+                            const parsed = JSON.parse(rawCache);
+                            if (Array.isArray(parsed)) {
+                                const updatedCache = parsed.filter((vin) => vin.UUID_ !== vinToDelete.UUID_);
+                                localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(updatedCache));
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Erreur maj cache après suppression', e);
+                    }
+
+                    return updated;
+                });
+
                 if (isMobile) {
-                    setVisibleData((prevData) => prevData.filter((vin) => vin.UUID_ !== vinToDelete.UUID_));
+                    setVisibleData((prevData) =>
+                        prevData.filter((vin) => vin.UUID_ !== vinToDelete.UUID_)
+                    );
+                }
+
+                if (typeof refreshCaves === 'function') {
+                    refreshCaves();
                 }
             } else {
-                toast.current.show({ severity: 'error', summary: 'Erreur', detail: 'Erreur lors de la suppression du vin.', life: 3000 });
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Erreur',
+                    detail: 'Erreur lors de la suppression du vin.',
+                    life: 3000
+                });
             }
         } catch (error) {
             console.error('Erreur:', error);
-            toast.current.show({ severity: 'error', summary: 'Erreur', detail: 'Erreur lors de la suppression du vin.', life: 3000 });
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Erreur lors de la suppression du vin.',
+                life: 3000
+            });
         } finally {
             setShowDeleteDialog(false);
             setVinToDelete(null);
         }
     };
 
-    // 🔄 MISE À JOUR : toggleFavori sans popup / toast
+
     const toggleFavori = async (uuid, shouldBeLiked, event) => {
         event.stopPropagation();
 
@@ -274,7 +311,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
             }
         } catch (err) {
             console.error('Erreur:', err);
-            // Revert en cas d'échec
             const revertCaves = (prevCaves) =>
                 prevCaves.map((vin) =>
                     vin.UUID_ === uuid ? { ...vin, Coup_de_Coeur: !shouldBeLiked } : vin
@@ -296,12 +332,10 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     const exportCSV = () => dt.current.exportCSV();
     const ajouterVin = () => navigate('/creation-vin');
 
-    // 🔄 MISE À JOUR : goFavoris sans toast
     const goFavoris = () => {
         setShowFavoritesOnly((prev) => !prev);
     };
 
-    // Filtrer les données visibles en temps réel pour mobile et desktop
     const normalizeString = (str) =>
         str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -334,7 +368,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     }, [caves, globalFilter, showEnCaveOnly, showFavoritesOnly]);
 
 
-    // Fonction pour générer les étoiles selon la note
     const getStarsForNote = useCallback((note) => {
         const noteValue = note || 0;
         let filledStars = 0;
@@ -378,48 +411,39 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
 
     const onRowDoubleClick = (e) => navigate(`/vin/${e.data.UUID_}`);
 
-    // Fonction pour appliquer les filtres mobiles
     const applyMobileFilters = useCallback(() => {
         let filteredData = [...listeCaves];
 
-        // Filtre par caves
         if (mobileFilters.caves.length > 0) {
             filteredData = filteredData.filter(cave =>
                 mobileFilters.caves.includes(cave.Cave)
             );
         }
 
-        // Filtre par pays
         if (mobileFilters.pays) {
             filteredData = filteredData.filter(cave => cave.Pays === mobileFilters.pays);
         }
 
-        // Filtre par couleur
         if (mobileFilters.couleur) {
             filteredData = filteredData.filter(cave => cave.Couleur === mobileFilters.couleur);
         }
 
-        // Filtre par type
         if (mobileFilters.type) {
             filteredData = filteredData.filter(cave => cave.Type === mobileFilters.type);
         }
 
-        // Filtre par douceur
         if (mobileFilters.douceur) {
             filteredData = filteredData.filter(cave => cave.Douceur === mobileFilters.douceur);
         }
 
-        // Filtre par contenant
         if (mobileFilters.contenant) {
             filteredData = filteredData.filter(cave => cave.Flacon === mobileFilters.contenant);
         }
 
-        // Filtre par millésime
         if (mobileFilters.millesime) {
             filteredData = filteredData.filter(cave => cave.Millesime === mobileFilters.millesime);
         }
 
-        // Filtre par note
         if (mobileFilters.note) {
             const noteRange = mobileFilters.note;
             filteredData = filteredData.filter(cave => {
@@ -434,7 +458,7 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
                 }
             });
         }
-        // Tri
+
         filteredData.sort((a, b) => {
             let aVal = a[sortField];
             let bVal = b[sortField];
@@ -463,18 +487,15 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     }, [applyMobileFilters]);
 
     useEffect(() => {
-        // Nettoyage des anciens filtres persistés (caves / pays objets -> strings)
         setMobileFilters(prev => {
             if (!prev) return prev;
 
             const cleaned = { ...prev };
 
-            // pays : si c'est un objet { label, value } -> on garde une string
             if (cleaned.pays && typeof cleaned.pays === 'object') {
                 cleaned.pays = cleaned.pays.value || cleaned.pays.label || String(cleaned.pays);
             }
 
-            // caves : tableau de strings
             if (Array.isArray(cleaned.caves)) {
                 cleaned.caves = cleaned.caves.map(c =>
                     typeof c === 'string'
@@ -509,7 +530,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
         });
     };
 
-    // Fonction pour basculer le tri
     const toggleSort = () => {
         setShowSortDialog(true);
     };

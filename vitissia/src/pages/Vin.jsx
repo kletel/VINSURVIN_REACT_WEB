@@ -24,6 +24,99 @@ import { motion } from 'framer-motion';
 const MotionDiv = motion.div;
 const MotionButton = motion.button;
 
+const VinLoadingScreen = () => {
+    const fakeChips = ['Appellation', 'Millesime', 'Pays', 'Type'];
+
+    return (
+        <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] min-h-screen font-['Work_Sans',sans-serif] text-white">
+            <div className="max-w-5xl mx-auto px-4 pt-8 pb-12">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/15 shadow-sm shadow-black/40">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="text-xs text-emerald-100/90 font-medium">
+                            Préparation de la fiche vin...
+                        </span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="flex justify-center items-center bg-gray-900/70 border border-white/10 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.9)] p-6"
+                    >
+                        <div className="w-52 sm:w-64 md:w-72 h-[22rem] rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-black border border-white/15 shadow-[0_18px_45px_rgba(0,0,0,0.9)] overflow-hidden relative">
+                            <div className="absolute inset-x-5 top-16 h-24 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
+                            <div className="absolute inset-x-6 bottom-10 h-10 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+                            <motion.div
+                                className="absolute top-8 bottom-8 left-[18%] w-1.5 bg-gradient-to-b from-white/40 via-white/5 to-transparent opacity-60"
+                                initial={{ opacity: 0.2 }}
+                                animate={{ opacity: [0.2, 0.8, 0.2] }}
+                                transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                            />
+                        </div>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeOut', delay: 0.05 }}
+                        className="flex-auto p-6 bg-gray-900/70 border border-white/10 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.9)]"
+                    >
+                        <div className="space-y-2 mb-4">
+                            <div className="h-5 w-2/3 rounded-full bg-white/15 animate-pulse" />
+                            <div className="h-3 w-1/3 rounded-full bg-white/10 animate-pulse" />
+                            <div className="h-2.5 w-1/2 rounded-full bg-white/10 animate-pulse" />
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 mb-5">
+                            {fakeChips.map((chip, i) => (
+                                <div
+                                    key={chip + i}
+                                    className="h-6 px-4 rounded-full bg-white/5 border border-white/15 animate-pulse"
+                                />
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <div className="h-2.5 w-20 rounded-full bg-white/15" />
+                                    <div className="h-3 w-3/4 rounded-full bg-white/10 animate-pulse" />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <div className="h-2.5 w-16 rounded-full bg-white/15 mb-2" />
+                                <div className="h-3.5 w-32 rounded-full bg-white/10 animate-pulse mb-1" />
+                                <div className="h-2.5 w-24 rounded-full bg-white/10 animate-pulse" />
+                            </div>
+                            <div>
+                                <div className="h-2.5 w-24 rounded-full bg-white/15 mb-2" />
+                                <div className="h-10 w-32 rounded-xl bg-white/5 border border-white/15 animate-pulse" />
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-red-100/80">
+                    <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-ping" />
+                        <span>On lit l’étiquette, on vérifie l’appellation et on décante les infos…</span>
+                    </div>
+                    <span className="text-[11px] text-red-100/70">
+                        Astuce : tu pourras ensuite modifier la fiche, noter le vin et l’associer à des mets.
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Vin = () => {
     const { UUID_ } = useParams();
     const navigate = useNavigate();
@@ -271,7 +364,6 @@ const Vin = () => {
             formData.append("token", token);
 
             const headers = authHeader();
-            // ⚠️ si authHeader met un Content-Type: application/json, on le retire pour FormData
             if (headers['Content-Type']) {
                 delete headers['Content-Type'];
             }
@@ -291,19 +383,17 @@ const Vin = () => {
                 throw new Error('Erreur sauvegarde');
             }
 
-            // 🧠 On essaye de parser, mais on ne casse plus tout si c'est vide
             let updated;
-            const rawText = await response.text();  // <-- IMPORTANT : une seule lecture du body
+            const rawText = await response.text();
 
             if (rawText && rawText.trim() !== '') {
                 try {
                     updated = JSON.parse(rawText);
                 } catch (err) {
                     console.warn('Réponse non-JSON du serveur, on garde les données locales :', rawText);
-                    updated = { ...vin, ...modifiedVin }; // fallback local
+                    updated = { ...vin, ...modifiedVin };
                 }
             } else {
-                // 204 No Content ou corps vide => on reconstruit avec ce qu’on connaît
                 updated = { ...vin, ...modifiedVin };
             }
 
@@ -311,7 +401,6 @@ const Vin = () => {
             setInitialVin(updated);
             setIsEditing(false);
 
-            // 🔄 Mise à jour du cache local
             try {
                 const raw = localStorage.getItem(CAVES_CACHE_KEY);
                 if (raw) {
@@ -502,11 +591,11 @@ const Vin = () => {
         }
     };
 
-    if (loading) {
+    if (loading && !vin) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] font-['Work_Sans',sans-serif] text-white">
-                Chargement...
-            </div>
+            <Layout>
+                <VinLoadingScreen />
+            </Layout>
         );
     }
 

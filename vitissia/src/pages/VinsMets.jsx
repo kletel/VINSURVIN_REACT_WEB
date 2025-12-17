@@ -14,7 +14,6 @@ const VinsMets = () => {
     const toast = useRef(null);
     const navigate = useNavigate();
 
-    // Recherche de vin
     const [vinQuery, setVinQuery] = useState('');
     const [vinSuggestions, setVinSuggestions] = useState([]);
     const [selectedVin, setSelectedVin] = useState(null);
@@ -22,6 +21,16 @@ const VinsMets = () => {
     const [metFilter, setMetFilter] = useState('');
     const [sortMode, setSortMode] = useState('alpha');
     const [recipesMap, setRecipesMap] = useState({});
+
+    const [imageLoadedMap, setImageLoadedMap] = useState({});
+    const [recipesLoading, setRecipesLoading] = useState(false);
+
+    const handleImageLoaded = (key) => {
+        setImageLoadedMap((prev) => ({
+            ...prev,
+            [key]: true,
+        }));
+    };
 
     useEffect(() => {
         fetchAssociations();
@@ -67,7 +76,6 @@ const VinsMets = () => {
         }
     }, []);
 
-
     const allVins = useMemo(() => Array.from(new Set(associations.map(a => a.Vin).filter(Boolean))).sort(), [associations]);
     const quickSuggestions = useMemo(() => allVins.slice(0, 18), [allVins]);
 
@@ -85,9 +93,8 @@ const VinsMets = () => {
         setVinQuery(vin);
         setSelectedVin(vin);
 
-        // Regrouper par met et collecter les couples catégorie/sous-catégorie
         const subset = associations.filter(a => a.Vin === vin);
-        const grouped = new Map(); // met -> Map(key, {categorie, sousCategorie})
+        const grouped = new Map(); 
         subset.forEach(a => {
             const met = a.Met;
             if (!grouped.has(met)) grouped.set(met, new Map());
@@ -125,7 +132,6 @@ const VinsMets = () => {
         return list;
     }, [metsForSelectedVin, metFilter, sortMode]);
 
-    // Normalisation de nom pour matcher recettes ⇄ mets
     const normalizeName = (str) => (str || '')
         .toString()
         .trim()
@@ -133,36 +139,6 @@ const VinsMets = () => {
         .normalize('NFD').replace(/\p{Diacritic}/gu, '')
         .replace(/\s+/g, ' ');
 
-    // Chargement ciblé des recettes: on envoie la liste des mets visibles (séparés par virgule)
-    useEffect(() => {
-        let aborted = false;
-        const loadImagesForMets = async () => {
-            try {
-                if (!selectedVin || metsForSelectedVin.length === 0) { setRecipesMap({}); return; }
-                const mets = Array.from(new Set(metsForSelectedVin.map(m => m.met).filter(Boolean)));
-                if (mets.length === 0) { setRecipesMap({}); return; }
-                const valeurs = encodeURIComponent(mets.join(','));
-                const url = `${config.apiBaseUrl}/4DACTION/react_getRecettes?champs=nomMet&valeurs=${valeurs}`;
-                const resp = await fetch(url, { method: 'GET', headers: authHeader() });
-                if (!resp.ok) throw new Error('fetch recettes ciblées failed');
-                const data = await resp.json();
-                const map = {};
-                (Array.isArray(data) ? data : []).forEach((r) => {
-                    const name = r?.nomMet || '';
-                    const img = r?.imageBase64 ?? null;
-                    const key = normalizeName(name);
-                    if (key && !(key in map)) map[key] = img;
-                });
-                if (!aborted) setRecipesMap(map);
-            } catch (e) {
-                if (!aborted) setRecipesMap({});
-            }
-        };
-        loadImagesForMets();
-        return () => { aborted = true; };
-    }, [selectedVin, metsForSelectedVin]);
-
-    // Debug
     useEffect(() => {
         if (!selectedVin || filteredAndSortedMets.length === 0) return;
         const report = filteredAndSortedMets.map((m) => {
@@ -180,6 +156,71 @@ const VinsMets = () => {
             console.warn('[VinsMets] Aucune image trouvée pour les mets affichés. Vérifiez la correspondance des noms entre Association et Recettes.');
         }
     }, [selectedVin, filteredAndSortedMets, recipesMap]);
+
+    const recipesCacheRef = useRef({}); // vin -> map images
+
+    useEffect(() => {
+        let aborted = false;
+
+        const loadImagesForMets = async () => {
+            if (!selectedVin || metsForSelectedVin.length === 0) {
+                setRecipesMap({});
+                setRecipesLoading(false);
+                return;
+            }
+
+            // 🔹 Si on a déjà les images en cache pour ce vin → on les réutilise
+            if (recipesCacheRef.current[selectedVin]) {
+                setRecipesMap(recipesCacheRef.current[selectedVin]);
+                setRecipesLoading(false);
+                return;
+            }
+
+            const mets = Array.from(
+                new Set(metsForSelectedVin.map(m => m.met).filter(Boolean))
+            );
+
+            if (mets.length === 0) {
+                setRecipesMap({});
+                setRecipesLoading(false);
+                return;
+            }
+
+            setRecipesLoading(true);
+            setImageLoadedMap({});
+
+            const valeurs = encodeURIComponent(mets.join(','));
+            const url = `${config.apiBaseUrl}/4DACTION/react_getRecettes?champs=nomMet&valeurs=${valeurs}`;
+
+            try {
+                const resp = await fetch(url, { method: 'GET', headers: authHeader() });
+                if (!resp.ok) throw new Error('fetch recettes ciblées failed');
+
+                const data = await resp.json();
+                const map = {};
+                (Array.isArray(data) ? data : []).forEach((r) => {
+                    const name = r?.nomMet || '';
+                    const img = r?.imageBase64 ?? null;
+                    const key = normalizeName(name);
+                    if (key && !(key in map)) map[key] = img;
+                });
+
+                if (!aborted) {
+                    recipesCacheRef.current[selectedVin] = map;
+                    setRecipesMap(map);
+                }
+            } catch (e) {
+                if (!aborted) {
+                    setRecipesMap({});
+                }
+            } finally {
+                if (!aborted) setRecipesLoading(false);
+            }
+        };
+
+        loadImagesForMets();
+        return () => { aborted = true; };
+    }, [selectedVin, metsForSelectedVin]);
 
     const getCategoryClasses = (categorie) => {
         const cat = (categorie || '').toLowerCase();
@@ -277,10 +318,8 @@ const VinsMets = () => {
 
                 <div className="max-w-6xl mx-auto p-4">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {/* Panneau gauche: recherche + suggestions */}
                         <div className="lg:col-span-1">
                             <div className="sticky top-4 space-y-4">
-                                {/* Carte recherche vin */}
                                 <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-5 shadow-[0_18px_45px_rgba(0,0,0,0.9)] backdrop-blur metsvins-autocomplete-wrapper">
                                     <label className="block text-sm font-medium text-white/80 mb-2">
                                         Nom du vin
@@ -291,7 +330,7 @@ const VinsMets = () => {
                                         completeMethod={searchVins}
                                         onChange={(e) => setVinQuery(e.value)}
                                         onSelect={onSelectVin}
-                                        placeholder="Ex: Bordeaux, Chardonnay, Beaujolais…"
+                                        placeholder="Ex: Bordeaux, Beaujolais, Ajaccio…"
                                         className="w-full text-base"
                                         dropdown
                                         inputClassName="
@@ -379,16 +418,16 @@ const VinsMets = () => {
                                                     onChange={(e) => setMetFilter(e.target.value)}
                                                     placeholder="Filtrer les mets…"
                                                     className="
-                    w-full
-                    pl-7 pr-3 py-2
-                    rounded-lg
-                    border border-gray-700
-                    bg-gray-900/80
-                    text-xs sm:text-sm text-white
-                    placeholder:text-gray-500
-                    focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:border-rose-400
-                    transition-all
-                "
+                                                        w-full
+                                                        pl-7 pr-3 py-2
+                                                        rounded-lg
+                                                        border border-gray-700
+                                                        bg-gray-900/80
+                                                        text-xs sm:text-sm text-white
+                                                        placeholder:text-gray-500
+                                                        focus:outline-none focus:ring-2 focus:ring-rose-400/60 focus:border-rose-400
+                                                        transition-all
+                                                    "
                                                 />
                                             </div>
 
@@ -402,15 +441,15 @@ const VinsMets = () => {
                                                     onClick={() => setSortMode('alpha')}
                                                     aria-pressed={sortMode === 'alpha'}
                                                     className={`
-                    inline-flex items-center justify-center
-                    min-w-[90px]
-                    px-3 py-1.5
-                    rounded-md text-[11px] sm:text-xs border transition-all
-                    ${sortMode === 'alpha'
+                                                        inline-flex items-center justify-center
+                                                        min-w-[90px]
+                                                        px-3 py-1.5
+                                                        rounded-md text-[11px] sm:text-xs border transition-all
+                                                        ${sortMode === 'alpha'
                                                             ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
                                                             : 'bg-gray-900/70 border-gray-700 text-white/80 hover:bg-gray-800'
                                                         }
-                `}
+                                                    `}
                                                 >
                                                     A → Z
                                                 </button>
@@ -419,15 +458,15 @@ const VinsMets = () => {
                                                     onClick={() => setSortMode('provenance')}
                                                     aria-pressed={sortMode === 'provenance'}
                                                     className={`
-                    inline-flex items-center justify-center
-                    min-w-[110px]
-                    px-3 py-1.5
-                    rounded-md text-[11px] sm:text-xs border transition-all
-                    ${sortMode === 'provenance'
+                                                        inline-flex items-center justify-center
+                                                        min-w-[110px]
+                                                        px-3 py-1.5
+                                                        rounded-md text-[11px] sm:text-xs border transition-all
+                                                        ${sortMode === 'provenance'
                                                             ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
                                                             : 'bg-gray-900/70 border-gray-700 text-white/80 hover:bg-gray-800'
                                                         }
-                `}
+                                                    `}
                                                 >
                                                     + provenance
                                                 </button>
@@ -449,21 +488,48 @@ const VinsMets = () => {
                                                         transition-all hover:-translate-y-0.5
                                                     "
                                                 >
-                                                    {/* Image de recette */}
-                                                    <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gray-900 mb-3">
-                                                        {recipesMap[normalizeName(item.met)] ? (
-                                                            <img
-                                                                src={`data:image/jpeg;base64,${recipesMap[normalizeName(item.met)]}`}
-                                                                alt={`Image recette pour ${item.met}`}
-                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                                                loading="lazy"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-white/30">
-                                                                <i className="pi pi-image text-2xl"></i>
+                                                    {(() => {
+                                                        const key = normalizeName(item.met);
+                                                        const imgBase64 = recipesMap[key] || null;
+                                                        const hasImage = !!imgBase64;
+                                                        const isLoaded = !!imageLoadedMap[key];
+
+                                                        return (
+                                                            <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gray-900 mb-3 relative">
+                                                                {hasImage ? (
+                                                                    <>
+                                                                        <img
+                                                                            src={`data:image/jpeg;base64,${imgBase64}`}
+                                                                            alt={`Image recette pour ${item.met}`}
+                                                                            className="
+                                                                                w-full h-full object-cover 
+                                                                                transition-transform duration-300 
+                                                                                group-hover:scale-[1.03]
+                                                                            "
+                                                                            loading="lazy"
+                                                                            onLoad={() => handleImageLoaded(key)}
+                                                                        />
+
+                                                                        {!isLoaded && (
+                                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
+                                                                                <i className="pi pi-spin pi-spinner text-white/80 text-2xl" />
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : recipesLoading ? (
+                                                                    <div className="w-full h-full flex items-center justify-center text-white/50">
+                                                                        <i className="pi pi-spin pi-spinner text-2xl" />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-full h-full flex flex-col items-center justify-center text-white/40 text-xs">
+                                                                        <i className="pi pi-image text-xl mb-1"></i>
+                                                                        <span>Aucune image fournie</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        );
+                                                    })()}
+
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div
                                                             className="font-semibold text-base md:text-lg text-white truncate"

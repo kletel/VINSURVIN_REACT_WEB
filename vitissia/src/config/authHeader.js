@@ -25,7 +25,7 @@ export default function authHeader() {
     };
 
     if (token) {
-        headers["Authorization"] = token;
+       headers["Authorization"] = `Bearer ${token}`;
     }
 
     if (deviceUUID) {

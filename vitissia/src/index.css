@@ -43,6 +43,22 @@ body {
     padding: 0;
 }
 
+.PhoneInputInput {
+  background-color: transparent !important;
+  color: #f9fafb; /* text-gray-50 */
+  border: none;
+  outline: none;
+}
+
+.PhoneInputInput::placeholder {
+  color: #9ca3af; /* placeholder gris */
+}
+
+.PhoneInputInput:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 /* Le contenu ne rajoute pas de blanc autour de notre carte */
 .vitissia-delete-dialog .p-dialog-content {
     background: transparent;
@@ -609,3 +625,5 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: #111827; /* slate-900 */
   color: #f9fafb;
 }
+
+

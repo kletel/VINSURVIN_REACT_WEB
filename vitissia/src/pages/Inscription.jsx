@@ -15,6 +15,7 @@ const Inscription = () => {
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
     const [version, setVersion] = useState("");
+    const [telephone, setTelephone] = useState("");
 
     useEffect(() => {
         fetch("/version.txt")
@@ -60,6 +61,8 @@ const Inscription = () => {
             formData.append("nom", nom);
             formData.append("prenom", prenom);
             if (statut) formData.append("statut", statut);
+
+            if (telephone) formData.append("telephone", telephone);
 
             const deviceUUID = localStorage.getItem("deviceUUID");
             if (deviceUUID) formData.append("deviceUUID", deviceUUID);
@@ -194,20 +197,6 @@ const Inscription = () => {
                                 </p>
                             </div>
 
-                            {error && (
-                                <div
-                                    className="
-                                        mt-5 p-3 rounded-lg
-                                        bg-[#3b0b13]/85
-                                        text-[#ffd7df]
-                                        border border-[#ff7a8b]/50
-                                        text-sm
-                                        shadow-md shadow-black/50
-                                    "
-                                >
-                                    {error}
-                                </div>
-                            )}
                             {success && (
                                 <div
                                     className="
@@ -291,6 +280,28 @@ const Inscription = () => {
                                             shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]
                                         "
                                         placeholder="vous@exemple.com"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-100">
+                                        Téléphone (optionnel)
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={telephone}
+                                        onChange={(e) => setTelephone(e.target.value)}
+                                        className="
+                                            mt-1 block w-full rounded-xl
+                                            border border-white/20
+                                            bg-black/40
+                                            px-3 py-2.5
+                                            text-gray-50 placeholder-gray-400
+                                            focus:outline-none focus:ring-2
+                                            focus:ring-[#ff7a8b] focus:border-[#ff7a8b]
+                                            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]
+                                        "
+                                        placeholder="Ex : +33 6 12 34 56 78"
                                     />
                                 </div>
 
@@ -416,6 +427,84 @@ const Inscription = () => {
                     </div>
                 </div>
             </div>
+
+            {/* 🔔 POPUP ERREUR */}
+            {error && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    {/* Fond sombre cliquable pour fermer */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => setError("")}
+                    />
+                    {/* Contenu du popup */}
+                    <div
+                        className="
+                            relative z-10 w-full max-w-md
+                            rounded-2xl
+                            bg-[#3b0b13]/95
+                            border border-[#ff7a8b]/70
+                            shadow-[0_24px_80px_rgba(0,0,0,0.9)]
+                            px-5 py-4
+                            text-sm text-[#ffd7df]
+                        "
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <div
+                                    className="
+                                        flex-shrink-0 w-9 h-9 rounded-xl
+                                        bg-gradient-to-br from-[#ff7a8b] via-[#ff4b6a] to-[#b20e2a]
+                                        flex items-center justify-center
+                                        shadow-md shadow-black/60
+                                    "
+                                >
+                                    <i className="pi pi-exclamation-triangle text-white text-base" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold mb-1">
+                                        Une erreur est survenue
+                                    </h3>
+                                    <p className="text-xs md:text-sm leading-snug">
+                                        {error}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setError("")}
+                                className="
+                                    ml-2 inline-flex items-center justify-center
+                                    w-7 h-7 rounded-full
+                                    bg-black/40 hover:bg-black/60
+                                    border border-white/20
+                                    text-xs text-[#ffd7df]
+                                    transition-colors
+                                "
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="mt-3 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setError("")}
+                                className="
+                                    inline-flex items-center justify-center gap-2
+                                    rounded-xl px-3 py-1.5
+                                    bg-white/10 hover:bg-white/15
+                                    text-[12px] font-medium
+                                    border border-white/25
+                                    transition-colors
+                                "
+                            >
+                                <i className="pi pi-check text-[11px]" />
+                                Compris
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

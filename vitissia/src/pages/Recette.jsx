@@ -3,10 +3,226 @@ import { useNavigate } from 'react-router-dom';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
+import { motion } from 'framer-motion';
+import { GiGrapes } from 'react-icons/gi';
 import config from '../config/config';
 import authHeader from '../config/authHeader';
 import Layout from '../components/Layout';
 import LoginRequiredModal from '../components/LoginRequiredModal';
+
+const RecetteLoadingScreen = () => {
+    const fakeSteps = Array.from({ length: 4 });
+    const fakeIngredients = Array.from({ length: 6 });
+
+    const ingredientPlaceholders = [
+        'Analyse du plat et du contexte',
+        'Sélection des ingrédients principaux',
+        'Ajustement des quantités pour 2 à 4 personnes',
+        'Optimisation selon le type de cuisson',
+        'Ajout des assaisonnements & garnitures',
+        'Vérification de la cohérence de la liste'
+    ];
+
+    const stepPlaceholders = [
+        'Étape 1 – Préparation des ingrédients',
+        'Étape 2 – Cuisson principale & surveillance',
+        'Étape 3 – Temps de repos & finitions',
+        'Étape 4 – Dressage et service'
+    ];
+
+    return (
+        <div className="min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] text-white flex items-center justify-center px-4 font-['Work_Sans',sans-serif]">
+            <div className="relative w-full max-w-3xl rounded-3xl border border-white/15 bg-black/35 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.95)] p-6 md:p-8 overflow-hidden">
+
+                {/* Glows de fond */}
+                <div className="pointer-events-none absolute -top-24 -left-10 w-40 h-40 rounded-full bg-amber-400/25 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 -right-4 w-44 h-44 rounded-full bg-rose-500/25 blur-3xl" />
+
+                {/* Contenu principal */}
+                <div className="relative flex flex-col gap-6">
+                    {/* Header */}
+                    <div className="flex items-center gap-4">
+                        {/* Icône Vitissia animée */}
+                        <motion.div
+                            initial={{ rotate: -8, y: 6, scale: 0.9 }}
+                            animate={{ rotate: 8, y: -4, scale: 1 }}
+                            transition={{
+                                repeat: Infinity,
+                                repeatType: 'reverse',
+                                duration: 1.5,
+                                ease: 'easeInOut',
+                            }}
+                            className="
+                                w-16 h-16 md:w-20 md:h-20
+                                rounded-3xl
+                                bg-gradient-to-br from-[#d41132] via-[#b20e2a] to-[#7f0b21]
+                                shadow-xl shadow-black/70
+                                flex items-center justify-center
+                            "
+                        >
+                            <GiGrapes className="text-3xl md:text-4xl text-red-50 drop-shadow-lg" />
+                        </motion.div>
+
+                        <div className="flex-1">
+                            <p className="text-[11px] uppercase tracking-[0.25em] text-amber-100/70 mb-1">
+                                Vitiss.IA • Recette en cours de génération
+                            </p>
+                            <h1 className="text-xl md:text-2xl font-semibold tracking-tight">
+                                Notre IA prépare ta recette
+                            </h1>
+                            <p className="mt-1 text-xs md:text-sm text-amber-50/80 max-w-md">
+                                Nous analysons ton plat, générons la liste d&apos;ingrédients,
+                                les étapes de préparation et les temps de cuisson optimisés.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Barre de progression animée */}
+                    <div className="mt-2">
+                        <div className="h-2 rounded-full bg-white/10 overflow-hidden relative">
+                            <motion.div
+                                className="
+                                    absolute inset-y-0
+                                    w-full
+                                    bg-gradient-to-r from-amber-100 via-white to-rose-200
+                                    opacity-90
+                                "
+                                initial={{ x: '-100%' }}
+                                animate={{ x: '100%' }}
+                                transition={{
+                                    repeat: Infinity,
+                                    repeatType: 'loop',
+                                    duration: 1.8,
+                                    ease: 'linear',
+                                }}
+                            />
+                        </div>
+
+
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-amber-100/80">
+                            <span className="inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                                Analyse du plat par Vitiss.IA
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-300 animate-pulse delay-150" />
+                                Génération des ingrédients & quantités
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-300 animate-pulse delay-300" />
+                                Création des étapes & temps de préparation
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="
+                                rounded-2xl border border-white/12 bg-white/5
+                                shadow-[0_16px_50px_rgba(0,0,0,0.8)]
+                                p-4 md:p-5
+                                flex flex-col gap-3
+                            "
+                        >
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="w-7 h-7 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                    <i className="pi pi-list text-emerald-200 text-xs" />
+                                </span>
+                                <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/90">
+                                    Ingrédients en génération
+                                </p>
+                            </div>
+
+                            <div className="space-y-2.5">
+                                {fakeIngredients.map((_, idx) => (
+                                    <motion.div
+                                        key={idx}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.05 * idx }}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-300/90 flex-shrink-0" />
+                                        <div className="flex-1">
+                                            <p className="text-[12px] text-emerald-50/90">
+                                                {ingredientPlaceholders[idx % ingredientPlaceholders.length]}
+                                            </p>
+                                            <div className="mt-1 h-1.5 rounded-full bg-white/10 animate-pulse w-3/4" />
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                        
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="
+                                rounded-2xl border border-white/12 bg-white/5
+                                shadow-[0_16px_50px_rgba(0,0,0,0.8)]
+                                p-4 md:p-5
+                                flex flex-col gap-3
+                            "
+                        >
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="w-7 h-7 rounded-xl bg-sky-500/20 flex items-center justify-center">
+                                    <i className="pi pi-file text-sky-200 text-xs" />
+                                </span>
+                                <p className="text-xs uppercase tracking-[0.18em] text-sky-100/90">
+                                    Étapes & temps de préparation
+                                </p>
+                            </div>
+
+                            <div className="space-y-3">
+                                {fakeSteps.map((_, idx) => (
+                                    <motion.div
+                                        key={idx}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.07 * idx }}
+                                        className="flex gap-3 items-start"
+                                    >
+                                        <div className="w-7 h-7 rounded-full bg-sky-500/80 flex items-center justify-center text-[11px] font-semibold shadow-md shadow-black/70 flex-shrink-0">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="flex-1 space-y-1.5">
+                                            <p className="text-[12px] text-sky-50/95 font-medium">
+                                                {stepPlaceholders[idx % stepPlaceholders.length]}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="h-2.5 px-3 py-3 rounded-full bg-black/30 border border-white/10 flex items-center justify-center text-[9px] uppercase tracking-[0.12em] text-amber-100/90">
+                                                    <span>Temps en cours de calcul…</span>
+                                                </div>
+                                                <div className="h-5 w-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
+                                                    <i className="pi pi-spin pi-spinner text-[10px] text-amber-100" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-[11px] text-amber-50/75">
+                        <span>
+                            Prépare déjà ton plan de travail : la recette arrive dans quelques secondes.
+                        </span>
+                        <span className="hidden sm:inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            Vitiss.IA synchronise plat, ingrédients et étapes
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const Recette = () => {
     const [recette, setRecette] = useState(null);
@@ -306,14 +522,7 @@ const Recette = () => {
     if (isLoading) {
         return (
             <Layout>
-                <div className="flex justify-center items-center h-screen bg-[#3B0B15] font-['Work_Sans',sans-serif]">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400 mx-auto mb-4"></div>
-                        <p className="text-xl font-semibold text-gray-200">
-                            Chargement de la recette...
-                        </p>
-                    </div>
-                </div>
+                <RecetteLoadingScreen />
             </Layout>
         );
     }

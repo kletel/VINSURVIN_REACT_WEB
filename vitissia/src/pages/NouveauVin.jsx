@@ -16,9 +16,134 @@ import CreatableSelect from 'react-select/creatable';
 import { convertToJpegSameSize } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const NouveauVinLoadingScreen = () => {
+    const fakeInputs = Array.from({ length: 6 });
+
+    return (
+        <div className="min-h-screen flex items-center justify-center px-4 py-10 font-['Work_Sans',sans-serif]">
+            <motion.div
+                initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="
+                    relative w-full max-w-5xl
+                    rounded-3xl
+                    bg-black/40 border border-white/12
+                    shadow-[0_32px_90px_rgba(0,0,0,0.95)]
+                    overflow-hidden backdrop-blur-2xl
+                "
+            >
+                {/* Glows de fond */}
+                <div className="pointer-events-none absolute -top-32 -left-20 w-64 h-64 rounded-full bg-[#f97373]/22 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -right-16 w-72 h-72 rounded-full bg-[#7f0b21]/28 blur-3xl" />
+                <div className="pointer-events-none absolute top-1/3 -right-8 w-40 h-40 rounded-full bg-[#22c55e]/14 blur-3xl" />
+
+                <div className="relative grid md:grid-cols-[1.2fr,1fr] gap-8 p-6 md:p-8">
+                    {/* Colonne gauche : texte / étapes */}
+                    <div className="flex flex-col justify-between gap-6">
+                        <div className="space-y-4">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/15 shadow-sm shadow-black/40">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span className="text-[11px] tracking-[0.18em] uppercase text-emerald-100/90">
+                                    Assistant d’ajout de vin
+                                </span>
+                            </div>
+
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+                                    Ouverture de l’étape 1
+                                </h1>
+                                <p className="mt-2 text-sm md:text-[15px] text-red-100/85 max-w-xl">
+                                    Nous préparons l’écran où vous pourrez choisir entre
+                                    ajouter votre vin manuellement ou utiliser notre IA
+                                    à partir d’une photo d’étiquette.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 mt-2">
+                            {[
+                                'Initialisation de l’écran d’ajout (étape 1)',
+                                'Chargement des options nécessaires (pays, régions, couleurs…)',
+                                'Mise en place de l’analyse IA par photo',
+                            ].map((label, index) => (
+                                <motion.div
+                                    key={label}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.15 * index, duration: 0.3 }}
+                                    className="flex items-center gap-3"
+                                >
+                                    <div className="relative">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/90 block" />
+                                        <span className="absolute inset-0 rounded-full bg-emerald-400/40 blur-[6px] animate-ping" />
+                                    </div>
+                                    <p className="text-xs md:text-sm text-red-100/80">
+                                        {label}
+                                    </p>
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        <div className="mt-2 space-y-2">
+                            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <motion.div
+                                    initial={{ x: '-60%' }}
+                                    animate={{ x: ['-60%', '110%'] }}
+                                    transition={{
+                                        repeat: Infinity,
+                                        duration: 1.8,
+                                        ease: 'easeInOut',
+                                    }}
+                                    className="h-full w-1/2 bg-gradient-to-r from-[#ffe3ea] via-white to-[#ff8ba1] opacity-90"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-red-100/75">
+                                <span>Préparation de l’assistant d’ajout…</span>
+                                <span className="hidden sm:inline">
+                                    L’étape 1 va apparaître dans un instant.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Colonne droite : skeleton "formulaire" */}
+                    <div className="flex flex-col gap-4 md:gap-5">
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeOut', delay: 0.1 }}
+                            className="rounded-2xl bg-slate-950/70 border border-white/10 shadow-[0_22px_55px_rgba(0,0,0,0.9)] p-4 space-y-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="h-3.5 w-1/2 rounded-full bg-white/12 animate-pulse" />
+                                <div className="ml-auto h-3 w-16 rounded-full bg-white/8 animate-pulse" />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 mt-1">
+                                {fakeInputs.map((_, idx) => (
+                                    <div key={idx} className="space-y-1.5">
+                                        <div className="h-2 w-16 rounded-full bg-white/12" />
+                                        <div className="h-7 rounded-xl bg-white/6 border border-white/10 animate-pulse" />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="pt-1 flex items-center justify-between">
+                                <div className="h-3 w-24 rounded-full bg-white/10 animate-pulse" />
+                                <div className="h-8 w-28 rounded-xl bg-white/12 animate-pulse" />
+                            </div>
+                        </motion.div>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
 
 const NouveauVin = () => {
-    const [vin, setVin] = useState(null);
+    const [vin, setVin] = useState({});
     const [initialVin, setInitialVin] = useState(null);
     const [distinctCaves, setDistinctCaves] = useState([]);
     const [showAddCaveDialog, setShowAddCaveDialog] = useState(false);
@@ -29,14 +154,13 @@ const NouveauVin = () => {
     const toast = useRef(null);
     const [errorRegion, setErrorRegion] = useState("");
     const [errorCouleur, setErrorCouleur] = useState("");
-    const [currentStep, setCurrentStep] = useState(1); // 1 = Étape 1, 2 = Étape 2
-    // Nouveau: choix placement (dégustation ou cave)
+    const [currentStep, setCurrentStep] = useState(1);
     const [showPlacementDialog, setShowPlacementDialog] = useState(false);
-    const [placementMode, setPlacementMode] = useState(null); // 'degustation' | 'cave' | null
+    const [placementMode, setPlacementMode] = useState(null); 
     const [tempCaveOption, setTempCaveOption] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const DEBUG_ALWAYS_LOADING = true; 
 
-    // Options de cave sans "Dégustation" (pour le choix "En cave")
     const caveOptionsNoDegustation = useMemo(() =>
         distinctCaves.filter(c => {
             const s = (c.label || c.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -799,8 +923,18 @@ const NouveauVin = () => {
         }),
     };
 
+    const isVinReady = vin && Object.keys(vin).length > 0;
+
+
     var bas64Vide = ""
-    if (!vin) return <p>Chargement du formulaire...</p>;
+    if (!vin) {
+        return (
+            <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] text-white">
+                <Toast ref={toast} />
+                <NouveauVinLoadingScreen />
+            </div>
+        );
+    }
     return (
         <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15]">
             <Toast ref={toast} />
@@ -816,8 +950,8 @@ const NouveauVin = () => {
                     setPlacementMode(null);
                     setTempCaveOption(null);
                 }}
-                header={null}                
-                closable={false}              
+                header={null}
+                closable={false}
                 modal
                 dismissableMask
                 appendTo={document.body}
@@ -1036,46 +1170,37 @@ const NouveauVin = () => {
                     </div>
                 </div>
             </Dialog>
-            {vin ? (
-                <>
-                    {currentStep === 1 ? (
-                        <NouveauVinEtape1
-                            onAnalyzeComplete={() => setCurrentStep(2)}
-                            onManualMode={handleManualMode}
-                            customBase64Uploader={customBase64Uploader}
-                            isAnalyzing={isAnalyzing}
-                        />
-                    ) : (
-                        <NouveauVinEtape2
-                            vin={vin}
-                            handleInputChange={handleInputChange}
-                            handleSave={handleSave}
-                            customBase64UploaderSansIA={customBase64UploaderSansIA}
-                            getNoteDescription={getNoteDescription}
-                            optionsPays={optionsPays}
-                            filteredRegions={filteredRegions}
-                            optionCouleur={optionCouleur}
-                            optionTypeVin={optionTypeVin}
-                            distinctCaves={distinctCaves}
-                            defaultCountryValue={defaultCountryValue}
-                            defaultRegionValue={defaultRegionValue}
-                            handleCountryChange={handleCountryChange}
-                            errorRegion={errorRegion}
-                            errorCouleur={errorCouleur}
-                            showAddCaveDialog={showAddCaveDialog}
-                            setShowAddCaveDialog={setShowAddCaveDialog}
-                            newCaveName={newCaveName}
-                            setNewCaveName={setNewCaveName}
-                            handleCaveChange={handleCaveChange}
-                            addCaveDialogFooter={addCaveDialogFooter}
-                            onBack={handleBack}
-                        />
-                    )}
-                </>
+            {currentStep === 1 ? (
+              <NouveauVinEtape1                    onAnalyzeComplete={() => setCurrentStep(2)}
+                   onManualMode={handleManualMode}
+                    customBase64Uploader={customBase64Uploader}
+                   isAnalyzing={isAnalyzing}
+               />
+           ) : isVinReady ? (
+               <NouveauVinEtape2
+                   vin={vin}
+                    handleInputChange={handleInputChange}
+                    handleSave={handleSave}
+                    customBase64UploaderSansIA={customBase64UploaderSansIA}
+                    getNoteDescription={getNoteDescription}
+                    optionsPays={optionsPays}
+                    filteredRegions={filteredRegions}
+                   optionCouleur={optionCouleur}
+                    optionTypeVin={optionTypeVin}                    distinctCaves={distinctCaves}
+                    defaultCountryValue={defaultCountryValue}
+                   defaultRegionValue={defaultRegionValue}
+                   handleCountryChange={handleCountryChange}
+                    errorRegion={errorRegion}
+                   errorCouleur={errorCouleur}
+                   showAddCaveDialog={showAddCaveDialog}                   setShowAddCaveDialog={setShowAddCaveDialog}
+                    newCaveName={newCaveName}
+                   setNewCaveName={setNewCaveName}
+                   handleCaveChange={handleCaveChange}                    addCaveDialogFooter={addCaveDialogFooter}
+                   onBack={handleBack}
+                />
             ) : (
-                <div className="p-4 text-center text-gray-500">Vin non trouvé</div>
-            )
-            }
+                <NouveauVinLoadingScreen />
+           )}
         </div >
     );
 };

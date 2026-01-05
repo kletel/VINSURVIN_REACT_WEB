@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSubscription } from '../hooks/useSubscription';
+import SubscriptionRequiredModal from '../components/SubscriptionRequiredModal';
 
-const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
+const Card = ({ id, img, title, description, mounted, setShowSubscriptionPopup, isPremium }) => {
     const navigate = useNavigate();
     const [loaded, setLoaded] = useState(false);
     const imgRef = React.useRef(null);
@@ -37,12 +39,12 @@ const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
                 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
             `}
             onClick={() => {
-                const isLoggedIn = !!sessionStorage.getItem("token");
-                if (isLoggedIn) {
-                    navigate(`/sommelier/${id}`);
-                } else {
-                    setShowPopup(true);
+                // Vérifier uniquement l'abonnement premium
+                if (!isPremium) {
+                    setShowSubscriptionPopup(true);
+                    return;
                 }
+                navigate(`/sommelier/${id}`);
             }}
         >
             {/* 🟣 IMAGE */}
@@ -126,7 +128,10 @@ const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
 
 const Sommelier = () => {
     const [mounted, setMounted] = useState(false);
-    const [showPopup, setShowPopup] = useState(false);
+    const [showSubscriptionPopup, setShowSubscriptionPopup] = useState(false);
+
+    // Hook pour vérifier l'état d'abonnement
+    const { isPremium } = useSubscription();
 
     const cards = [
         {
@@ -180,43 +185,18 @@ const Sommelier = () => {
                             title={card.title}
                             description={card.description}
                             mounted={mounted}
-                            setShowPopup={setShowPopup}
+                            setShowSubscriptionPopup={setShowSubscriptionPopup}
+                            isPremium={isPremium}
                         />
                     ))}
                 </div>
 
-                {/* Popup login requis */}
-                {showPopup && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-                        <div
-                            className="absolute inset-0 bg-black/40"
-                            onClick={() => setShowPopup(false)}
-                        />
-                        <div className="relative mx-4 w-full max-w-md rounded-2xl overflow-hidden backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border border-white/40 dark:border-gray-800 shadow-2xl">
-                            <div className="p-5">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                                        <i className="pi pi-info-circle" />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                        Mon œnologue
-                                    </h3>
-                                </div>
-                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                    Vous restez sur le tableau de bord. Veuillez vous connecter pour y accéder.
-                                </p>
-                                <div className="mt-4 flex justify-end gap-2">
-                                    <button
-                                        onClick={() => setShowPopup(false)}
-                                        className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                    >
-                                        Fermer
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* Popup abonnement requis */}
+                <SubscriptionRequiredModal
+                    isOpen={showSubscriptionPopup}
+                    onClose={() => setShowSubscriptionPopup(false)}
+                    feature="le sommelier IA Gabriel"
+                />
             </div>
         </div>
     );

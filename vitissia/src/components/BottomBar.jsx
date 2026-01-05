@@ -118,6 +118,8 @@ const BottomBar = () => {
         return location.pathname === path;
     };
 
+    // Seules ces routes nécessitent une connexion
+    // Note: /dashboard, /vins-mets, /mets-vins, /sommelier sont accessibles sans connexion
     const protectedPaths = new Set([
         "/cave",
         "/favoris",
@@ -125,7 +127,6 @@ const BottomBar = () => {
         "/mes-recettes",
         "/repartition-pays",
         "/millesimes",
-        "/vin",
     ]);
 
     const SOMMELIER_RESET_KEYS = ["lastSommelierResult"];
@@ -135,7 +136,8 @@ const BottomBar = () => {
     };
 
     const handleClick = (path) => {
-        if (!isLoggedIn && [...protectedPaths].some((p) => path.startsWith(p))) {
+        // Vérifier si le chemin exact est protégé (pas de startsWith pour éviter les faux positifs)
+        if (!isLoggedIn && protectedPaths.has(path)) {
             setShowLoginModal(true);
             return;
         }

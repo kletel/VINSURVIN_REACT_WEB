@@ -3,10 +3,6 @@ const getApiBaseUrl = () => {
     console.log('window.location', window.location);
     const hostname = window.location.hostname;
 
-    if (hostname === 'localhost') {
-        return 'http://localhost:80';
-    }
-
     if (hostname === '127.0.0.1') {
         return 'http://127.0.0.1';
     }
@@ -29,7 +25,7 @@ const getApiBaseUrl = () => {
 
     }
     // Retourner directement l'URL basée sur le hostname
-    return `https://${hostname}`;
+    return `https://vinsurvin.vitissia.fr`;
     //return `https://${hostname}`;
 };
 

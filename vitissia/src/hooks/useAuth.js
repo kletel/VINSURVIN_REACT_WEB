@@ -30,8 +30,6 @@ const useAuth = () => {
     const [user, setUser] = useState(null);
     const [UUIDuser, setUUIDuser] = useState(null);
 
-
-
     const loadUserInfo = useCallback(async () => {
         const token = sessionStorage.getItem('token');
         if (!token) {
@@ -126,7 +124,6 @@ const useAuth = () => {
             formData.append('password', password);
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_AuthLogin`, {
                 method: 'POST',
-                headers: authHeader(),
                 body: formData,
             });
 

@@ -38,12 +38,15 @@ const Card = ({ id, img, title, description, mounted, setShowPopup }) => {
             `}
             onClick={() => {
                 const isLoggedIn = !!sessionStorage.getItem("token");
-                if (isLoggedIn) {
-                    navigate(`/sommelier/${id}`);
-                } else {
+                const requiresLogin = id === "cave";
+
+                if (requiresLogin && !isLoggedIn) {
                     setShowPopup(true);
+                    return;
                 }
+                navigate(`/sommelier/${id}`);
             }}
+
         >
             {/* 🟣 IMAGE */}
             <img

@@ -430,7 +430,7 @@ const NewDashboard = () => {
                     </div>
                 </div>
             </div>
-               <FooterLinks />
+               
         </Layout>
         
     );

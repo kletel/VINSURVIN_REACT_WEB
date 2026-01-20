@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import { FileUpload } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import imageCompression from "browser-image-compression";
@@ -13,6 +13,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiTrash2, FiPlusCircle, FiCheckCircle, FiRefreshCcw, FiStar } from "react-icons/fi";
 import { FaWineGlassAlt as FiWine } from "react-icons/fa";
 import RegionRefiner from "../components/RegionRefiner"
+
+const SOMMELIER_ACTIVE_KEY = 'vitissia_sommelier_active_state';
+const SOMMELIER_RETURN_FLAG = 'vitissia_sommelier_returning';
+
+const choiceLabels = {
+    plat: "Choisir une boisson ou un vin pour un menu ou un plat",
+    cave: "Analyser et équilibrer ma cave",
+    rayon: "Choisir un vin dans un rayon",
+    restaurant: "Choisir un vin au restaurant",
+};
 
 const SommelierForm = () => {
     const { id } = useParams();
@@ -65,9 +75,85 @@ const SommelierForm = () => {
     const [stepError, setStepError] = useState('');
     const [imageError, setImageError] = useState(null);
 
+    const [iaLang, setIaLang] = useState("fr");
+
     const toast = useRef(null);
 
     const navigate = useNavigate();
+
+    const location = useLocation();
+
+    const currentChoiceLabel = choiceLabels[id];
+
+    const saveSommelierState = useCallback(() => {
+        const payload = {
+            currentStep,
+            vinResult,
+            conseilResult,
+            // optionnel mais utile si tu veux retrouver exactement l’écran :
+            UUIDTable,
+            selectedPlats,
+            repas,
+            vinChoice,
+            budget,
+            bouteille,
+            manual,
+            adaptePlat,
+            equilibre,
+            aperitif,
+            digestif,
+            currentChoiceLabel,
+        };
+
+        sessionStorage.setItem(SOMMELIER_ACTIVE_KEY, JSON.stringify(payload));
+        sessionStorage.setItem(SOMMELIER_RETURN_FLAG, '1');
+    }, [
+        currentStep,
+        vinResult,
+        conseilResult,
+        UUIDTable,
+        selectedPlats,
+        repas,
+        vinChoice,
+        budget,
+        bouteille,
+        manual,
+        adaptePlat,
+        equilibre,
+        aperitif,
+        digestif,
+        currentChoiceLabel,
+    ]);
+
+    useEffect(() => {
+        if (sessionStorage.getItem(SOMMELIER_RETURN_FLAG) !== '1') return;
+        sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
+
+        const raw = sessionStorage.getItem(SOMMELIER_ACTIVE_KEY);
+        if (!raw) return;
+
+        try {
+            const s = JSON.parse(raw);
+
+            if (typeof s.currentStep === 'number') setCurrentStep(s.currentStep);
+            if (s.vinResult) setVinResult(s.vinResult);
+            if (s.conseilResult) setConseilResult(s.conseilResult);
+
+            if (s.UUIDTable !== undefined) setUUIDTable(s.UUIDTable);
+            if (Array.isArray(s.selectedPlats)) setSelectedPlats(s.selectedPlats);
+            if (Array.isArray(s.repas)) setRepas(s.repas);
+            if (s.vinChoice !== undefined) setVinChoice(s.vinChoice);
+            if (typeof s.budget === 'number') setBudget(s.budget);
+            if (typeof s.bouteille === 'number') setBouteille(s.bouteille);
+            if (typeof s.manual === 'boolean') setManual(s.manual);
+            if (typeof s.adaptePlat === 'boolean') setAdaptePlat(s.adaptePlat);
+            if (s.equilibre !== undefined) setEquilibre(s.equilibre);
+            if (s.aperitif !== undefined) setAperitif(s.aperitif);
+            if (s.digestif !== undefined) setDigestif(s.digestif);
+        } catch (e) {
+            console.warn('Restore sommelier state failed', e);
+        }
+    }, []);
 
     const returnToSommelierMenu = () => {
         Storage.removeItem("lastSommelierResult");
@@ -103,15 +189,6 @@ const SommelierForm = () => {
 
     console.log("step", currentStep)
 
-    const choiceLabels = {
-        plat: "Choisir une boisson ou un vin pour un menu ou un plat",
-        cave: "Analyser et équilibrer ma cave",
-        rayon: "Choisir un vin dans un rayon",
-        restaurant: "Choisir un vin au restaurant",
-    };
-
-    const currentChoiceLabel = choiceLabels[id];
-
     const analyseResult = async (retryCount = 0, vinsfiltre = vinsFiltre, platsChoisi = selectedPlats, typeCase = 'conseilVin') => {
         try {
             const vinsPropres = (vinsfiltre || []).filter((v) => {
@@ -141,6 +218,7 @@ const SommelierForm = () => {
             formData.append("digestif", digestif);
             formData.append("token", token);
             formData.append("refine", refine);
+            formData.append("iaLang", iaLang);
             if (refine === 'true') {
                 /*formData.append("ref_couleur", refineCouleur || '');
                 formData.append("ref_region", refineRegion || '');*/
@@ -1975,6 +2053,26 @@ const SommelierForm = () => {
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
+
+                                {/* Select langue IA (caché pour l’instant) */}
+                                <div className="hidden">
+                                    <label className="block mb-2 text-sm font-medium text-gray-200">
+                                        Langue de réponse
+                                    </label>
+                                    <select
+                                        value={iaLang}
+                                        onChange={(e) => setIaLang(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-gray-950/40 px-3 py-2 text-gray-100"
+                                    >
+                                        <option value="auto">Auto</option>
+                                        <option value="fr">Français</option>
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                        <option value="it">Italiano</option>
+                                        <option value="de">Deutsch</option>
+                                    </select>
+                                </div>
+
                             </motion.div>
 
                             {/*<AnimatePresence>
@@ -2081,6 +2179,10 @@ const SommelierForm = () => {
         setDigestif('false')
     }
 
+    sessionStorage.removeItem(SOMMELIER_ACTIVE_KEY);
+    sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
+
+
     const normalizeConseilData = (rawData) => {
         if (!rawData) return {};
 
@@ -2138,6 +2240,70 @@ const SommelierForm = () => {
         return categorized;
     };
 
+    const vinResultNormalize = (vinResults) => {
+        if (!vinResults || !Array.isArray(vinResults.conseil)) return {};
+
+        const grouped = { Aperitif: [], Digestif: [] };
+
+        const sanitizeVin = (vin) => {
+            if (!vin || typeof vin !== 'object') return vin;
+            const { commentaireComparaisonCave, ...rest } = vin;
+            return rest;
+        };
+
+        const pickMeta = (it) => ({
+            couleur: it?.couleur || it?.Couleur || '',
+            appellation: it?.appellation || it?.Appellation || '',
+            region: it?.region || it?.Region || it?.région || it?.Région,
+            prix: it?.prix,
+            commentaire: it?.commentaire,
+            commentaireVin: it?.commentaireVin,
+            tauxCorrespondancePlat: it?.tauxCorrespondancePlat,
+        });
+
+        vinResults.conseil.forEach((item) => {
+            if (item.vinaperitif) {
+                const rawVin = typeof item.vinaperitif === 'object'
+                    ? { ...pickMeta(item), ...item.vinaperitif }         // OK: UUID_ seulement si l’objet vinaperitif le porte vraiment
+                    : { ...pickMeta(item), nomvin: item.vinaperitif };   // IMPORTANT: pas de ...item
+
+                const vin = sanitizeVin(rawVin);
+
+                grouped.Aperitif.push({
+                    ...vin,
+                    region: vin.region || vin.région || "Non précisée",
+                });
+            }
+
+            if (item.vindigestif) {
+                const rawVin = typeof item.vindigestif === 'object'
+                    ? { ...pickMeta(item), ...item.vindigestif }
+                    : { ...pickMeta(item), nomvin: item.vindigestif };
+
+                const vin = sanitizeVin(rawVin);
+
+                grouped.Digestif.push({
+                    ...vin,
+                    region: vin.region || vin.région || "Non précisée",
+                });
+            }
+
+            if (item.plat) {
+                const rawPlatData = typeof item.plat === 'object' ? item.plat : item;
+                const platData = sanitizeVin(rawPlatData);
+                const platName = platData.plat || platData.nomvin || "Autre";
+
+                if (!grouped[platName]) grouped[platName] = [];
+                grouped[platName].push({
+                    ...platData,
+                    region: platData.region || platData.région || "Non précisée",
+                });
+            }
+        });
+
+        return grouped;
+    };
+
     const extractCaveMatchesFromVinResult = (vinResults) => {
         if (!vinResults || !Array.isArray(vinResults.conseil)) return [];
 
@@ -2192,62 +2358,140 @@ const SommelierForm = () => {
         return matches;
     };
 
-    const vinResultNormalize = (vinResults) => {
-        if (!vinResults || !Array.isArray(vinResults.conseil)) {
-            return {};
-        }
+    const getSectionsOrder = (purchaseGrouped, caveGrouped) => {
+        const keys = new Set([
+            ...Object.keys(purchaseGrouped || {}),
+            ...Object.keys(caveGrouped || {}),
+        ]);
 
-        const grouped = {
-            Aperitif: [],
-            Digestif: []
+        const plats = [...keys].filter((k) => k !== "Aperitif" && k !== "Digestif");
+        plats.sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+
+        const ordered = [];
+        if (keys.has("Aperitif")) ordered.push("Aperitif");
+        ordered.push(...plats);
+        if (keys.has("Digestif")) ordered.push("Digestif");
+
+        return ordered;
+    };
+
+    const getWineMedia = (obj) => {
+        const vin = obj?.vin && typeof obj.vin === "object" ? obj.vin : obj;
+
+        const uuid = typeof vin?.UUID_ === "string" ? vin.UUID_.trim() : "";
+        const b64 = typeof vin?.base64_132etiquette === "string" ? vin.base64_132etiquette : "";
+        const hasImg = b64.length > 80;
+
+        return {
+            uuid,
+            isClickable: uuid !== "",
+            hasImg,
+            // ✅ IMPORTANT : pas de fallback image
+            imgSrc: hasImg ? `data:image/jpeg;base64,${b64}` : null,
+            vin,
+        };
+    };
+
+
+    const caveResultNormalize = (vinResults) => {
+        const grouped = { Aperitif: [], Digestif: [] };
+        if (!vinResults || !Array.isArray(vinResults.conseil)) return grouped;
+
+        const dedupeKey = (vinObj) => {
+            const { uuid } = getWineMedia(vinObj);
+            return uuid || "";
         };
 
-        const sanitizeVin = (vin) => {
-            if (!vin || typeof vin !== 'object') return vin;
-            const { commentaireComparaisonCave, ...rest } = vin;
-            return rest;
+        const pushUnique = (section, entry) => {
+            if (!section) return;
+            if (!grouped[section]) grouped[section] = [];
+
+            const key = dedupeKey(entry);
+            if (!key) return;
+
+            const exists = grouped[section].some((e) => dedupeKey(e) === key);
+            if (!exists) grouped[section].push(entry);
         };
 
-        vinResults.conseil.forEach(item => {
-            if (item.vinaperitif) {
-                const rawVin = typeof item.vinaperitif === 'object'
-                    ? item.vinaperitif
-                    : { nomvin: item.vinaperitif, ...item };
+        const unwrapCaveEntry = (vc) => {
+            // vc peut être { vin: {...}, tauxCorrespondancePlat, commentaireAccordCave }
+            // ou parfois directement un objet vin enrichi
+            if (!vc || typeof vc !== "object") return null;
 
-                const vin = sanitizeVin(rawVin);
-
-                grouped.Aperitif.push({
-                    ...vin,
-                    region: vin.region || vin.région || "Non précisée"
-                });
+            if (vc.vin && typeof vc.vin === "object") {
+                return {
+                    vin: vc.vin,
+                    tauxCorrespondancePlat:
+                        typeof vc.tauxCorrespondancePlat === "number"
+                            ? vc.tauxCorrespondancePlat
+                            : typeof vc.vin.tauxCorrespondancePlat === "number"
+                                ? vc.vin.tauxCorrespondancePlat
+                                : null,
+                    commentaireAccordCave:
+                        typeof vc.commentaireAccordCave === "string"
+                            ? vc.commentaireAccordCave
+                            : typeof vc.commentaireCave === "string"
+                                ? vc.commentaireCave
+                                : typeof vc.vin.commentaireAccordCave === "string"
+                                    ? vc.vin.commentaireAccordCave
+                                    : null,
+                };
             }
 
-            if (item.vindigestif) {
-                const rawVin = typeof item.vindigestif === 'object'
-                    ? item.vindigestif
-                    : { nomvin: item.vindigestif, ...item };
+            // objet vin direct
+            return {
+                vin: vc,
+                tauxCorrespondancePlat:
+                    typeof vc.tauxCorrespondancePlat === "number" ? vc.tauxCorrespondancePlat : null,
+                commentaireAccordCave:
+                    typeof vc.commentaireAccordCave === "string"
+                        ? vc.commentaireAccordCave
+                        : typeof vc.commentaireCave === "string"
+                            ? vc.commentaireCave
+                            : null,
+            };
+        };
 
-                const vin = sanitizeVin(rawVin);
+        vinResults.conseil.forEach((item) => {
+            if (!item || typeof item !== "object") return;
 
-                grouped.Digestif.push({
-                    ...vin,
-                    region: vin.region || vin.région || "Non précisée"
-                });
-            }
-
-            if (item.plat) {
-                const rawPlatData = typeof item.plat === 'object' ? item.plat : item;
-                const platData = sanitizeVin(rawPlatData);
-
-                const platName = platData.plat || platData.nomvin || "Autre";
-
-                if (!grouped[platName]) {
-                    grouped[platName] = [];
+            // Aperitif / Digestif côté cave (selon ton prompt V4)
+            const caveAperitif = item.vinCaveAperitif;
+            if (caveAperitif && typeof caveAperitif === "object") {
+                const entry = unwrapCaveEntry(caveAperitif);
+                if (entry) {
+                    const media = getWineMedia(entry);
+                    if (media.uuid && media.hasImg) pushUnique("Aperitif", entry);
                 }
+            }
 
-                grouped[platName].push({
-                    ...platData,
-                    region: platData.region || platData.région || "Non précisée"
+            const caveDigestif = item.vinCaveDigestif;
+            if (caveDigestif && typeof caveDigestif === "object") {
+                const entry = unwrapCaveEntry(caveDigestif);
+                if (entry) {
+                    const media = getWineMedia(entry);
+                    if (media.uuid && media.hasImg) pushUnique("Digestif", entry);
+                }
+            }
+
+            // Plats : item.vinsCave (0-3)
+            const platName =
+                typeof item.plat === "string"
+                    ? item.plat
+                    : typeof item.plat?.plat === "string"
+                        ? item.plat.plat
+                        : null;
+
+            if (platName && Array.isArray(item.vinsCave)) {
+                item.vinsCave.forEach((vc) => {
+                    const entry = unwrapCaveEntry(vc);
+                    if (!entry) return;
+
+                    const media = getWineMedia(entry);
+                    // 👉 règle demandée : uniquement UUID + image
+                    if (!media.uuid || !media.hasImg) return;
+
+                    pushUnique(platName, entry);
                 });
             }
         });
@@ -2358,6 +2602,9 @@ const SommelierForm = () => {
                     onClick={() => {
                         if (currentStep === 1) {
                             localStorage.removeItem("lastSommelierResult");
+                            sessionStorage.removeItem(SOMMELIER_ACTIVE_KEY);
+                            sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
+
                             setOldResult(null);
                             navigate('/sommelier');
                         } else {
@@ -2734,14 +2981,220 @@ const SommelierForm = () => {
                             );
                         })()}
 
-                    {/* 🧩 CAS 4 : résultat des vins */}
+                    {/* 🧩 CAS 4 : résultat des vins (NEW 2 colonnes) */}
                     {vinResult &&
                         !isAnalyzing &&
                         vinResult?.vraiPlat !== false &&
                         (() => {
-                            const groupedByPlat = vinResultNormalize(vinResult);
+                            const groupedByPlat = vinResultNormalize(vinResult);       
+                            const caveGrouped = caveResultNormalize(vinResult);        
                             const affinInvalid = vinResult?.vraiAffin === false;
-                            const caveMatches = extractCaveMatchesFromVinResult(vinResult);
+
+                            const sections = getSectionsOrder(groupedByPlat, caveGrouped);
+
+                            const getSectionTitle = (key) => {
+                                if (key === "Aperitif") return "En apéritif";
+                                if (key === "Digestif") return "En digestif";
+                                return `Votre plat choisi : ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+                            };
+
+                            const Separator = () => (
+                                <div className="my-7 flex items-center gap-3">
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                                    <div className="h-1 w-1 rounded-full bg-emerald-300/60 shadow-[0_0_12px_rgba(52,211,153,0.55)]" />
+                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                                </div>
+                            );
+
+                            const ColumnHeader = ({ title, subtitle }) => (
+                                <div className="mb-5">
+                                    <p className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-emerald-200/75">
+                                        {subtitle}
+                                    </p>
+                                    <h2 className="mt-1 text-lg sm:text-xl font-semibold text-gray-50">
+                                        {title}
+                                    </h2>
+                                </div>
+                            );
+
+                            const EmptyCaveBox = ({ label }) => (
+                                <div className="rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/35 via-gray-900/60 to-black/40 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
+                                    <p className="text-sm text-emerald-50">
+                                        <span className="font-semibold">Aucun vin dans votre cave</span> ne correspond à {label ? `« ${label} »` : "ce plat"}
+                                        {" "}ou n’a été trouvé.
+                                    </p>
+                                    <p className="mt-1 text-xs text-emerald-200/70">
+                                        Astuce : essayez un affinage différent (couleur, style, budget, région…).
+                                    </p>
+                                </div>
+                            );
+
+                            const BuyWineCard = ({ vin, platKey }) => {
+                                const { uuid, isClickable, hasImg, imgSrc } = getWineMedia(vin);
+                                const vinName = vin.nomvin || vin.nom || vin.Nom || "Vin";
+
+                                const mainComment =
+                                    (platKey === "Aperitif" || platKey === "Digestif")
+                                        ? (vin.commentaire || vin.commentaireVin)
+                                        : (vin.commentaireVin || vin.commentaire);
+
+                                return (
+                                    <motion.div
+                                        whileHover={{ scale: isClickable ? 1.02 : 1 }}
+                                        whileTap={{ scale: isClickable ? 0.98 : 1 }}
+                                        onClick={() => {
+                                            if (!isClickable) return;
+                                            saveSommelierState?.();
+                                            navigate(`/vin/${vin.UUID_}`);
+                                        }}
+                                        className={[
+                                            "w-full rounded-2xl border p-4 shadow-md backdrop-blur-md transition-all duration-300",
+                                            "bg-white/5",
+                                            isClickable
+                                                ? "cursor-pointer border-emerald-400/45 hover:bg-white/10 hover:shadow-emerald-400/25"
+                                                : "cursor-default border-white/10",
+                                        ].join(" ")}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                             {hasImg && (
+      <div className="flex-shrink-0">
+        <img
+          src={imgSrc}
+          alt={vin.nomvin || 'Vin'}
+          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
+          loading="lazy"
+        />
+      </div>
+    )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-gray-50 truncate">
+                                                    {vinName}
+                                                </p>
+
+                                                <div className="mt-1 text-[12px] text-gray-200 space-y-0.5">
+                                                    <p><span className="text-gray-400">Couleur :</span> {vin.couleur || vin.Couleur || "—"}</p>
+                                                    <p className="truncate">
+                                                        <span className="text-gray-400">Appellation :</span> {vin.appellation || vin.Appellation || "—"}
+                                                    </p>
+                                                    <p className="truncate">
+                                                        <span className="text-gray-400">Région :</span> {vin.region || vin.Region || vin.région || vin.Région || "Non précisée"}
+                                                    </p>
+
+                                                    {vin.prix && (
+                                                        <div className="pt-1 text-gray-100">
+                                                            <span className="text-gray-400">Prix :</span>{" "}
+                                                            {Array.isArray(vin.prix)
+                                                                ? vin.prix.map((p, i) => (
+                                                                    <span key={i} className="inline-block bg-white/10 px-2 py-0.5 rounded-lg mr-2">
+                                                                        {typeof p === "object" && p !== null
+                                                                            ? `${p.contenance ? `${p.contenance} — ` : ""}${p.prix ?? "—"}`
+                                                                            : `${p}`}
+                                                                    </span>
+                                                                ))
+                                                                : formatPrice?.(vin.prix)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {mainComment && (
+                                            <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/45 via-gray-900/60 to-black/55 px-4 py-3">
+                                                <p className="text-[11px] sm:text-xs text-emerald-50 leading-relaxed italic">
+                                                    {mainComment}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                );
+                            };
+
+                            const CaveWineCard = ({ entry }) => {
+                                const { vin } = entry || {};
+                                const media = getWineMedia(entry);
+                                const caveVin = media.vin;
+
+                                const nom = caveVin?.Nom || caveVin?.nom || caveVin?.nomvin || "Vin";
+                                const appellation = caveVin?.Appellation || caveVin?.appellation || "—";
+                                const region = caveVin?.Région || caveVin?.Region || caveVin?.region || caveVin?.région || "—";
+                                const etagere = caveVin?.Etagere;
+
+                                const taux =
+                                    typeof entry?.tauxCorrespondancePlat === "number"
+                                        ? entry.tauxCorrespondancePlat
+                                        : typeof caveVin?.tauxCorrespondancePlat === "number"
+                                            ? caveVin.tauxCorrespondancePlat
+                                            : null;
+
+                                const comment =
+                                    typeof entry?.commentaireAccordCave === "string"
+                                        ? entry.commentaireAccordCave
+                                        : typeof caveVin?.commentaireAccordCave === "string"
+                                            ? caveVin.commentaireAccordCave
+                                            : null;
+
+                                return (
+                                    <motion.div
+                                        whileHover={{ scale: media.isClickable ? 1.02 : 1 }}
+                                        whileTap={{ scale: media.isClickable ? 0.98 : 1 }}
+                                        onClick={() => {
+                                            if (!media.isClickable) return;
+                                            saveSommelierState?.();
+                                            navigate(`/vin/${media.uuid}`);
+                                        }}
+                                        className={[
+                                            "w-full rounded-2xl border p-4 shadow-md backdrop-blur-md transition-all duration-300",
+                                            "bg-gray-950/25",
+                                            media.isClickable
+                                                ? "cursor-pointer border-emerald-400/45 hover:bg-gray-900/50 hover:shadow-emerald-400/25"
+                                                : "cursor-default border-white/10",
+                                        ].join(" ")}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            {media.hasImg && (
+          <div className="flex-shrink-0">
+            <img
+              src={media.imgSrc}
+              alt={nom}
+              className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border border-white/10 shadow-sm"
+              loading="lazy"
+            />
+          </div>
+        )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-gray-50 truncate">{nom}</p>
+                                                <p className="text-[12px] text-gray-200 truncate">
+                                                    <span className="text-gray-400">Appellation :</span> {appellation}
+                                                </p>
+                                                <p className="text-[12px] text-gray-200 truncate">
+                                                    <span className="text-gray-400">Région :</span> {region}
+                                                </p>
+                                                {etagere && (
+                                                    <p className="text-[12px] text-gray-200 truncate">
+                                                        <span className="text-gray-400">Stockage :</span> {etagere}
+                                                    </p>
+                                                )}
+
+                                                {typeof taux === "number" && (
+                                                    <p className="mt-1 text-xs text-emerald-300">
+                                                        Taux de correspondance avec le plat :{" "}
+                                                        <span className="font-semibold">{taux}%</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {comment && (
+                                            <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/45 via-gray-900/60 to-black/55 px-4 py-3">
+                                                <p className="text-[11px] sm:text-xs text-emerald-50 leading-relaxed italic">
+                                                    {comment}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                );
+                            };
+
                             return (
                                 <div className="mt-10">
                                     <motion.h1
@@ -2755,1092 +3208,122 @@ const SommelierForm = () => {
 
                                     <GlobalCommentBanner text={getCommentaireGlobal(vinResult)} />
 
+                                    {/* ✅ 2 colonnes responsive */}
+                                    <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-7 lg:gap-10 items-start">
+                                        {/* COLONNE GAUCHE : A ACHETER */}
+                                        <div className="w-full">
+                                            <ColumnHeader
+                                                subtitle="à gauche"
+                                                title="Vins conseillés par notre IA à acheter"
+                                            />
 
-                                    <div className="space-y-10">
-                                        {['Aperitif', ...Object.keys(groupedByPlat).filter((k) => k !== 'Aperitif' && k !== 'Digestif'), 'Digestif']
-                                            .filter((key) => groupedByPlat[key]?.length > 0)
-                                            .map((plat, i) => {
-                                                const vins = groupedByPlat[plat];
-                                                const sectionTitle =
-                                                    plat === 'Aperitif'
-                                                        ? 'En apéritif'
-                                                        : plat === 'Digestif'
-                                                            ? 'En digestif'
-                                                            : `Votre plat choisi : ${plat.charAt(0).toUpperCase() + plat.slice(1)}`;
-
-                                                return (
-                                                    <motion.div
-                                                        key={plat}
-                                                        className=""
-                                                        initial={{ opacity: 0, y: 25 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        transition={{ delay: i * 0.15 }}
-                                                    >
-                                                        <h2 className="text-xl font-bold text-gray-50 mb-6 flex items-center gap-2">
-                                                            {sectionTitle}
-                                                        </h2>
-
-                                                        <div
-                                                            className={
-                                                                vins.length > 1
-                                                                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
-                                                                    : 'flex justify-center items-center w-full'
-                                                            }
-                                                        >
-                                                            {vins
-                                                                .filter(
-                                                                    (vin) =>
-                                                                        vin &&
-                                                                        (vin.nomvin ||
-                                                                            vin.nom ||
-                                                                            vin.Nom ||
-                                                                            vin.vindigestif)
-                                                                )
-                                                                .map((vin, index) => {
-                                                                    const hasCaveData =
-                                                                        !!vin.UUID_ || !!vin.base64_132etiquette;
-                                                                    const imgSrc = vin.base64_132etiquette
-                                                                        ? `data:image/jpeg;base64,${vin.base64_132etiquette}`
-                                                                        : '/images/default-avatar.jpg';
-
-                                                                    const isAperitifOrDigestif = plat === 'Aperitif' || plat === 'Digestif';
-                                                                    const mainComment =
-                                                                        isAperitifOrDigestif
-                                                                            ? (vin.commentaire || vin.commentaireVin)
-                                                                            : (vin.commentaireVin || vin.commentaire);
-
-                                                                    const caveComment = vin.commentaireComparaisonCave;
-
-                                                                    return (
-                                                                        <motion.div
-                                                                            key={index}
-                                                                            whileHover={{
-                                                                                scale: hasCaveData ? 1.03 : 1,
-                                                                            }}
-                                                                            onClick={() =>
-                                                                                hasCaveData &&
-                                                                                navigate(`/vin/${vin.UUID_}`)
-                                                                            }
-                                                                            className={`rounded-xl border border-emerald-400/40 bg-white/5 p-4 shadow-md transition-all duration-300 flex flex-col gap-3 backdrop-blur-md ${hasCaveData
-                                                                                ? 'cursor-pointer hover:shadow-emerald-400/30 hover:bg-white/10'
-                                                                                : 'cursor-default'
-                                                                                }`}
-                                                                        >
-
-                                                                            {hasCaveData ? (
-                                                                                <div className="flex items-start gap-3">
-                                                                                    <div className="flex-shrink-0">
-                                                                                        <img
-                                                                                            src={imgSrc}
-                                                                                            alt={vin.nomvin || 'Vin'}
-                                                                                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                                                                                            loading="lazy"
-                                                                                        />
-                                                                                    </div>
-                                                                                    <div className="flex-1">
-                                                                                        <p className="text-sm text-gray-100">
-                                                                                            <strong>Nom :</strong>{' '}
-                                                                                            {vin.nomvin ||
-                                                                                                vin.nom ||
-                                                                                                vin.Nom}
-                                                                                        </p>
-                                                                                        <p className="text-sm text-gray-100">
-                                                                                            <strong>Couleur :</strong>{' '}
-                                                                                            {vin.couleur || vin.Couleur}
-                                                                                        </p>
-                                                                                        <p className="text-sm text-gray-100">
-                                                                                            <strong>Appellation :</strong>{' '}
-                                                                                            {vin.appellation ||
-                                                                                                vin.Appellation}
-                                                                                        </p>
-                                                                                        <p className="text-sm text-gray-100">
-                                                                                            <strong>Région :</strong>{' '}
-                                                                                            {vin.region ||
-                                                                                                vin.Region ||
-                                                                                                vin.région ||
-                                                                                                vin.Région}
-                                                                                        </p>
-
-                                                                                        {vin.prix && (
-                                                                                            <div className="text-sm text-gray-200 mt-1">
-                                                                                                <strong>Prix :</strong>{' '}
-                                                                                                {Array.isArray(vin.prix)
-                                                                                                    ? vin.prix.map(
-                                                                                                        (p, i) => (
-                                                                                                            <span
-                                                                                                                key={i}
-                                                                                                                className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                            >
-                                                                                                                {p.contenance}{' '}
-                                                                                                                —{' '}
-                                                                                                                {p.prix}
-                                                                                                            </span>
-                                                                                                        )
-                                                                                                    )
-                                                                                                    : formatPrice(
-                                                                                                        vin.prix
-                                                                                                    )}
-                                                                                            </div>
-                                                                                        )}
-
-                                                                                        {vin.Etagere && (
-                                                                                            <p className="text-sm text-gray-100 mt-1">
-                                                                                                <strong>
-                                                                                                    Lieu de stockage :
-                                                                                                </strong>{' '}
-                                                                                                {vin.Etagere}
-                                                                                            </p>
-                                                                                        )}
-
-                                                                                        {typeof vin.tauxCorrespondancePlat === 'number' && (
-                                                                                            <p className="mt-1 text-xs text-emerald-300">
-                                                                                                Taux de correspondance avec le plat :{' '}
-                                                                                                <span className="font-semibold">
-                                                                                                    {vin.tauxCorrespondancePlat}%
-                                                                                                </span>
-                                                                                            </p>
-                                                                                        )}
-
-                                                                                    </div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="mt-2">
-                                                                                    <p className="text-sm text-gray-100">
-                                                                                        <strong>Nom :</strong>{' '}
-                                                                                        {vin.nomvin ||
-                                                                                            vin.nom ||
-                                                                                            vin.Nom}
-                                                                                    </p>
-                                                                                    <p className="text-sm text-gray-100">
-                                                                                        <strong>Couleur :</strong>{' '}
-                                                                                        {vin.couleur || vin.Couleur}
-                                                                                    </p>
-                                                                                    <p className="text-sm text-gray-100">
-                                                                                        <strong>Appellation :</strong>{' '}
-                                                                                        {vin.appellation ||
-                                                                                            vin.Appellation}
-                                                                                    </p>
-                                                                                    <p className="text-sm text-gray-100">
-                                                                                        <strong>Région :</strong>{' '}
-                                                                                        {vin.region ||
-                                                                                            vin.Region ||
-                                                                                            vin.région ||
-                                                                                            vin.Région}
-                                                                                    </p>
-                                                                                    {vin.prix && (
-                                                                                        <div className="text-sm text-gray-200 mt-1">
-                                                                                            <strong>Prix :</strong>{' '}
-                                                                                            {Array.isArray(vin.prix)
-                                                                                                ? vin.prix.map((p, i) => (
-                                                                                                    <span
-                                                                                                        key={i}
-                                                                                                        className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                    >
-                                                                                                        {p.contenance}{' '}
-                                                                                                        — {p.prix}
-                                                                                                    </span>
-                                                                                                ))
-                                                                                                : formatPrice(vin.prix)}
-                                                                                        </div>
-                                                                                    )}
-
-                                                                                    {typeof vin.tauxCorrespondancePlat === 'number' && (
-                                                                                        <p className="mt-1 text-xs text-emerald-300">
-                                                                                            Taux de correspondance avec le plat :{' '}
-                                                                                            <span className="font-semibold">
-                                                                                                {vin.tauxCorrespondancePlat}%
-                                                                                            </span>
-                                                                                        </p>
-                                                                                    )}
-
-                                                                                </div>
-                                                                            )}
-                                                                            {mainComment && (
-                                                                                <p className="mt-3 text-xs sm:text-sm text-emerald-100/95 italic leading-snug">
-                                                                                    {mainComment}
-                                                                                </p>
-                                                                            )}
-
-                                                                            {caveComment && caveComment !== mainComment && (
-                                                                                <p className="mt-2 text-xs sm:text-sm text-emerald-200/95 italic leading-snug">
-                                                                                    {caveComment}
-                                                                                </p>
-                                                                            )}
-                                                                        </motion.div>
-                                                                    );
-                                                                })}
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-
-                                        {/* Ancien résultat vin 
-                                        {oldResult && showOldResult && oldResult?.vinResult && (
-                                            <div className="mt-12 border-t border-gray-700 pt-8">
-                                                <h2 className="text-2xl font-semibold text-center text-gray-50 mb-8">
-                                                    Ancien résultat sauvegardé
-                                                </h2>
-
-                                                {(() => {
-                                                    const groupedByPlatOld = vinResultNormalize(oldResult.vinResult);
-                                                    return (
-                                                        <div className="space-y-10">
-                                                            {[
-                                                                'Aperitif',
-                                                                ...Object.keys(groupedByPlatOld).filter(
-                                                                    (k) =>
-                                                                        k !== 'Aperitif' && k !== 'Digestif'
-                                                                ),
-                                                                'Digestif',
-                                                            ]
-                                                                .filter(
-                                                                    (key) => groupedByPlatOld[key]?.length > 0
-                                                                )
-                                                                .map((plat, i) => {
-                                                                    const vins = groupedByPlatOld[plat];
-                                                                    const sectionTitle =
-                                                                        plat === 'Aperitif'
-                                                                            ? 'En apéritif'
-                                                                            : plat === 'Digestif'
-                                                                                ? 'En digestif'
-                                                                                : `Votre plat : ${plat.charAt(0).toUpperCase() +
-                                                                                plat.slice(1)
-                                                                                }`;
-
-                                                                    return (
-                                                                        <motion.div
-                                                                            key={plat}
-                                                                            className="rounded-2xl p-6 bg-gray-900/70 shadow-lg border border-amber-400/40 backdrop-blur-md"
-                                                                            initial={{ opacity: 0, y: 25 }}
-                                                                            animate={{ opacity: 1, y: 0 }}
-                                                                            transition={{ delay: i * 0.15 }}
-                                                                        >
-                                                                            <h2 className="text-xl font-bold text-gray-50 mb-6 flex items-center gap-2">
-                                                                                {sectionTitle}
-                                                                            </h2>
-
-                                                                            <div
-                                                                                className={
-                                                                                    vins.length > 1
-                                                                                        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5'
-                                                                                        : 'flex justify-center items-center w-full'
-                                                                                }
-                                                                            >
-                                                                                {vins
-                                                                                    .filter(
-                                                                                        (vin) =>
-                                                                                            vin &&
-                                                                                            (vin.nomvin ||
-                                                                                                vin.nom ||
-                                                                                                vin.Nom ||
-                                                                                                vin.vindigestif)
-                                                                                    )
-                                                                                    .map((vin, index) => {
-                                                                                        const hasCaveData =
-                                                                                            !!vin.UUID_ ||
-                                                                                            !!vin.base64_132etiquette;
-                                                                                        const imgSrc =
-                                                                                            vin.base64_132etiquette
-                                                                                                ? `data:image/jpeg;base64,${vin.base64_132etiquette}`
-                                                                                                : '/images/default-avatar.jpg';
-                                                                                        const isAperitifOrDigestif = plat === 'Aperitif' || plat === 'Digestif';
-                                                                                        const commentaire =
-                                                                                            isAperitifOrDigestif
-                                                                                                ? (vin.commentaire || vin.commentaireVin) // priorité au champ "commentaire" du JSON apéro/digestif
-                                                                                                : (vin.commentaireVin || vin.commentaire);
-
-                                                                                        return (
-                                                                                            <motion.div
-                                                                                                key={index}
-                                                                                                whileHover={{
-                                                                                                    scale: 1.03,
-                                                                                                }}
-                                                                                                onClick={() =>
-                                                                                                    hasCaveData &&
-                                                                                                    navigate(
-                                                                                                        `/vin/${vin.UUID_}`
-                                                                                                    )
-                                                                                                }
-                                                                                                className="rounded-xl border border-amber-400/60 bg-white/5 p-4 shadow-md hover:shadow-amber-300/20 transition-all duration-300 flex flex-col gap-3 backdrop-blur-md"
-                                                                                            >
-                                                                                                {!hasCaveData && (
-                                                                                                    <div className="mb-2 text-center">
-                                                                                                        <span className="text-amber-300 font-semibold italic">
-                                                                                                            Notre sommelier vous proposait :
-                                                                                                        </span>
-                                                                                                    </div>
-                                                                                                )}
-
-                                                                                                {hasCaveData ? (
-                                                                                                    <div className="flex items-start gap-3">
-                                                                                                        <div className="flex-shrink-0">
-                                                                                                            <img
-                                                                                                                src={imgSrc}
-                                                                                                                alt={
-                                                                                                                    vin.nomvin ||
-                                                                                                                    'Vin'
-                                                                                                                }
-                                                                                                                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                                                                                                                loading="lazy"
-                                                                                                            />
-                                                                                                        </div>
-                                                                                                        <div className="flex-1">
-                                                                                                            <p className="text-sm text-gray-100">
-                                                                                                                <strong>
-                                                                                                                    Nom :
-                                                                                                                </strong>{' '}
-                                                                                                                {vin.nomvin ||
-                                                                                                                    vin.nom ||
-                                                                                                                    vin.Nom}
-                                                                                                            </p>
-                                                                                                            <p className="text-sm text-gray-100">
-                                                                                                                <strong>
-                                                                                                                    Couleur :
-                                                                                                                </strong>{' '}
-                                                                                                                {vin.couleur ||
-                                                                                                                    vin.Couleur}
-                                                                                                            </p>
-                                                                                                            <p className="text-sm text-gray-100">
-                                                                                                                <strong>
-                                                                                                                    Appellation
-                                                                                                                    :
-                                                                                                                </strong>{' '}
-                                                                                                                {vin.appellation ||
-                                                                                                                    vin.Appellation}
-                                                                                                            </p>
-                                                                                                            <p className="text-sm text-gray-100">
-                                                                                                                <strong>
-                                                                                                                    Région :
-                                                                                                                </strong>{' '}
-                                                                                                                {vin.region ||
-                                                                                                                    vin.Region ||
-                                                                                                                    vin.région ||
-                                                                                                                    vin.Région}
-                                                                                                            </p>
-
-                                                                                                            {vin.prix && (
-                                                                                                                <div className="text-sm text-gray-200 mt-1">
-                                                                                                                    <strong>
-                                                                                                                        Prix :
-                                                                                                                    </strong>{' '}
-                                                                                                                    {Array.isArray(
-                                                                                                                        vin.prix
-                                                                                                                    )
-                                                                                                                        ? vin.prix.map(
-                                                                                                                            (
-                                                                                                                                p,
-                                                                                                                                i
-                                                                                                                            ) => (
-                                                                                                                                <span
-                                                                                                                                    key={
-                                                                                                                                        i
-                                                                                                                                    }
-                                                                                                                                    className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                                                >
-                                                                                                                                    {
-                                                                                                                                        p.contenance
-                                                                                                                                    }{' '}
-                                                                                                                                    —{' '}
-                                                                                                                                    {
-                                                                                                                                        p.prix
-                                                                                                                                    }
-                                                                                                                                </span>
-                                                                                                                            )
-                                                                                                                        )
-                                                                                                                        : formatPrice(
-                                                                                                                            vin.prix
-                                                                                                                        )}
-                                                                                                                </div>
-                                                                                                            )}
-
-                                                                                                            {vin.Etagere && (
-                                                                                                                <p className="text-sm text-gray-100 mt-1">
-                                                                                                                    <strong>
-                                                                                                                        Lieu de
-                                                                                                                        stockage
-                                                                                                                        :
-                                                                                                                    </strong>{' '}
-                                                                                                                    {
-                                                                                                                        vin.Etagere
-                                                                                                                    }
-                                                                                                                </p>
-                                                                                                            )}
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                ) : (
-                                                                                                    <div className="mt-2">
-                                                                                                        <p className="text-sm text-gray-100">
-                                                                                                            <strong>
-                                                                                                                Nom :
-                                                                                                            </strong>{' '}
-                                                                                                            {vin.nomvin ||
-                                                                                                                vin.nom ||
-                                                                                                                vin.Nom}
-                                                                                                        </p>
-                                                                                                        <p className="text-sm text-gray-100">
-                                                                                                            <strong>
-                                                                                                                Couleur :
-                                                                                                            </strong>{' '}
-                                                                                                            {vin.couleur ||
-                                                                                                                vin.Couleur}
-                                                                                                        </p>
-                                                                                                        <p className="text-sm text-gray-100">
-                                                                                                            <strong>
-                                                                                                                Appellation :
-                                                                                                            </strong>{' '}
-                                                                                                            {vin.appellation ||
-                                                                                                                vin.Appellation}
-                                                                                                        </p>
-                                                                                                        <p className="text-sm text-gray-100">
-                                                                                                            <strong>
-                                                                                                                Région :
-                                                                                                            </strong>{' '}
-                                                                                                            {vin.region ||
-                                                                                                                vin.Region ||
-                                                                                                                vin.région ||
-                                                                                                                vin.Région}
-                                                                                                        </p>
-                                                                                                        {vin.prix && (
-                                                                                                            <div className="text-sm text-gray-200 mt-1">
-                                                                                                                <strong>
-                                                                                                                    Prix :
-                                                                                                                </strong>{' '}
-                                                                                                                {Array.isArray(
-                                                                                                                    vin.prix
-                                                                                                                )
-                                                                                                                    ? vin.prix.map(
-                                                                                                                        (
-                                                                                                                            p,
-                                                                                                                            i
-                                                                                                                        ) => (
-                                                                                                                            <span
-                                                                                                                                key={
-                                                                                                                                    i
-                                                                                                                                }
-                                                                                                                                className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                                            >
-                                                                                                                                {
-                                                                                                                                    p.contenance
-                                                                                                                                }{' '}
-                                                                                                                                —{' '}
-                                                                                                                                {
-                                                                                                                                    p.prix
-                                                                                                                                }
-                                                                                                                            </span>
-                                                                                                                        )
-                                                                                                                    )
-                                                                                                                    : formatPrice(
-                                                                                                                        vin.prix
-                                                                                                                    )}
-                                                                                                            </div>
-                                                                                                        )}
-                                                                                                    </div>
-                                                                                                )}
-                                                                                                {commentaire && (
-                                                                                                    <p className="mt-3 text-xs sm:text-sm text-emerald-100/95 italic leading-snug">
-                                                                                                        {commentaire}
-                                                                                                    </p>
-                                                                                                )}
-                                                                                            </motion.div>
-                                                                                        );
-                                                                                    })}
-                                                                            </div>
-                                                                        </motion.div>
-                                                                    );
-                                                                })}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        )}
-
-                                        {/* Bouton similarité cave 
-                                            {missingWines.length > 0 && (
-                                            <div className="flex justify-center mt-8">
-                                                <motion.button
-                                                    onClick={() => {
-                                                        const oldData = {
-                                                            vinResult,
-                                                            conseilResult,
-                                                            missingWines,
-                                                            uuid:
-                                                                vinResult?.uuid ||
-                                                                conseilResult?.uuid ||
-                                                                UUIDTable ||
-                                                                null,
-                                                            timestamp: new Date().toISOString(),
-                                                        };
-                                                        localStorage.setItem(
-                                                            'lastSommelierResult',
-                                                            JSON.stringify(oldData)
-                                                        );
-                                                        setOldResult(oldData);
-
-                                                        setShowSimilarPanel((s) => !s);
-                                                    }}
-                                                    whileHover={{ scale: 1.06 }}
-                                                    whileTap={{ scale: 0.96 }}
-                                                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/20 text-gray-50 font-semibold shadow-lg hover:bg-white/30 transition-all backdrop-blur-md"
-                                                >
-                                                    <i className="pi pi-compass"></i>
-                                                    Trouver des vins similaires dans ma cave
-                                                </motion.button>
-                                            </div>
-                                        )}
-
-                                        <AnimatePresence>
-                                            {showSimilarPanel && (
-                                                <motion.div
-                                                    key="similar-panel"
-                                                    initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 24, scale: 0.98 }}
-                                                    transition={{ duration: 0.35 }}
-                                                    className="mt-8 mx-auto w-full max-w-3xl rounded-2xl border border-indigo-400/40 bg-gray-900/70 shadow-xl backdrop-blur-2xl p-6"
-                                                >
-                                                    <motion.h3
-                                                        initial={{ opacity: 0, y: -8 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        className="text-xl font-bold text-indigo-200 flex items-center gap-2 mb-4"
-                                                    >
-                                                        <i className="pi pi-sparkles"></i>
-                                                        Vins non présents dans votre cave
-                                                    </motion.h3>
-
-                                                    <div className="flex items-center justify-between mb-4 gap-4">
-                                                        <span className="text-sm text-gray-200">
-                                                            Sélectionnez les vins pour lesquels vous souhaitez une alternative
-                                                            présente dans votre cave.
-                                                        </span>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (
-                                                                    selectedMissing.size === missingWines.length
-                                                                ) {
-                                                                    setSelectedMissing(new Set());
-                                                                } else {
-                                                                    setSelectedMissing(
-                                                                        new Set(
-                                                                            missingWines.map((m) => m.name)
-                                                                        )
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="text-sm px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition"
-                                                        >
-                                                            {selectedMissing.size === missingWines.length
-                                                                ? 'Tout désélectionner'
-                                                                : 'Tout sélectionner'}
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        {missingWines.map((m, idx) => {
-                                                            const checked = selectedMissing.has(m.name);
-                                                            return (
-                                                                <motion.label
-                                                                    key={m.name + idx}
-                                                                    whileHover={{ scale: 1.02 }}
-                                                                    className={`group cursor-pointer rounded-xl border p-4 shadow-sm transition-all backdrop-blur-md
-                                                                    ${checked
-                                                                            ? 'bg-indigo-600/80 text-white border-indigo-300 shadow-indigo-300/40'
-                                                                            : 'bg-white/5 border-gray-700'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex items-start gap-3">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            aria-label={`sélectionner ${m.name}`}
-                                                                            checked={checked}
-                                                                            onChange={() => {
-                                                                                setSelectedMissing((prev) => {
-                                                                                    const copy = new Set(prev);
-                                                                                    if (copy.has(m.name)) {
-                                                                                        copy.delete(m.name);
-                                                                                    } else {
-                                                                                        copy.add(m.name);
-                                                                                    }
-                                                                                    return copy;
-                                                                                });
-                                                                            }}
-                                                                            className="mt-1 accent-indigo-400 scale-110"
-                                                                        />
-                                                                        <div className="flex-1">
-                                                                            <div className="font-semibold">
-                                                                                {m.name}
-                                                                            </div>
-                                                                            <div
-                                                                                className={`text-xs mt-1 ${checked
-                                                                                    ? 'text-indigo-100'
-                                                                                    : 'text-gray-300'
-                                                                                    }`}
-                                                                            >
-                                                                                Contexte : {m.context}
-                                                                            </div>
-                                                                        </div>
-                                                                        <motion.div
-                                                                            initial={{
-                                                                                opacity: 0.4,
-                                                                                scale: 0.95,
-                                                                            }}
-                                                                            animate={{
-                                                                                opacity: checked ? 1 : 0.4,
-                                                                                scale: checked ? 1 : 0.95,
-                                                                            }}
-                                                                            className={`px-2 py-0.5 text-xs rounded-full border
-                                                                            ${checked
-                                                                                    ? 'bg-white/20 border-white/40'
-                                                                                    : 'bg-white/5 border-gray-500'
-                                                                                }`}
-                                                                        >
-                                                                            À rapprocher
-                                                                        </motion.div>
-                                                                    </div>
-                                                                </motion.label>
-                                                            );
-                                                        })}
-                                                    </div>
-
-                                                    <div className="flex items-center justify-end gap-3 mt-6">
-                                                        <button
-                                                            onClick={() => setShowSimilarPanel(false)}
-                                                            className="px-4 py-2 rounded-lg border border-gray-600 bg-white/5 hover:bg-white/10 transition"
-                                                        >
-                                                            Annuler
-                                                        </button>
-
-                                                        <motion.button
-                                                            disabled={
-                                                                selectedMissing.size === 0 || simLoading
-                                                            }
-                                                            whileHover={
-                                                                selectedMissing.size > 0 &&
-                                                                    !simLoading
-                                                                    ? { scale: 1.03 }
-                                                                    : {}
-                                                            }
-                                                            whileTap={
-                                                                selectedMissing.size > 0 &&
-                                                                    !simLoading
-                                                                    ? { scale: 0.97 }
-                                                                    : {}
-                                                            }
-                                                            onClick={async () => {
-                                                                try {
-                                                                    setSimLoading(true);
-
-                                                                    const oldData = {
-                                                                        vinResult,
-                                                                        conseilResult,
-                                                                        missingWines,
-                                                                        uuid:
-                                                                            vinResult?.uuid ||
-                                                                            conseilResult?.uuid ||
-                                                                            UUIDTable ||
-                                                                            null,
-                                                                        timestamp:
-                                                                            new Date().toISOString(),
-                                                                    };
-                                                                    localStorage.setItem(
-                                                                        'lastSommelierResult',
-                                                                        JSON.stringify(oldData)
-                                                                    );
-                                                                    setOldResult(oldData);
-
-                                                                    const body = new FormData();
-                                                                    body.append(
-                                                                        'uuidTable',
-                                                                        vinResult?.uuid ||
-                                                                        conseilResult?.uuid ||
-                                                                        UUIDTable ||
-                                                                        ''
-                                                                    );
-                                                                    body.append('uuidUser', UUIDuser);
-                                                                    body.append('typeCase', 'similarFromCave');
-                                                                    body.append(
-                                                                        'vinsDemandes',
-                                                                        JSON.stringify(
-                                                                            Array.from(selectedMissing)
-                                                                        )
-                                                                    );
-                                                                    body.append('token', token);
-
-                                                                    const res = await fetch(
-                                                                        `${config.apiBaseUrl}/4DACTION/react_conseilPlatIA`,
-                                                                        {
-                                                                            method: 'POST',
-                                                                            headers: authHeader(),
-                                                                            body,
-                                                                        }
-                                                                    );
-
-                                                                    if (!res.ok)
-                                                                        throw new Error('Erreur serveur');
-                                                                    const data = await res.json();
-                                                                    setSimMatches({
-                                                                        matches: (data.conseil || []).map(
-                                                                            (m) => ({
-                                                                                ...m,
-                                                                                target: {
-                                                                                    nom:
-                                                                                        m?.target?.nom ||
-                                                                                        m?.target?.Nom ||
-                                                                                        '',
-                                                                                    appellation:
-                                                                                        m?.target?.appellation ||
-                                                                                        m?.target
-                                                                                            ?.Appellation ||
-                                                                                        '',
-                                                                                    region:
-                                                                                        m?.target?.region ||
-                                                                                        m?.target?.Region ||
-                                                                                        m?.target?.Région ||
-                                                                                        '',
-                                                                                },
-                                                                                match: {
-                                                                                    Nom:
-                                                                                        m?.match?.Nom ||
-                                                                                        m?.match?.nom ||
-                                                                                        '',
-                                                                                    Appellation:
-                                                                                        m?.match?.Appellation ||
-                                                                                        m?.match
-                                                                                            ?.appellation ||
-                                                                                        '',
-                                                                                    Région:
-                                                                                        m?.match?.Région ||
-                                                                                        m?.match?.Region ||
-                                                                                        m?.match?.region ||
-                                                                                        '',
-                                                                                    UUID_:
-                                                                                        m?.match?.UUID_ ||
-                                                                                        m?.match?.uuid ||
-                                                                                        '',
-                                                                                    base64_132etiquette:
-                                                                                        m?.match
-                                                                                            ?.base64_132etiquette ||
-                                                                                        '',
-                                                                                },
-                                                                                score:
-                                                                                    typeof m?.score === 'number'
-                                                                                        ? m.score
-                                                                                        : null,
-                                                                            })
-                                                                        ),
-                                                                    });
-                                                                    toast.current?.show({
-                                                                        severity: 'success',
-                                                                        summary: 'OK',
-                                                                        detail: 'Recherche de similitudes effectuée',
-                                                                        life: 2500,
-                                                                    });
-                                                                } catch (e) {
-                                                                    toast.current?.show({
-                                                                        severity: 'error',
-                                                                        summary: 'Erreur',
-                                                                        detail: "Impossible d'obtenir les correspondances",
-                                                                        life: 3500,
-                                                                    });
-                                                                } finally {
-                                                                    setSimLoading(false);
-                                                                }
-                                                            }}
-                                                            className={`px-5 py-2.5 rounded-lg font-semibold shadow
-                                                            ${selectedMissing.size === 0 ||
-                                                                    simLoading
-                                                                    ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                                                                    : 'bg-indigo-500 hover:bg-indigo-600 text-white'
-                                                                }`}
-                                                        >
-                                                            {simLoading ? 'Recherche...' : 'Lancer la recherche'}
-                                                        </motion.button>
-                                                    </div>
-
-                                                    {simMatches?.matches?.length > 0 && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 14 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            className="mt-8"
-                                                        >
-                                                            <h4 className="font-bold text-gray-50 mb-3">
-                                                                Correspondances trouvées dans votre cave
-                                                            </h4>
-
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                                {simMatches.matches.map((m, i) => {
-                                                                    const target = m?.target || {};
-                                                                    const targetLabel = [
-                                                                        target.nom,
-                                                                        target.appellation,
-                                                                        target.region,
-                                                                    ]
-                                                                        .filter(Boolean)
-                                                                        .join(' · ');
-
-                                                                    const match = m?.match || {};
-                                                                    const nom =
-                                                                        match.Nom || match.nom || '';
-                                                                    const appellation =
-                                                                        match.Appellation ||
-                                                                        match.appellation ||
-                                                                        '';
-                                                                    const region =
-                                                                        match.Région ||
-                                                                        match.Region ||
-                                                                        match.region ||
-                                                                        '';
-                                                                    const uuid =
-                                                                        match.UUID_ || match.uuid || '';
-                                                                    const imgB64 =
-                                                                        match.base64_132etiquette || '';
-                                                                    const imgSrc = imgB64
-                                                                        ? `data:image/jpeg;base64,${imgB64}`
-                                                                        : '/images/default-avatar.jpg';
-
-                                                                    const isClickable = !!uuid;
-
-                                                                    return (
-                                                                        <motion.div
-                                                                            key={i}
-                                                                            whileHover={{
-                                                                                scale: isClickable ? 1.02 : 1,
-                                                                            }}
-                                                                            onClick={
-                                                                                isClickable
-                                                                                    ? () =>
-                                                                                        navigate(
-                                                                                            `/vin/${uuid}`
-                                                                                        )
-                                                                                    : undefined
-                                                                            }
-                                                                            onKeyDown={
-                                                                                isClickable
-                                                                                    ? (e) => {
-                                                                                        if (e.key === 'Enter')
-                                                                                            navigate(
-                                                                                                `/vin/${uuid}`
-                                                                                            );
-                                                                                    }
-                                                                                    : undefined
-                                                                            }
-                                                                            role={
-                                                                                isClickable
-                                                                                    ? 'button'
-                                                                                    : undefined
-                                                                            }
-                                                                            tabIndex={
-                                                                                isClickable ? 0 : -1
-                                                                            }
-                                                                            className={`rounded-xl border bg-white/5 p-4 shadow transition backdrop-blur-md
-                                                                            ${isClickable
-                                                                                    ? 'cursor-pointer hover:shadow-indigo-300/30 hover:bg-white/10'
-                                                                                    : 'cursor-default border-gray-700'
-                                                                                }`}
-                                                                            aria-label={
-                                                                                isClickable
-                                                                                    ? `Voir la fiche du vin ${nom}`
-                                                                                    : undefined
-                                                                            }
-                                                                        >
-                                                                            <div className="text-sm text-gray-300 mb-2">
-                                                                                Cible :{' '}
-                                                                                <span className="font-medium text-gray-50">
-                                                                                    {targetLabel || '—'}
-                                                                                </span>
-                                                                            </div>
-
-                                                                            {nom ? (
-                                                                                <>
-                                                                                    <img
-                                                                                        className="w-20 h-20 object-cover rounded-lg border border-gray-600 mb-3"
-                                                                                        src={imgSrc}
-                                                                                        alt={nom}
-                                                                                        loading="lazy"
-                                                                                        draggable={false}
-                                                                                    />
-                                                                                    <div className="grid grid-cols-[100px,1fr] gap-x-2 gap-y-1 text-sm text-gray-100">
-                                                                                        <div className="text-gray-400 flex items-center min-h-[1.75rem]">
-                                                                                            Nom :
-                                                                                        </div>
-                                                                                        <div className="min-h-[1.75rem] flex items-center">
-                                                                                            <span className="break-words whitespace-pre-wrap">
-                                                                                                {nom}
-                                                                                            </span>
-                                                                                        </div>
-
-                                                                                        <div className="text-gray-400 flex items-center min-h-[1.75rem]">
-                                                                                            Appellation :
-                                                                                        </div>
-                                                                                        <div className="min-h-[1.75rem] flex items-center">
-                                                                                            <span className="break-words whitespace-pre-wrap">
-                                                                                                {appellation || '—'}
-                                                                                            </span>
-                                                                                        </div>
-
-                                                                                        <div className="text-gray-400 flex items-center min-h-[1.75rem]">
-                                                                                            Région :
-                                                                                        </div>
-                                                                                        <div className="min-h-[1.75rem] flex items-center">
-                                                                                            <span className="break-words whitespace-pre-wrap">
-                                                                                                {region || '—'}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
-
-                                                                                    {typeof m.score === 'number' && (
-                                                                                        <div className="mt-2 text-xs text-gray-400">
-                                                                                            Score de proximité :{' '}
-                                                                                            {Math.round(
-                                                                                                m.score * 100
-                                                                                            )}
-                                                                                            %
-                                                                                        </div>
-                                                                                    )}
-                                                                                </>
-                                                                            ) : (
-                                                                                <div className="text-sm text-gray-400 italic">
-                                                                                    Aucune correspondance
-                                                                                </div>
-                                                                            )}
-                                                                        </motion.div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </motion.div>
-                                                    )}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                        */}
-
-                                    </div>
-
-                                    {caveMatches.length > 0 && (
-                                        <div className="mt-12">
-                                            <h2 className="text-2xl font-semibold text-center mb-6">
-                                                Vins correspondants dans votre cave
-                                            </h2>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {caveMatches.map((match, idx) => {
-                                                    const { target, cave } = match;
-                                                    const imgSrc = cave.base64_132etiquette
-                                                        ? `data:image/jpeg;base64,${cave.base64_132etiquette}`
-                                                        : '/images/default-avatar.jpg';
-                                                    const isClickable = !!cave.UUID_;
-                                                    const taux =
-                                                        typeof match.taux === 'number'
-                                                            ? match.taux
-                                                            : typeof cave.tauxCorrespondanceCave === 'number'
-                                                                ? cave.tauxCorrespondanceCave
-                                                                : typeof cave.tauxCorrespondance === 'number'
-                                                                    ? cave.tauxCorrespondance
-                                                                    : null;
-
-                                                    const targetLabelParts = [
-                                                        target.nomvin,
-                                                        target.appellation,
-                                                        target.region,
-                                                    ].filter(Boolean);
-                                                    const targetLabel = targetLabelParts.join(' · ');
+                                            <div className="space-y-8">
+                                                {sections.map((key, idx) => {
+                                                    const vins = groupedByPlat[key] || [];
+                                                    if (!vins || vins.length === 0) return null;
 
                                                     return (
-                                                        <motion.div
-                                                            key={idx}
-                                                            whileHover={isClickable ? { scale: 1.03 } : {}}
-                                                            whileTap={isClickable ? { scale: 0.97 } : {}}
-                                                            onClick={
-                                                                isClickable ? () => navigate(`/vin/${cave.UUID_}`) : undefined
-                                                            }
-                                                            className={`h-full flex flex-col rounded-2xl p-4 bg-gray-900/80 border shadow-md backdrop-blur-md transition-all
-                            ${isClickable
-                                                                    ? 'cursor-pointer border-emerald-400/60 hover:shadow-emerald-300/40 hover:bg-gray-900'
-                                                                    : 'cursor-default border-gray-700'
-                                                                }`}
-                                                        >
-                                                            {/* Vin conseillé / plat cible */}
-                                                            <p className="text-xs text-gray-300 mb-2 text-center min-h-[40px] flex flex-col items-center justify-center">
-                                                                <span className="font-semibold text-gray-100">
-                                                                    Vin conseillé pour : {target.plat || 'le plat'}
+                                                        <div key={`buy-${key}`} className="text-left">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <h3 className="text-base sm:text-lg font-semibold text-gray-50">
+                                                                    {getSectionTitle(key)}
+                                                                </h3>
+                                                                <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-200">
+                                                                    {vins.length} vin{vins.length > 1 ? "s" : ""}
                                                                 </span>
-                                                                <span className="mt-1 block text-[11px] sm:text-xs text-gray-200">
-                                                                    {targetLabel || '—'}
-                                                                </span>
-                                                            </p>
-
-                                                            {/* Fiche du vin de la cave */}
-                                                            <div className="mt-3 flex flex-col items-center min-h-[170px]">
-                                                                <img
-                                                                    src={imgSrc}
-                                                                    alt={cave.Nom || cave.nom || target.nomvin || 'Vin'}
-                                                                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-                                                                    loading="lazy"
-                                                                />
-
-                                                                <div className="mt-3 text-sm text-gray-100 space-y-1 w-full">
-                                                                    <p className="font-medium">
-                                                                        {cave.Nom || cave.nom || 'Nom inconnu'}
-                                                                    </p>
-                                                                    <p>
-                                                                        <strong>Appellation :</strong>{' '}
-                                                                        {cave.Appellation || cave.appellation || '—'}
-                                                                    </p>
-                                                                    <p>
-                                                                        <strong>Région :</strong>{' '}
-                                                                        {cave.Région ||
-                                                                            cave.Region ||
-                                                                            cave.region ||
-                                                                            '—'}
-                                                                    </p>
-
-                                                                    {typeof taux === 'number' && (
-                                                                        <p className="mt-1 text-xs text-emerald-300">
-                                                                            Taux de correspondance avec le plat :{' '}
-                                                                            <span className="font-semibold">
-                                                                                {taux}%
-                                                                            </span>
-                                                                        </p>
-                                                                    )}
-                                                                </div>
                                                             </div>
 
-                                                            {/* Commentaires sur le vin de cave */}
-                                                            <div className="mt-3 text-xs sm:text-sm text-emerald-100/95 italic leading-snug min-h-[56px] space-y-1">
-                                                                {match.commentaireCave && (
-                                                                    <p>{match.commentaireCave}</p>
-                                                                )}
+                                                            <div className="mt-4 flex flex-col gap-4">
 
-                                                                {match.commentaireComparaisonCave && (
-                                                                    <p>{match.commentaireComparaisonCave}</p>
-                                                                )}
+                                                                {vins
+                                                                    .filter((vin) => vin && (vin.nomvin || vin.nom || vin.Nom))
+                                                                    .map((vin, i) => (
+                                                                        <BuyWineCard key={i} vin={vin} platKey={key} />
+                                                                    ))}
                                                             </div>
-                                                        </motion.div>
+
+                                                            {idx < sections.length - 1 && <Separator />}
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
                                         </div>
-                                    )}
 
+                                        {/* DIVIDER CENTRAL (lg uniquement) */}
+                                        <div className="hidden lg:flex justify-center">
+                                            <div className="w-px h-full bg-gradient-to-b from-transparent via-white/15 to-transparent" />
+                                        </div>
+
+                                        {/* COLONNE DROITE : DANS VOTRE CAVE */}
+                                        <div className="w-full">
+                                            <ColumnHeader
+                                                subtitle="à droite"
+                                                title="Vins conseillés par notre IA dans votre cave"
+                                            />
+
+                                            <div className="space-y-8">
+                                                {sections.map((key, idx) => {
+                                                    const caveListRaw = caveGrouped[key] || [];
+                                                    // caveGrouped est déjà filtré UUID+img
+                                                    const caveList = Array.isArray(caveListRaw) ? caveListRaw : [];
+
+                                                    // On affiche la section même si vide pour les plats/digestif/aperitif
+                                                    // si la section existe côté achat OU si c’est Aperitif/Digestif
+                                                    const hasBuy = (groupedByPlat[key] || []).length > 0;
+                                                    const shouldShowSection = hasBuy || key === "Aperitif" || key === "Digestif" || caveList.length > 0;
+
+                                                    if (!shouldShowSection) return null;
+
+                                                    return (
+                                                        <div key={`cave-${key}`} className="text-left">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <h3 className="text-base sm:text-lg font-semibold text-gray-50">
+                                                                    {getSectionTitle(key)}
+                                                                </h3>
+                                                                <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-200">
+                                                                    {caveList.length} vin{caveList.length > 1 ? "s" : ""}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="mt-4">
+                                                                {caveList.length === 0 ? (
+                                                                    <EmptyCaveBox label={key !== "Aperitif" && key !== "Digestif" ? key : (key === "Aperitif" ? "l’apéritif" : "le digestif")} />
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-4">
+
+                                                                        {caveList.map((entry, i) => (
+                                                                            <CaveWineCard key={i} entry={entry} />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {idx < sections.length - 1 && <Separator />}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ✅ Affinage invalide (inchangé) */}
                                     {affinInvalid && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ duration: 0.3 }}
-                                            className="mt-6 rounded-2xl p-5 bg-gray-900/70 border border-emerald-500/40 shadow backdrop-blur-md"
+                                            className="mt-10 rounded-2xl p-5 bg-gray-900/70 border border-emerald-500/40 shadow backdrop-blur-md"
                                         >
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                                <p className="text-sm sm:text-base text-emerald-100">
-                                                    <span className="font-semibold">Information :</span>{' '}
-                                                    les vins ci-dessous ont été retournés
-                                                    <span className="font-semibold"> sans filtrage</span> car
-                                                    la demande saisie n’a pas été reconnue comme une demande
-                                                    valide. Vous pouvez réessayer en entrant une autre demande.
-                                                </p>
-                                            </div>
+                                            <p className="text-sm sm:text-base text-emerald-100">
+                                                <span className="font-semibold">Information :</span>{" "}
+                                                les vins ci-dessous ont été retournés{" "}
+                                                <span className="font-semibold">sans filtrage</span> car la demande saisie n’a pas été reconnue comme une demande valide.
+                                                Vous pouvez réessayer en entrant une autre demande.
+                                            </p>
                                         </motion.div>
                                     )}
 
-                                    {/* Bouton restart */}
+                                    {/* Bouton restart (inchangé) */}
                                     <motion.div
                                         className="flex justify-center mt-12"
                                         initial={{ opacity: 0 }}
@@ -3860,6 +3343,7 @@ const SommelierForm = () => {
                                 </div>
                             );
                         })()}
+
                 </motion.div>
 
                 {/*Afficher Toast*/}

@@ -57,6 +57,17 @@ function AppContent() {
         }
     }, []);
 
+    useEffect(() => {
+        if (!window.ReactNativeWebView) {
+            // ✅ on est sur le web => on nettoie les traces RN
+            localStorage.removeItem("APP_HOST");
+            sessionStorage.removeItem("APP_HOST");
+            localStorage.removeItem("RN_ENV");
+            sessionStorage.removeItem("RN_ENV");
+        }
+    }, []);
+
+
     const hideNavigation = ["/login", "/inscription", "/forgot-password", "/reset-password"].includes(location.pathname);
 
     return (

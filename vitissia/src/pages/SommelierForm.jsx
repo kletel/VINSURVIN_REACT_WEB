@@ -2397,25 +2397,30 @@ const SommelierForm = () => {
         const grouped = { Aperitif: [], Digestif: [] };
         if (!vinResults || !Array.isArray(vinResults.conseil)) return grouped;
 
-        const dedupeKey = (vinObj) => {
-            const { uuid } = getWineMedia(vinObj);
-            return uuid || "";
+        const norm = (s) =>
+            String(s || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .replace(/[\s-]+/g, " ")
+                .trim();
+
+        const dedupeKey = (entry) => {
+            const media = getWineMedia(entry);
+            if (media.uuid) return `uuid:${media.uuid}`;
+
+            const v = media.vin || {};
+            return `name:${norm(v.Nom || v.nom || v.nomvin)}|${norm(v.Appellation || v.appellation)}|${norm(v.Région || v.region || v.région)}`;
         };
 
         const pushUnique = (section, entry) => {
-            if (!section) return;
             if (!grouped[section]) grouped[section] = [];
-
             const key = dedupeKey(entry);
-            if (!key) return;
-
             const exists = grouped[section].some((e) => dedupeKey(e) === key);
             if (!exists) grouped[section].push(entry);
         };
 
         const unwrapCaveEntry = (vc) => {
-            // vc peut être { vin: {...}, tauxCorrespondancePlat, commentaireAccordCave }
-            // ou parfois directement un objet vin enrichi
             if (!vc || typeof vc !== "object") return null;
 
             if (vc.vin && typeof vc.vin === "object") {
@@ -2488,8 +2493,6 @@ const SommelierForm = () => {
                     if (!entry) return;
 
                     const media = getWineMedia(entry);
-                    // 👉 règle demandée : uniquement UUID + image
-                    if (!media.uuid || !media.hasImg) return;
 
                     pushUnique(platName, entry);
                 });
@@ -2980,369 +2983,597 @@ const SommelierForm = () => {
                                 </div>
                             );
                         })()}
+                    {/* 🧩 CAS 4 : résultat des vins (UI modernisée, tags, responsive) */}
+{vinResult &&
+  !isAnalyzing &&
+  vinResult?.vraiPlat !== false &&
+  (() => {
+    const groupedByPlat = vinResultNormalize(vinResult);
+    const caveGrouped = caveResultNormalize(vinResult);
+    const affinInvalid = vinResult?.vraiAffin === false;
 
-                    {/* 🧩 CAS 4 : résultat des vins (NEW 2 colonnes) */}
-                    {vinResult &&
-                        !isAnalyzing &&
-                        vinResult?.vraiPlat !== false &&
-                        (() => {
-                            const groupedByPlat = vinResultNormalize(vinResult);       
-                            const caveGrouped = caveResultNormalize(vinResult);        
-                            const affinInvalid = vinResult?.vraiAffin === false;
+    const grouped = { ...(groupedByPlat || {}) };
+    const cave = { ...(caveGrouped || {}) };
 
-                            const sections = getSectionsOrder(groupedByPlat, caveGrouped);
+    const list = Array.isArray(vinResult?.conseil) ? vinResult.conseil : [];
 
-                            const getSectionTitle = (key) => {
-                                if (key === "Aperitif") return "En apéritif";
-                                if (key === "Digestif") return "En digestif";
-                                return `Votre plat choisi : ${key.charAt(0).toUpperCase() + key.slice(1)}`;
-                            };
+    const aperitifBlock = list.find((o) => o && typeof o === "object" && o.vinaperitif);
+    const digestifBlock = list.find((o) => o && typeof o === "object" && o.vindigestif);
 
-                            const Separator = () => (
-                                <div className="my-7 flex items-center gap-3">
-                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-                                    <div className="h-1 w-1 rounded-full bg-emerald-300/60 shadow-[0_0_12px_rgba(52,211,153,0.55)]" />
-                                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-                                </div>
-                            );
+    // ✅ NECESSAIRE : mêmes clés que les normalizers (Aperitif/Digestif) + on injecte dans grouped/cave
+    if (aperitifBlock) {
+      if (!Array.isArray(grouped.Aperitif)) grouped.Aperitif = [];
+      grouped.Aperitif = [...grouped.Aperitif, aperitifBlock.vinaperitif].filter(Boolean);
 
-                            const ColumnHeader = ({ title, subtitle }) => (
-                                <div className="mb-5">
-                                    <p className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-emerald-200/75">
-                                        {subtitle}
-                                    </p>
-                                    <h2 className="mt-1 text-lg sm:text-xl font-semibold text-gray-50">
-                                        {title}
-                                    </h2>
-                                </div>
-                            );
+      cave.Aperitif = aperitifBlock.vinCaveAperitif ? [aperitifBlock.vinCaveAperitif] : [];
+    }
 
-                            const EmptyCaveBox = ({ label }) => (
-                                <div className="rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/35 via-gray-900/60 to-black/40 p-4 shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
-                                    <p className="text-sm text-emerald-50">
-                                        <span className="font-semibold">Aucun vin dans votre cave</span> ne correspond à {label ? `« ${label} »` : "ce plat"}
-                                        {" "}ou n’a été trouvé.
-                                    </p>
-                                    <p className="mt-1 text-xs text-emerald-200/70">
-                                        Astuce : essayez un affinage différent (couleur, style, budget, région…).
-                                    </p>
-                                </div>
-                            );
+    if (digestifBlock) {
+      if (!Array.isArray(grouped.Digestif)) grouped.Digestif = [];
+      grouped.Digestif = [...grouped.Digestif, digestifBlock.vindigestif].filter(Boolean);
 
-                            const BuyWineCard = ({ vin, platKey }) => {
-                                const { uuid, isClickable, hasImg, imgSrc } = getWineMedia(vin);
-                                const vinName = vin.nomvin || vin.nom || vin.Nom || "Vin";
+      cave.Digestif = digestifBlock.vinCaveDigestif ? [digestifBlock.vinCaveDigestif] : [];
+    }
 
-                                const mainComment =
-                                    (platKey === "Aperitif" || platKey === "Digestif")
-                                        ? (vin.commentaire || vin.commentaireVin)
-                                        : (vin.commentaireVin || vin.commentaire);
+    const keyNorm = (k) =>
+      String(k || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
 
-                                return (
-                                    <motion.div
-                                        whileHover={{ scale: isClickable ? 1.02 : 1 }}
-                                        whileTap={{ scale: isClickable ? 0.98 : 1 }}
-                                        onClick={() => {
-                                            if (!isClickable) return;
-                                            saveSommelierState?.();
-                                            navigate(`/vin/${vin.UUID_}`);
-                                        }}
-                                        className={[
-                                            "w-full rounded-2xl border p-4 shadow-md backdrop-blur-md transition-all duration-300",
-                                            "bg-white/5",
-                                            isClickable
-                                                ? "cursor-pointer border-emerald-400/45 hover:bg-white/10 hover:shadow-emerald-400/25"
-                                                : "cursor-default border-white/10",
-                                        ].join(" ")}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                             {hasImg && (
-      <div className="flex-shrink-0">
-        <img
-          src={imgSrc}
-          alt={vin.nomvin || 'Vin'}
-          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-600 shadow-sm"
-          loading="lazy"
-        />
+    const isAperitifKey = (k) => keyNorm(k) === "aperitif";
+    const isDigestifKey = (k) => keyNorm(k) === "digestif";
+
+    const getSectionTitle = (key) => {
+      if (isAperitifKey(key)) return "En apéritif";
+      if (isDigestifKey(key)) return "En digestif";
+      return `Votre plat : ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+    };
+
+    const Separator = () => (
+      <div className="my-8 flex items-center gap-4">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/12 to-transparent" />
+        <div className="h-1.5 w-1.5 rounded-full bg-emerald-300/70 shadow-[0_0_16px_rgba(52,211,153,0.45)]" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/12 to-transparent" />
       </div>
-    )}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-gray-50 truncate">
-                                                    {vinName}
-                                                </p>
+    );
 
-                                                <div className="mt-1 text-[12px] text-gray-200 space-y-0.5">
-                                                    <p><span className="text-gray-400">Couleur :</span> {vin.couleur || vin.Couleur || "—"}</p>
-                                                    <p className="truncate">
-                                                        <span className="text-gray-400">Appellation :</span> {vin.appellation || vin.Appellation || "—"}
-                                                    </p>
-                                                    <p className="truncate">
-                                                        <span className="text-gray-400">Région :</span> {vin.region || vin.Region || vin.région || vin.Région || "Non précisée"}
-                                                    </p>
+    const ColumnHeader = ({ tone, title, subtitle }) => {
+      const border = tone === "buy" ? "border-emerald-500/20" : "border-violet-500/20";
+      const titleColor = tone === "buy" ? "text-emerald-300" : "text-violet-300";
 
-                                                    {vin.prix && (
-                                                        <div className="pt-1 text-gray-100">
-                                                            <span className="text-gray-400">Prix :</span>{" "}
-                                                            {Array.isArray(vin.prix)
-                                                                ? vin.prix.map((p, i) => (
-                                                                    <span key={i} className="inline-block bg-white/10 px-2 py-0.5 rounded-lg mr-2">
-                                                                        {typeof p === "object" && p !== null
-                                                                            ? `${p.contenance ? `${p.contenance} — ` : ""}${p.prix ?? "—"}`
-                                                                            : `${p}`}
-                                                                    </span>
-                                                                ))
-                                                                : formatPrice?.(vin.prix)}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+      return (
+        <div className={`rounded-3xl p-5 sm:p-6 border ${border} bg-white/5 backdrop-blur-xl shadow-2xl`}>
+          <h2 className={`text-xl sm:text-2xl font-bold ${titleColor}`}>{title}</h2>
+          {subtitle && <p className="mt-1 text-xs sm:text-sm text-white/50">{subtitle}</p>}
+        </div>
+      );
+    };
 
-                                        {mainComment && (
-                                            <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/45 via-gray-900/60 to-black/55 px-4 py-3">
-                                                <p className="text-[11px] sm:text-xs text-emerald-50 leading-relaxed italic">
-                                                    {mainComment}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                );
-                            };
+    const EmptyCaveBox = ({ label }) => (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+        <p className="text-sm text-gray-100">
+          <span className="font-semibold">Aucun vin de votre cave</span>{" "}
+          ne correspond à {label ? `« ${label} »` : "ce plat"}.
+        </p>
+        <p className="mt-1 text-xs text-gray-300">Astuce : changez l’affinage (couleur, style, budget, région…).</p>
+      </div>
+    );
 
-                            const CaveWineCard = ({ entry }) => {
-                                const { vin } = entry || {};
-                                const media = getWineMedia(entry);
-                                const caveVin = media.vin;
+    const EmptyBuyBox = ({ label }) => (
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+        <p className="text-sm text-gray-100">
+          <span className="font-semibold">Aucun vin hors cave</span>{" "}
+          n’est proposé pour {label ? `« ${label} »` : "ce plat"}.
+        </p>
+        <p className="mt-1 text-xs text-gray-300">Astuce : changez l’affinage (couleur, style, budget, région…).</p>
+      </div>
+    );
 
-                                const nom = caveVin?.Nom || caveVin?.nom || caveVin?.nomvin || "Vin";
-                                const appellation = caveVin?.Appellation || caveVin?.appellation || "—";
-                                const region = caveVin?.Région || caveVin?.Region || caveVin?.region || caveVin?.région || "—";
-                                const etagere = caveVin?.Etagere;
+    // ✅ NECESSAIRE : lire grouped/cave (pas groupedByPlat/caveGrouped) pour inclure l’injection aperitif/digestif
+    const getBuyCards = (key) => {
+      const arr = grouped?.[key];
+      if (!Array.isArray(arr)) return [];
+      return arr.filter((vin) => vin && (vin.nomvin || vin.nom || vin.Nom));
+    };
 
-                                const taux =
-                                    typeof entry?.tauxCorrespondancePlat === "number"
-                                        ? entry.tauxCorrespondancePlat
-                                        : typeof caveVin?.tauxCorrespondancePlat === "number"
-                                            ? caveVin.tauxCorrespondancePlat
-                                            : null;
+    const getCaveList = (key) => {
+      const arr = cave?.[key];
+      return Array.isArray(arr) ? arr : [];
+    };
 
-                                const comment =
-                                    typeof entry?.commentaireAccordCave === "string"
-                                        ? entry.commentaireAccordCave
-                                        : typeof caveVin?.commentaireAccordCave === "string"
-                                            ? caveVin.commentaireAccordCave
-                                            : null;
+    // ✅ NECESSAIRE : l’ordre doit être calculé sur grouped/cave (sinon aperitif/digestif injectés n’apparaissent pas)
+    const sectionsBase = Array.isArray(getSectionsOrder?.(grouped, cave))
+      ? getSectionsOrder(grouped, cave)
+      : Array.from(new Set([...Object.keys(grouped || {}), ...Object.keys(cave || {})]));
 
-                                return (
-                                    <motion.div
-                                        whileHover={{ scale: media.isClickable ? 1.02 : 1 }}
-                                        whileTap={{ scale: media.isClickable ? 0.98 : 1 }}
-                                        onClick={() => {
-                                            if (!media.isClickable) return;
-                                            saveSommelierState?.();
-                                            navigate(`/vin/${media.uuid}`);
-                                        }}
-                                        className={[
-                                            "w-full rounded-2xl border p-4 shadow-md backdrop-blur-md transition-all duration-300",
-                                            "bg-gray-950/25",
-                                            media.isClickable
-                                                ? "cursor-pointer border-emerald-400/45 hover:bg-gray-900/50 hover:shadow-emerald-400/25"
-                                                : "cursor-default border-white/10",
-                                        ].join(" ")}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            {media.hasImg && (
-          <div className="flex-shrink-0">
-            <img
-              src={media.imgSrc}
-              alt={nom}
-              className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border border-white/10 shadow-sm"
-              loading="lazy"
-            />
+    const sections = sectionsBase
+      .filter(Boolean)
+      .filter((key) => {
+        const buyCount = getBuyCards(key).length;
+        const caveCount = getCaveList(key).length;
+        if (isAperitifKey(key) || isDigestifKey(key)) return buyCount > 0 || caveCount > 0;
+        return buyCount > 0 || caveCount > 0;
+      });
+
+    // =========================
+    // UI atoms : Tag + Match
+    // =========================
+    const Tag = ({ tone = "neutral", children }) => {
+      const cls =
+        tone === "buy"
+          ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25"
+          : tone === "cave"
+          ? "bg-violet-500/15 text-violet-200 border-violet-400/25"
+          : "bg-white/10 text-white/80 border-white/10";
+
+      return (
+        <span className={`px-3 py-1 rounded-full text-[11px] font-medium border backdrop-blur-sm ${cls}`}>
+          {children}
+        </span>
+      );
+    };
+
+    const MatchRow = ({ tone, match }) => {
+      if (typeof match !== "number") return null;
+      const safe = Math.max(0, Math.min(100, match));
+
+      const badge =
+        tone === "buy"
+          ? "bg-emerald-500/25 text-emerald-200 border-emerald-400/40"
+          : "bg-violet-500/25 text-violet-200 border-violet-400/40";
+
+      const track = tone === "buy" ? "bg-emerald-500/10" : "bg-violet-500/10";
+
+      const bar =
+        tone === "buy"
+          ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+          : "bg-gradient-to-r from-violet-500 to-violet-400";
+
+      return (
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${badge}`}>{safe}% match</span>
+          <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${track}`}>
+            <div className={`h-full rounded-full transition-all duration-500 ${bar}`} style={{ width: `${safe}%` }} />
           </div>
+        </div>
+      );
+    };
+
+    const WineCardUI = ({
+      tone, // "buy" | "cave"
+      title,
+      imgSrc,
+      clickable,
+      onClick,
+      tags,
+      match,
+      comment,
+      rightBadge,
+      showImage = true, // ✅ NEW
+      forceCursor = null, // ✅ NEW ("pointer" | "default" | null)
+    }) => {
+      const glow =
+        tone === "buy"
+          ? "hover:shadow-[0_12px_40px_rgba(16,185,129,0.22),0_8px_32px_rgba(0,0,0,0.35)]"
+          : "hover:shadow-[0_12px_40px_rgba(168,85,247,0.22),0_8px_32px_rgba(0,0,0,0.35)]";
+
+      const border = tone === "buy" ? "border-emerald-400/20" : "border-violet-400/20";
+
+      const badgeCls =
+        tone === "buy"
+          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+          : "bg-violet-500/20 text-violet-300 border-violet-400/30";
+
+      // ✅ cursor : cave toujours "cursor-pointer", hors cave = seulement si clickable
+      const cursorClass =
+        forceCursor === "pointer"
+          ? "cursor-pointer"
+          : forceCursor === "default"
+          ? "cursor-default"
+          : clickable
+          ? "cursor-pointer"
+          : "cursor-default";
+
+      // ✅ click uniquement si clickable (on garde ton comportement)
+      const canClick = clickable && typeof onClick === "function";
+
+      return (
+        <motion.div
+          whileHover={{ y: clickable ? -2 : 0 }}
+          whileTap={{ scale: clickable ? 0.985 : 1 }}
+          onClick={() => canClick && onClick()}
+          className={[
+            "group relative bg-white/5 backdrop-blur-md rounded-3xl p-4 sm:p-5 border transition-all duration-300",
+            border,
+            cursorClass,
+            "shadow-[0_8px_32px_rgba(0,0,0,0.35)]",
+            glow,
+          ].join(" ")}
+        >
+          <div className="flex gap-4">
+            {/* ✅ Image (optionnelle) */}
+            {showImage && (
+              <div className="flex-shrink-0">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] overflow-hidden border border-white/20 bg-black/20">
+                  {imgSrc ? (
+                    <img src={imgSrc} alt={title} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full" />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <h3 className="font-bold text-white text-sm sm:text-base leading-tight truncate">{title}</h3>
+                <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border ${badgeCls}`}>
+                  {rightBadge}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-3">{tags}</div>
+
+              <div className="mb-3">
+                <MatchRow tone={tone} match={match} />
+              </div>
+
+              {comment && (
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 border border-white/10">
+                  <p className="text-xs text-white/70 leading-relaxed">{comment}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      );
+    };
+
+    const BuyWineCard = ({ vin, platKey }) => {
+      const media = getWineMedia(vin);
+      const vinName = vin.nomvin || vin.nom || vin.Nom || "Vin";
+
+      const couleur = vin.couleur || vin.Couleur || "";
+      const appellation = vin.appellation || vin.Appellation || "";
+      const region = vin.region || vin.Region || vin.région || vin.Région || "";
+
+      const match = typeof vin.tauxCorrespondancePlat === "number" ? vin.tauxCorrespondancePlat : null;
+
+      const priceText = (() => {
+        if (!vin.prix) return null;
+        if (Array.isArray(vin.prix)) {
+          const parts = vin.prix
+            .map((p) =>
+              typeof p === "object" && p !== null
+                ? `${p.contenance ? `${p.contenance} ` : ""}${p.prix ?? ""}`.trim()
+                : String(p)
+            )
+            .filter(Boolean);
+          return parts.join(" · ");
+        }
+        return typeof formatPrice === "function" ? formatPrice(vin.prix) : String(vin.prix);
+      })();
+
+      const comment =
+        isAperitifKey(platKey) || isDigestifKey(platKey)
+          ? vin.commentaire || vin.commentaireVin
+          : vin.commentaireVin || vin.commentaire;
+
+      const tags = [
+        couleur ? <Tag key="c">{couleur}</Tag> : null,
+        appellation ? <Tag key="a">{appellation}</Tag> : null,
+        region ? <Tag key="r">{region}</Tag> : null,
+        priceText ? (
+          <Tag key="p" tone="buy">
+            {priceText}
+          </Tag>
+        ) : null,
+      ].filter(Boolean);
+
+      return (
+        <WineCardUI
+          tone="buy"
+          title={vinName}
+          imgSrc={null} // ✅ pas d'image
+          showImage={false} // ✅ retire visuellement le bloc image
+          clickable={false} // ✅ hors cave : pas de cursor et pas de click
+          tags={tags}
+          match={match}
+          comment={comment}
+          rightBadge="Hors cave" // ✅ label
+        />
+      );
+    };
+
+    const CaveWineCard = ({ entry }) => {
+      const media = getWineMedia(entry);
+      const caveVin = media.vin;
+
+      const nom = caveVin?.Nom || caveVin?.nom || caveVin?.nomvin || "Vin";
+      const couleur = caveVin?.Couleur || caveVin?.couleur || "";
+      const appellation = caveVin?.Appellation || caveVin?.appellation || "";
+      const region = caveVin?.Région || caveVin?.Region || caveVin?.region || caveVin?.région || "";
+
+      const stock = typeof caveVin?.Reste_en_Cave === "number" ? caveVin.Reste_en_Cave : null;
+      const shelf = caveVin?.Etagere ? String(caveVin.Etagere) : null;
+
+      const match =
+        typeof entry?.tauxCorrespondancePlat === "number"
+          ? entry.tauxCorrespondancePlat
+          : typeof caveVin?.tauxCorrespondancePlat === "number"
+          ? caveVin.tauxCorrespondancePlat
+          : null;
+
+      const comment =
+        typeof entry?.commentaireAccordCave === "string"
+          ? entry.commentaireAccordCave
+          : typeof caveVin?.commentaireAccordCave === "string"
+          ? caveVin.commentaireAccordCave
+          : null;
+
+      const tags = [
+        couleur ? <Tag key="c">{couleur}</Tag> : null,
+        appellation ? <Tag key="a">{appellation}</Tag> : null,
+        region ? <Tag key="r">{region}</Tag> : null,
+        stock !== null ? (
+          <Tag key="s" tone="cave">
+            {stock} en stock
+          </Tag>
+        ) : null,
+        shelf ? (
+          <Tag key="e" tone="cave">
+            Étagère {shelf}
+          </Tag>
+        ) : null,
+      ].filter(Boolean);
+
+      return (
+        <WineCardUI
+          tone="cave"
+          title={nom}
+          imgSrc={media.imgSrc} // ✅ image affichée si dispo
+          showImage={true} // ✅ toujours montrer le bloc image
+          clickable={media.isClickable} // click seulement si UUID
+          onClick={() => {
+            if (!media.isClickable) return;
+            saveSommelierState?.();
+            navigate(`/vin/${media.uuid}`);
+          }}
+          forceCursor="pointer" // ✅ curseur TOUJOURS sur cave
+          tags={tags}
+          match={match}
+          comment={comment}
+          rightBadge="Dans la cave"
+        />
+      );
+    };
+
+    return (
+      <div className="mt-10">
+        <motion.h1
+          className="text-3xl sm:text-2xl font-semibold text-center mb-10 text-gray-50"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+        >
+          Notre sommelier vous conseille :
+        </motion.h1>
+
+        <GlobalCommentBanner text={getCommentaireGlobal(vinResult)} />
+
+        {/* ✅ Responsive :
+    - Mobile: d'abord Hors cave (tout), puis Cave (tout)
+    - Desktop: aligné par section (row) pour éviter les décalages
+*/}
+        <div className="mt-8">
+          {/* =========================
+      MOBILE (< lg) : vertical
+     ========================= */}
+          <div className="block lg:hidden space-y-10">
+            {/* HORS CAVE */}
+            <div className="space-y-8">
+              <ColumnHeader tone="buy" title="Vins conseillers à l’achat" subtitle="Sélection hors cave" />
+
+              {sections
+                .filter((key) => getBuyCards(key).length > 0) // ✅ affiche seulement les sections avec des vins hors cave
+                .map((key, idx, arr) => {
+                  const buyCards = getBuyCards(key);
+
+                  return (
+                    <div key={`m-buy-${key}`} className="space-y-5">
+                      <div className="flex items-center gap-4 justify-between">
+                        <h3 className="text-base sm:text-lg font-semibold text-white/90">{getSectionTitle(key)}</h3>
+                        <Tag tone="buy">
+                          {buyCards.length} {buyCards.length > 1 ? "vins" : "vin"}
+                        </Tag>
+                      </div>
+
+                      <div className="space-y-4">
+                        {buyCards.map((vin, i) => (
+                          <BuyWineCard key={i} vin={vin} platKey={key} />
+                        ))}
+                      </div>
+
+                      {idx < arr.length - 1 && <Separator />}
+                    </div>
+                  );
+                })}
+
+              {/* Optionnel : si aucune section hors cave */}
+              {sections.filter((k) => getBuyCards(k).length > 0).length === 0 && (
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                  <p className="text-sm text-gray-100">
+                    <span className="font-semibold">Aucun vin hors cave</span> n’a été proposé.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* CAVE */}
+            <div className="space-y-8">
+              <ColumnHeader tone="cave" title="Déjà dans votre cave" subtitle="Vins compatibles depuis votre cave" />
+
+              {sections
+                .filter((key) => getCaveList(key).length > 0) // ✅ affiche seulement les sections avec des vins cave
+                .map((key, idx, arr) => {
+                  const caveList = getCaveList(key);
+
+                  return (
+                    <div key={`m-cave-${key}`} className="space-y-5">
+                      <div className="flex items-center gap-4 justify-between">
+                        <h3 className="text-base sm:text-lg font-semibold text-white/90">{getSectionTitle(key)}</h3>
+                        <Tag tone="cave">
+                          {caveList.length} {caveList.length > 1 ? "vins" : "vin"}
+                        </Tag>
+                      </div>
+
+                      <div className="space-y-4">
+                        {caveList.map((entry, i) => (
+                          <CaveWineCard key={i} entry={entry} />
+                        ))}
+                      </div>
+
+                      {idx < arr.length - 1 && <Separator />}
+                    </div>
+                  );
+                })}
+
+              {/* Optionnel : si aucune section cave */}
+              {sections.filter((k) => getCaveList(k).length > 0).length === 0 && (
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                  <p className="text-sm text-gray-100">
+                    <span className="font-semibold">Aucun vin de votre cave</span> ne correspond.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* =========================
+      DESKTOP (>= lg) : aligné
+     ========================= */}
+          <div className="hidden lg:block space-y-10">
+            {/* Headers */}
+            <div className="grid grid-cols-2 gap-12">
+              <ColumnHeader tone="buy" title="Vins conseillers à l’achat" subtitle="Sélection hors cave" />
+              <ColumnHeader tone="cave" title="Déjà dans votre cave" subtitle="Vins compatibles depuis votre cave" />
+            </div>
+
+            {/* Sections alignées : 1 section = 1 ligne = 2 cellules */}
+            {sections.map((key, idx) => {
+              const buyCards = getBuyCards(key);
+              const caveList = getCaveList(key);
+
+              if (buyCards.length === 0 && caveList.length === 0) return null;
+
+              const labelForKey =
+                !isAperitifKey(key) && !isDigestifKey(key)
+                  ? key
+                  : isAperitifKey(key)
+                  ? "l’apéritif"
+                  : "le digestif";
+
+              return (
+                <div key={`row-${key}`} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-12 items-stretch">
+                    {/* HORS CAVE */}
+                    <div className="h-full flex flex-col">
+                      <div className="flex items-center gap-4 justify-between">
+                        <h3 className="text-lg font-semibold text-white/90">{getSectionTitle(key)}</h3>
+                        <Tag tone="buy">
+                          {buyCards.length} {buyCards.length > 1 ? "vins" : "vin"}
+                        </Tag>
+                      </div>
+
+                      <div className="mt-4 flex-1 flex flex-col">
+                        {buyCards.length === 0 ? (
+                          <div className="flex-1 flex items-center justify-center">
+                            <div className="w-full">
+                              <EmptyBuyBox label={labelForKey} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {buyCards.map((vin, i) => (
+                              <BuyWineCard key={i} vin={vin} platKey={key} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* CAVE */}
+                    <div className="h-full flex flex-col border-l border-white/10 pl-6">
+                      <div className="flex items-center gap-4 justify-between">
+                        <h3 className="text-lg font-semibold text-white/90">{getSectionTitle(key)}</h3>
+                        <Tag tone="cave">
+                          {caveList.length} {caveList.length > 1 ? "vins" : "vin"}
+                        </Tag>
+                      </div>
+
+                      <div className="mt-4 flex-1 flex flex-col">
+                        {caveList.length === 0 ? (
+                          <div className="flex-1 flex items-center justify-center">
+                            <div className="w-full">
+                              <EmptyCaveBox label={labelForKey} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {caveList.map((entry, i) => (
+                              <CaveWineCard key={i} entry={entry} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {idx < sections.length - 1 && <Separator />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ✅ Affinage invalide (inchangé) */}
+        {affinInvalid && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-10 rounded-2xl p-5 bg-gray-900/70 border border-emerald-500/40 shadow backdrop-blur-md"
+          >
+            <p className="text-sm sm:text-base text-emerald-100">
+              <span className="font-semibold">Information :</span> les vins ci-dessous ont été retournés{" "}
+              <span className="font-semibold">sans filtrage</span> car la demande saisie n’a pas été reconnue.
+            </p>
+          </motion.div>
         )}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-gray-50 truncate">{nom}</p>
-                                                <p className="text-[12px] text-gray-200 truncate">
-                                                    <span className="text-gray-400">Appellation :</span> {appellation}
-                                                </p>
-                                                <p className="text-[12px] text-gray-200 truncate">
-                                                    <span className="text-gray-400">Région :</span> {region}
-                                                </p>
-                                                {etagere && (
-                                                    <p className="text-[12px] text-gray-200 truncate">
-                                                        <span className="text-gray-400">Stockage :</span> {etagere}
-                                                    </p>
-                                                )}
 
-                                                {typeof taux === "number" && (
-                                                    <p className="mt-1 text-xs text-emerald-300">
-                                                        Taux de correspondance avec le plat :{" "}
-                                                        <span className="font-semibold">{taux}%</span>
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
+        {/* Bouton restart (inchangé) */}
+        <motion.div
+          className="flex justify-center mt-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <motion.button
+            onClick={restartHandler}
+            whileHover={{ scale: 1.06, rotate: 1 }}
+            whileTap={{ scale: 0.92 }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 text-gray-50 font-semibold shadow-lg hover:bg-white/25 hover:shadow-emerald-300/25 transition-all duration-300 backdrop-blur-md border border-white/10"
+          >
+            <FiRefreshCcw size={18} />
+            Recommencer
+          </motion.button>
+        </motion.div>
+      </div>
+    );
+  })()}
 
-                                        {comment && (
-                                            <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/45 via-gray-900/60 to-black/55 px-4 py-3">
-                                                <p className="text-[11px] sm:text-xs text-emerald-50 leading-relaxed italic">
-                                                    {comment}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                );
-                            };
-
-                            return (
-                                <div className="mt-10">
-                                    <motion.h1
-                                        className="text-3xl sm:text-2xl font-semibold text-center mb-10"
-                                        initial={{ opacity: 0, y: -20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.5 }}
-                                    >
-                                        Notre sommelier vous conseille :
-                                    </motion.h1>
-
-                                    <GlobalCommentBanner text={getCommentaireGlobal(vinResult)} />
-
-                                    {/* ✅ 2 colonnes responsive */}
-                                    <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-7 lg:gap-10 items-start">
-                                        {/* COLONNE GAUCHE : A ACHETER */}
-                                        <div className="w-full">
-                                            <ColumnHeader
-                                                subtitle="à gauche"
-                                                title="Vins conseillés par notre IA à acheter"
-                                            />
-
-                                            <div className="space-y-8">
-                                                {sections.map((key, idx) => {
-                                                    const vins = groupedByPlat[key] || [];
-                                                    if (!vins || vins.length === 0) return null;
-
-                                                    return (
-                                                        <div key={`buy-${key}`} className="text-left">
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <h3 className="text-base sm:text-lg font-semibold text-gray-50">
-                                                                    {getSectionTitle(key)}
-                                                                </h3>
-                                                                <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-200">
-                                                                    {vins.length} vin{vins.length > 1 ? "s" : ""}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="mt-4 flex flex-col gap-4">
-
-                                                                {vins
-                                                                    .filter((vin) => vin && (vin.nomvin || vin.nom || vin.Nom))
-                                                                    .map((vin, i) => (
-                                                                        <BuyWineCard key={i} vin={vin} platKey={key} />
-                                                                    ))}
-                                                            </div>
-
-                                                            {idx < sections.length - 1 && <Separator />}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        {/* DIVIDER CENTRAL (lg uniquement) */}
-                                        <div className="hidden lg:flex justify-center">
-                                            <div className="w-px h-full bg-gradient-to-b from-transparent via-white/15 to-transparent" />
-                                        </div>
-
-                                        {/* COLONNE DROITE : DANS VOTRE CAVE */}
-                                        <div className="w-full">
-                                            <ColumnHeader
-                                                subtitle="à droite"
-                                                title="Vins conseillés par notre IA dans votre cave"
-                                            />
-
-                                            <div className="space-y-8">
-                                                {sections.map((key, idx) => {
-                                                    const caveListRaw = caveGrouped[key] || [];
-                                                    // caveGrouped est déjà filtré UUID+img
-                                                    const caveList = Array.isArray(caveListRaw) ? caveListRaw : [];
-
-                                                    // On affiche la section même si vide pour les plats/digestif/aperitif
-                                                    // si la section existe côté achat OU si c’est Aperitif/Digestif
-                                                    const hasBuy = (groupedByPlat[key] || []).length > 0;
-                                                    const shouldShowSection = hasBuy || key === "Aperitif" || key === "Digestif" || caveList.length > 0;
-
-                                                    if (!shouldShowSection) return null;
-
-                                                    return (
-                                                        <div key={`cave-${key}`} className="text-left">
-                                                            <div className="flex items-center justify-between gap-3">
-                                                                <h3 className="text-base sm:text-lg font-semibold text-gray-50">
-                                                                    {getSectionTitle(key)}
-                                                                </h3>
-                                                                <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-200">
-                                                                    {caveList.length} vin{caveList.length > 1 ? "s" : ""}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="mt-4">
-                                                                {caveList.length === 0 ? (
-                                                                    <EmptyCaveBox label={key !== "Aperitif" && key !== "Digestif" ? key : (key === "Aperitif" ? "l’apéritif" : "le digestif")} />
-                                                                ) : (
-                                                                    <div className="flex flex-col gap-4">
-
-                                                                        {caveList.map((entry, i) => (
-                                                                            <CaveWineCard key={i} entry={entry} />
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {idx < sections.length - 1 && <Separator />}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* ✅ Affinage invalide (inchangé) */}
-                                    {affinInvalid && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3 }}
-                                            className="mt-10 rounded-2xl p-5 bg-gray-900/70 border border-emerald-500/40 shadow backdrop-blur-md"
-                                        >
-                                            <p className="text-sm sm:text-base text-emerald-100">
-                                                <span className="font-semibold">Information :</span>{" "}
-                                                les vins ci-dessous ont été retournés{" "}
-                                                <span className="font-semibold">sans filtrage</span> car la demande saisie n’a pas été reconnue comme une demande valide.
-                                                Vous pouvez réessayer en entrant une autre demande.
-                                            </p>
-                                        </motion.div>
-                                    )}
-
-                                    {/* Bouton restart (inchangé) */}
-                                    <motion.div
-                                        className="flex justify-center mt-12"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.5 }}
-                                    >
-                                        <motion.button
-                                            onClick={restartHandler}
-                                            whileHover={{ scale: 1.08, rotate: 2 }}
-                                            whileTap={{ scale: 0.9 }}
-                                            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/20 text-gray-50 font-semibold shadow-lg hover:bg-white/30 hover:shadow-emerald-300/40 transition-all duration-300 backdrop-blur-md"
-                                        >
-                                            <FiRefreshCcw size={18} />
-                                            Recommencer
-                                        </motion.button>
-                                    </motion.div>
-                                </div>
-                            );
-                        })()}
 
                 </motion.div>
 

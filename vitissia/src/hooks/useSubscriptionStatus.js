@@ -1,16 +1,31 @@
 import { useEffect, useState } from "react";
 
+function safeJson(raw) {
+    try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
 function readSubscription() {
-    try {
-        const raw = localStorage.getItem("SUBSCRIPTION") || sessionStorage.getItem("SUBSCRIPTION");
-        if (raw) return JSON.parse(raw);
-    } catch { }
+    // ✅ source principale
+    const raw = localStorage.getItem("SUBSCRIPTION") || sessionStorage.getItem("SUBSCRIPTION");
+    const parsed = safeJson(raw);
+    if (parsed && typeof parsed === "object") return parsed;
+
+    // ✅ fallback sur tes clés existantes
+    const infoRaw = localStorage.getItem("subscriptionInfo") || sessionStorage.getItem("subscriptionInfo");
     return {
-        isPremium: (localStorage.getItem("isPremium") === "true") || (sessionStorage.getItem("isPremium") === "true"),
-        isExpired: false,
-        subscriptionStatus: "unknown",
-        subscriptionInfo: null,
-        updatedAt: 0,
+        isPremium:
+            localStorage.getItem("isPremium") === "true" ||
+            sessionStorage.getItem("isPremium") === "true",
+        isExpired:
+            localStorage.getItem("isExpired") === "true" ||
+            sessionStorage.getItem("isExpired") === "true",
+        subscriptionStatus:
+            localStorage.getItem("subscriptionStatus") ||
+            sessionStorage.getItem("subscriptionStatus") ||
+            "unknown",
+        subscriptionInfo: safeJson(infoRaw),
+        updatedAt: Date.now(),
+        source: "fallback",
     };
 }
 
@@ -18,12 +33,14 @@ export function useSubscriptionStatus() {
     const [sub, setSub] = useState(readSubscription());
 
     useEffect(() => {
-        const onUpdate = (e) => {
-            // event CustomEvent("subscription:update")
-            const next = e?.detail ?? readSubscription();
-            setSub(next);
-        };
+        // ✅ important: re-lire au mount (au cas où l’event a été manqué)
+        setSub(readSubscription());
+        const t = setTimeout(() => setSub(readSubscription()), 300);
+        return () => clearTimeout(t);
+    }, []);
 
+    useEffect(() => {
+        const onUpdate = (e) => setSub(e?.detail ?? readSubscription());
         const onLegacy = () => setSub(readSubscription());
 
         window.addEventListener("subscription:update", onUpdate);

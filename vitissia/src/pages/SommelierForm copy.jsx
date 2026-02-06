@@ -2133,7 +2133,7 @@ const SommelierForm = () => {
                                                         {sectionTitle}
                                                     </h2>
 
-                                                    <div className={vins.length > 1 ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" : "flex justify-center items-center w-full"}>
+                                                    <div className={vins.length > 1 ? "flex flex-col gap-4 w-full" : "flex justify-center items-center w-full"}>
                                                         {vins
                                                             .filter(vin => vin && (vin.nomvin || vin.nom || vin.Nom || vin.vindigestif))
                                                             .map((vin, index) => {

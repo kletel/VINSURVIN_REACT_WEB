@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GiGrapes } from 'react-icons/gi';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import FooterLinks from '../components/FooterLinks';
 import {
     FaUser,
     FaEnvelope,
@@ -1512,6 +1513,7 @@ const Profil = () => {
                                     </div>
                                 </div>
                             )}
+                            <FooterLinks />
         </Layout>
     );
 };

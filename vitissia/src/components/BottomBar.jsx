@@ -5,6 +5,7 @@ import { Button } from "primereact/button";
 import { GiGrapes, GiWineBottle } from "react-icons/gi";
 import LoginRequiredModal from "./LoginRequiredModal";
 import useAuth from "../hooks/useAuth";
+import { isRunningInRNWebView } from "../utils/rnBridge";
 
 const BottomBar = () => {
     const navigate = useNavigate();
@@ -43,6 +44,35 @@ const BottomBar = () => {
             window.removeEventListener("storage", handler);
         };
     }, []);
+
+    useEffect(() => {
+        // ✅ Dans la WebView RN, on colle en bas
+        if (isRunningInRNWebView()) {
+            document.documentElement.style.setProperty("--vv-bottom", "0px");
+            return;
+        }
+
+        const vv = window.visualViewport;
+        if (!vv) return;
+
+        const update = () => {
+            const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+            document.documentElement.style.setProperty("--vv-bottom", `${offset}px`);
+        };
+
+        update();
+        vv.addEventListener("resize", update);
+        vv.addEventListener("scroll", update);
+        window.addEventListener("resize", update);
+
+        return () => {
+            vv.removeEventListener("resize", update);
+            vv.removeEventListener("scroll", update);
+            window.removeEventListener("resize", update);
+        };
+    }, []);
+
+
 
     const handleToggleProfile = (e) => {
         setProfileOpen((prev) => !prev);
@@ -161,15 +191,17 @@ const BottomBar = () => {
         <>
             <div
                 className="
-                   fixed bottom-0 left-0 right-0
-                   md:hidden
-                   z-[9999]
-                   backdrop-blur-xl
-                   bg-black
-                   border-t border-white/10
-                   shadow-[0_-4px_18px_rgba(0,0,0,0.6)]
-                   safe-area-pb
-               "
+                    fixed left-0 right-0
+                    md:hidden
+                    z-[9999]
+                    backdrop-blur-xl bg-black
+                    border-t border-white/10
+                    shadow-[0_-4px_18px_rgba(0,0,0,0.6)]
+                    safe-area-pb
+                    [bottom:var(--vv-bottom,0px)]
+                    [transform:translate3d(0,0,0)]
+                    [will-change:transform]
+                "
             >
                 <div className="flex justify-between items-center px-4 pt-1.5 pb-3 gap-2">
                     {menuItems.map((item) => {

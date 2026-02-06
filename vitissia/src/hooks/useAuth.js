@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import authHeader from '../config/authHeader';
 import config from '../config/config';
+import { fetchAndStoreIsInternal } from "../utils/internalAccess";
 
 const decodeJwtClaims = (token) => {
     try {
@@ -29,8 +30,6 @@ const useAuth = () => {
 
     const [user, setUser] = useState(null);
     const [UUIDuser, setUUIDuser] = useState(null);
-
-
 
     const loadUserInfo = useCallback(async () => {
         const token = sessionStorage.getItem('token');
@@ -126,7 +125,6 @@ const useAuth = () => {
             formData.append('password', password);
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_AuthLogin`, {
                 method: 'POST',
-                headers: authHeader(),
                 body: formData,
             });
 
@@ -140,6 +138,13 @@ const useAuth = () => {
                 const token = data.accessToken;
                 console.log('📦 Token reçu:', token);
                 sessionStorage.setItem('token', token);
+
+                sessionStorage.setItem("email_user", email);
+
+                await fetchAndStoreIsInternal({
+                    apiBaseUrl: config.apiBaseUrl,
+                    email,
+                });
 
                 const uuid = data.uuid_user
                 const nomComplet = data.nom_user
@@ -193,6 +198,19 @@ const useAuth = () => {
                 setUUIDuser(data.uuidUser);
                 sessionStorage.setItem('uuid_user', data.uuidUser);
                 sessionStorage.setItem('nom_user', data.nomUser);
+                const mapped = await loadUserInfo();
+                const emailToCheck = mapped?.email;
+                if (emailToCheck) {
+                    sessionStorage.setItem("email_user", emailToCheck);
+                    await fetchAndStoreIsInternal({ apiBaseUrl: config.apiBaseUrl, email: emailToCheck });
+                }
+
+
+                await fetchAndStoreIsInternal({
+                    apiBaseUrl: config.apiBaseUrl,
+                    email: mapped.email,
+                });
+
                 navigate('/dashboard');
 
             } else {
@@ -238,7 +256,7 @@ const useAuth = () => {
         } catch (e) {
             console.warn('logoutDevice failed:', e);
         } finally {
-            const keys = ['token', 'uuid_user', 'nom_user', 'APP_HOST'];
+            const keys = ['token','uuid_user','nom_user','APP_HOST','email_user','isInternal','SUBSCRIPTION'];
             keys.forEach(k => {
                 try { sessionStorage.removeItem(k); } catch { }
                 try { localStorage.removeItem(k); } catch { }
@@ -385,7 +403,7 @@ const useAuth = () => {
     const deleteAccount = async () => {
         const token = sessionStorage.getItem('token');
         const uuid = sessionStorage.getItem('uuid_user');
-        
+
         const formData = new FormData();
         formData.append('UUID_user', uuid);
         formData.append('token', token);

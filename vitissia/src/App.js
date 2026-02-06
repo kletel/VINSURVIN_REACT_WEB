@@ -3,10 +3,12 @@ import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from "r
 import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RequirePremium from "./components/RequirePremium";
 import Dashboard from "./pages/NewDashboard";
 import Vin from "./pages/Vin";
 import NouveauVin from './pages/NouveauVin';
 import Inscription from "./pages/Inscription";
+import RequireAuthForCave from "./components/RequireAuthForCave";
 import "./styles.css";
 
 // Importer les styles de PrimeReact
@@ -33,6 +35,7 @@ import Sommelier from './pages/Sommelier';
 import SommelierForm from './pages/SommelierForm';
 import Profil from "./pages/Profil";
 import ScrollToTop from './components/ScrollToTop';
+import Premium from './pages/Premium';
 import { PrimeReactProvider } from 'primereact/api';
 
 function AppContent() {
@@ -53,6 +56,17 @@ function AppContent() {
             window.history.scrollRestoration = 'manual';
         }
     }, []);
+
+    useEffect(() => {
+        if (!window.ReactNativeWebView) {
+            // ✅ on est sur le web => on nettoie les traces RN
+            localStorage.removeItem("APP_HOST");
+            sessionStorage.removeItem("APP_HOST");
+            localStorage.removeItem("RN_ENV");
+            sessionStorage.removeItem("RN_ENV");
+        }
+    }, []);
+
 
     const hideNavigation = ["/login", "/inscription", "/forgot-password", "/reset-password"].includes(location.pathname);
 
@@ -91,7 +105,16 @@ function AppContent() {
                 <Route path="/cave" element={<ProtectedRoute><Cave /></ProtectedRoute>} />
                 <Route path="/gerer-cave" element={<ProtectedRoute><GererCave /></ProtectedRoute>} />
                 <Route path="/mes-recettes" element={<ProtectedRoute><MesRecettes /></ProtectedRoute>} />
-                <Route path="/sommelier/:id" element={<ProtectedRoute><SommelierForm /></ProtectedRoute>} />
+                <Route element={<RequirePremium redirectTo="/sommelier" />}>
+                    <Route
+                        path="/sommelier/:id"
+                        element={
+                            <RequireAuthForCave>
+                                <SommelierForm />
+                            </RequireAuthForCave>
+                        }
+                    />
+                </Route>
                 <Route
                     path="/profil"
                     element={

@@ -39,13 +39,16 @@ const Card = ({ id, img, title, description, mounted, setShowSubscriptionPopup, 
                 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
             `}
             onClick={() => {
-                // Vérifier uniquement l'abonnement premium
-                if (!isPremium) {
-                    setShowSubscriptionPopup(true);
+                const isLoggedIn = !!sessionStorage.getItem("token");
+                const requiresLogin = id === "cave";
+
+                if (requiresLogin && !isLoggedIn) {
+                    setShowPopup(true);
                     return;
                 }
                 navigate(`/sommelier/${id}`);
             }}
+
         >
             {/* 🟣 IMAGE */}
             <img

@@ -9,6 +9,7 @@ import useFetchFavoris from '../hooks/useFetchFavoris';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { InputText } from 'primereact/inputtext';
+import FooterLinks from "../components/FooterLinks";
 
 // 🔥 Nouveaux icônes pour les tuiles
 import { GiWineBottle, GiKnifeFork, GiOpenBook } from 'react-icons/gi';
@@ -429,7 +430,9 @@ const NewDashboard = () => {
                     </div>
                 </div>
             </div>
+               
         </Layout>
+        
     );
 };
 

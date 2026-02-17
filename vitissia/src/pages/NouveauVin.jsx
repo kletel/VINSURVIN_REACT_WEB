@@ -142,6 +142,8 @@ const NouveauVinLoadingScreen = () => {
     );
 };
 
+const getDistinctCavesKey = (uuid) => (uuid ? `distinctCaves_${uuid}` : 'distinctCaves');
+
 const NouveauVin = () => {
     const [vin, setVin] = useState({});
     const [initialVin, setInitialVin] = useState(null);
@@ -151,6 +153,7 @@ const NouveauVin = () => {
     const navigate = useNavigate();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const UUIDuser = sessionStorage.getItem('uuid_user');
+    const distinctCavesKey = getDistinctCavesKey(UUIDuser);
     const toast = useRef(null);
     const [errorRegion, setErrorRegion] = useState("");
     const [errorCouleur, setErrorCouleur] = useState("");
@@ -176,11 +179,11 @@ const NouveauVin = () => {
             .then(response => response.json())
             .then(data => {
                 const targetName = 'Cave principale';
-                const storedCavesRaw = JSON.parse(localStorage.getItem("distinctCaves")) || [];
+                const storedCavesRaw = JSON.parse(localStorage.getItem(distinctCavesKey)) || [];
                 let updatedStored = storedCavesRaw;
                 if (!storedCavesRaw.some(c => (c || '').toLowerCase() === targetName.toLowerCase())) {
                     updatedStored = [targetName, ...storedCavesRaw];
-                    localStorage.setItem('distinctCaves', JSON.stringify(updatedStored));
+                    localStorage.setItem(distinctCavesKey, JSON.stringify(updatedStored));
                 }
                 const cavesFormatted = updatedStored.map(c => ({ label: c, value: c }));
                 setDistinctCaves(cavesFormatted);
@@ -196,10 +199,10 @@ const NouveauVin = () => {
             .catch(error => console.error('Erreur lors de la récupération du modèle:', error))
         // Charger les valeurs distinctes des caves
         console.log("caves distinctes :", distinctCaves);
-        const storedCaves = JSON.parse(localStorage.getItem("distinctCaves")) || [];
+        const storedCaves = JSON.parse(localStorage.getItem(distinctCavesKey)) || [];
         const cavesFormatted = storedCaves.map(c => ({ label: c, value: c }));
         setDistinctCaves(cavesFormatted);
-    }, []);
+    }, [distinctCavesKey]);
 
 
     const handleCaveChange = (value) => {
@@ -812,7 +815,7 @@ const NouveauVin = () => {
                     if (newCaveName.trim() !== "" && !distinctCaves.some(cave => cave.label === newCaveName)) {
                         const updatedCaves = [...distinctCaves, { label: newCaveName, value: newCaveName }];
                         setDistinctCaves(updatedCaves);
-                        localStorage.setItem("distinctCaves", JSON.stringify(updatedCaves.map(c => c.value))); // Stocker uniquement les valeurs
+                        localStorage.setItem(distinctCavesKey, JSON.stringify(updatedCaves.map(c => c.value))); // Stocker uniquement les valeurs
                         setVin((prevVin) => ({ ...prevVin, Cave: newCaveName })); // Sélectionner la nouvelle cave
                         setShowAddCaveDialog(false);
                         setNewCaveName("");
@@ -864,7 +867,7 @@ const NouveauVin = () => {
         if (!distinctCaves.some(c => (c.label || '') === value)) {
             const updated = [...distinctCaves, { label: value, value }];
             setDistinctCaves(updated);
-            localStorage.setItem('distinctCaves', JSON.stringify(updated.map(c => c.value)));
+            localStorage.setItem(distinctCavesKey, JSON.stringify(updated.map(c => c.value)));
         }
         setShowPlacementDialog(false);
         setCurrentStep(2);

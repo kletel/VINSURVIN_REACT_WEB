@@ -117,6 +117,9 @@ const VinLoadingScreen = () => {
     );
 };
 
+const getCavesCacheKey = (uuid) => (uuid ? `vitissia_caves_cache_${uuid}` : null);
+const getDistinctCavesKey = (uuid) => (uuid ? `distinctCaves_${uuid}` : 'distinctCaves');
+
 const Vin = () => {
     const { UUID_ } = useParams();
     const navigate = useNavigate();
@@ -136,7 +139,9 @@ const Vin = () => {
     const [loadingRecipeForMet, setLoadingRecipeForMet] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    const CAVES_CACHE_KEY = 'vitissia_caves_cache';
+    const uuidUser = sessionStorage.getItem('uuid_user');
+    const CAVES_CACHE_KEY = getCavesCacheKey(uuidUser);
+    const distinctCavesKey = getDistinctCavesKey(uuidUser);
 
     const confirmDelete = () => setShowDeleteDialog(true);
     const handleDelete = async () => {
@@ -152,12 +157,14 @@ const Vin = () => {
             const data = await response.json();
             if (data.etat === 'succes') {
                 try {
-                    const raw = localStorage.getItem(CAVES_CACHE_KEY);
-                    if (raw) {
-                        const arr = JSON.parse(raw);
-                        if (Array.isArray(arr)) {
-                            const next = arr.filter((v) => v.UUID_ !== UUID_);
-                            localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                    if (CAVES_CACHE_KEY) {
+                        const raw = localStorage.getItem(CAVES_CACHE_KEY);
+                        if (raw) {
+                            const arr = JSON.parse(raw);
+                            if (Array.isArray(arr)) {
+                                const next = arr.filter((v) => v.UUID_ !== UUID_);
+                                localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                            }
                         }
                     }
                 } catch (e) {
@@ -188,10 +195,10 @@ const Vin = () => {
     };
 
     useEffect(() => {
-        const storedCaves = JSON.parse(localStorage.getItem("distinctCaves")) || [];
+        const storedCaves = JSON.parse(localStorage.getItem(distinctCavesKey)) || [];
         const cavesFormatted = storedCaves.map(c => ({ label: c, value: c }));
         setDistinctCaves(cavesFormatted);
-    }, []);
+    }, [distinctCavesKey]);
 
     const handleCaveChange = (value) => {
         setVin((prevVin) => ({
@@ -402,14 +409,16 @@ const Vin = () => {
             setIsEditing(false);
 
             try {
-                const raw = localStorage.getItem(CAVES_CACHE_KEY);
-                if (raw) {
-                    const arr = JSON.parse(raw);
-                    if (Array.isArray(arr)) {
-                        const next = arr.map((item) =>
-                            item.UUID_ === updated.UUID_ ? { ...item, ...updated } : item
-                        );
-                        localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                if (CAVES_CACHE_KEY) {
+                    const raw = localStorage.getItem(CAVES_CACHE_KEY);
+                    if (raw) {
+                        const arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) {
+                            const next = arr.map((item) =>
+                                item.UUID_ === updated.UUID_ ? { ...item, ...updated } : item
+                            );
+                            localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(next));
+                        }
                     }
                 }
             } catch (e) {
@@ -484,7 +493,7 @@ const Vin = () => {
                     if (newCaveName.trim() !== "" && !distinctCaves.some(cave => cave.label === newCaveName)) {
                         const updatedCaves = [...distinctCaves, { label: newCaveName, value: newCaveName }];
                         setDistinctCaves(updatedCaves);
-                        localStorage.setItem("distinctCaves", JSON.stringify(updatedCaves.map(c => c.value)));
+                        localStorage.setItem(distinctCavesKey, JSON.stringify(updatedCaves.map(c => c.value)));
                         setVin((prevVin) => ({ ...prevVin, Cave: newCaveName }));
                         setShowAddCaveDialog(false);
                         setNewCaveName("");

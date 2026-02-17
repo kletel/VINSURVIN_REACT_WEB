@@ -43,6 +43,34 @@ function AppContent() {
     const location = useLocation();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+    const clearUserCaches = () => {
+        const keys = [
+            "vitissia_caves_cache",
+            "distinctCaves",
+            "caveListState",
+            "caveScrollY",
+            "lastSommelierResult",
+        ];
+        const prefixes = [
+            "vitissia_caves_cache_",
+            "distinctCaves_",
+            "caveListState_",
+            "caveScrollY_",
+        ];
+
+        keys.forEach((k) => {
+            try { localStorage.removeItem(k); } catch { }
+        });
+
+        try {
+            Object.keys(localStorage).forEach((k) => {
+                if (prefixes.some((p) => k.startsWith(p))) {
+                    localStorage.removeItem(k);
+                }
+            });
+        } catch { }
+    };
+
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -66,6 +94,13 @@ function AppContent() {
             sessionStorage.removeItem("RN_ENV");
         }
     }, []);
+
+    useEffect(() => {
+        const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+        if (!token) {
+            clearUserCaches();
+        }
+    }, [location.pathname]);
 
 
     const hideNavigation = ["/login", "/inscription", "/forgot-password", "/reset-password"].includes(location.pathname);

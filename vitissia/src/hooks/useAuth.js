@@ -107,6 +107,33 @@ const useAuth = () => {
         }
     }, []);
 
+    const autoLoginFromStorage = useCallback(async () => {
+        const token =
+            sessionStorage.getItem("token") || localStorage.getItem("token");
+
+        if (token) {
+            sessionStorage.setItem("token", token);
+            const mapped = await loadUserInfo();
+            const emailToCheck = mapped?.email;
+            if (emailToCheck) {
+                sessionStorage.setItem("email_user", emailToCheck);
+                await fetchAndStoreIsInternal({
+                    apiBaseUrl: config.apiBaseUrl,
+                    email: emailToCheck,
+                });
+            }
+            return true;
+        }
+        return false;
+    }, [loadUserInfo]);
+
+    useEffect(() => {
+        autoLoginFromStorage();
+        const handler = () => autoLoginFromStorage();
+        window.addEventListener("app-auth-changed", handler);
+        return () => window.removeEventListener("app-auth-changed", handler);
+    }, [autoLoginFromStorage]);
+
     useEffect(() => {
         const token = sessionStorage.getItem('token');
         if (token) {
@@ -256,7 +283,28 @@ const useAuth = () => {
         } catch (e) {
             console.warn('logoutDevice failed:', e);
         } finally {
-            const keys = ['token','uuid_user','nom_user','APP_HOST','email_user','isInternal','SUBSCRIPTION'];
+            const uuid = sessionStorage.getItem('uuid_user');
+            const keys = [
+                'token',
+                'uuid_user',
+                'nom_user',
+                'APP_HOST',
+                'email_user',
+                'isInternal',
+                'SUBSCRIPTION',
+                'vitissia_caves_cache',
+                'distinctCaves',
+                'caveListState',
+                'caveScrollY',
+            ];
+            if (uuid) {
+                keys.push(
+                    `vitissia_caves_cache_${uuid}`,
+                    `distinctCaves_${uuid}`,
+                    `caveListState_${uuid}`,
+                    `caveScrollY_${uuid}`
+                );
+            }
             keys.forEach(k => {
                 try { sessionStorage.removeItem(k); } catch { }
                 try { localStorage.removeItem(k); } catch { }

@@ -10,8 +10,8 @@ import useFetchCaves from '../hooks/useFetchCaves';
 import { GiGrapes } from 'react-icons/gi';
 import { motion } from 'framer-motion';
 
-const CAVES_CACHE_KEY = 'vitissia_caves_cache';
-const SCROLL_KEY = 'caveScrollY';
+const getCavesCacheKey = (uuid) => (uuid ? `vitissia_caves_cache_${uuid}` : null);
+const getCaveScrollKey = (uuid) => (uuid ? `caveScrollY_${uuid}` : 'caveScrollY');
 
 const CaveLoadingScreen = () => {
     const fakeRows = Array.from({ length: 6 });
@@ -192,9 +192,13 @@ const AnimatedBottle = () => {
 };
 
 const Cave = () => {
+    const uuidUser = sessionStorage.getItem('uuid_user');
+    const CAVES_CACHE_KEY = getCavesCacheKey(uuidUser);
+    const SCROLL_KEY = getCaveScrollKey(uuidUser);
     const { caves, error, loading, fetchCaves } = useFetchCaves();
 
     const [cachedCaves, setCachedCaves] = useState(() => {
+        if (!CAVES_CACHE_KEY) return null;
         try {
             const raw = localStorage.getItem(CAVES_CACHE_KEY);
             if (!raw) return null;
@@ -215,8 +219,10 @@ const Cave = () => {
     useEffect(() => {
         if (Array.isArray(caves) && caves.length > 0) {
             try {
-                localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(caves));
-                setCachedCaves(caves);
+                if (CAVES_CACHE_KEY) {
+                    localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(caves));
+                    setCachedCaves(caves);
+                }
             } catch (e) {
                 console.warn('Erreur écriture cache caves', e);
             }

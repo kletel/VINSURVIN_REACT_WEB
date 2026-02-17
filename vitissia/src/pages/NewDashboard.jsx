@@ -90,10 +90,14 @@ function stableIndex(seedKey, len) {
     return h % len;
 }
 
+const getCavesCacheKey = (uuid) => (uuid ? `vitissia_caves_cache_${uuid}` : null);
+
 const NewDashboard = () => {
     const navigate = useNavigate();
     const [showMesCavesPopup, setShowMesCavesPopup] = useState(false);
     const [showMesRecettesPopup, setShowMesRecettesPopup] = useState(false);
+    const uuidUser = sessionStorage.getItem('uuid_user');
+    const cavesCacheKey = getCavesCacheKey(uuidUser);
 
     // Animations d’entrée
     const [mounted, setMounted] = useState(false);
@@ -114,12 +118,14 @@ const NewDashboard = () => {
     useEffect(() => {
         if (Array.isArray(caves) && caves.length > 0) {
             try {
-                localStorage.setItem('vitissia_caves_cache', JSON.stringify(caves));
+                if (cavesCacheKey) {
+                    localStorage.setItem(cavesCacheKey, JSON.stringify(caves));
+                }
             } catch (e) {
                 console.warn('Erreur écriture cache caves depuis Dashboard', e);
             }
         }
-    }, [caves]);
+    }, [caves, cavesCacheKey]);
 
     useEffect(() => {
         fetchCaves();

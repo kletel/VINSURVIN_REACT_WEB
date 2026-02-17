@@ -1,5 +1,5 @@
 // components/RequirePremium.jsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 import { openSubscriptionScreen, isRunningInRNWebView } from "../utils/rnBridge";
@@ -28,6 +28,42 @@ export default function RequirePremium({ redirectTo = "/sommelier" }) {
   const [asked, setAsked] = useState(false);
   const lastAskRef = useRef(0);
 
+  const resetOpenState = useCallback(() => {
+    setAsked(false);
+    lastAskRef.current = 0;
+  }, []);
+
+  useEffect(() => {
+    // ✅ si on change de page, on autorise une nouvelle ouverture de paywall
+    resetOpenState();
+  }, [location.pathname, resetOpenState]);
+
+  useEffect(() => {
+    // ✅ quand le WebView redevient actif (fermeture paywall), on ré-autorise
+    const onFocus = () => resetOpenState();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") resetOpenState();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [resetOpenState]);
+
+  const tryOpenPaywall = useCallback((opts = {}) => {
+    if (!inRN) return false;
+    const force = !!opts.force;
+    const now = Date.now();
+    const COOLDOWN_MS = 2500;
+    if (!force && now - lastAskRef.current < COOLDOWN_MS) return false;
+    lastAskRef.current = now;
+    setAsked(true);
+    openSubscriptionScreen();
+    return true;
+  }, [inRN, openSubscriptionScreen]);
+
   useEffect(() => {
     if (!inRN) return;
 
@@ -36,15 +72,9 @@ export default function RequirePremium({ redirectTo = "/sommelier" }) {
 
     if (isUnknown) return;
 
-    const now = Date.now();
-    const COOLDOWN_MS = 2500;
     if (asked) return;
-    if (now - lastAskRef.current < COOLDOWN_MS) return;
-
-    lastAskRef.current = now;
-    setAsked(true);
-    openSubscriptionScreen();
-  }, [inRN, effectivePremium, isUnknown, asked]);
+    tryOpenPaywall();
+  }, [inRN, effectivePremium, isUnknown, asked, tryOpenPaywall]);
 
   // ✅ si premium OU internal => ok
   if (effectivePremium) return <Outlet />;
@@ -59,7 +89,7 @@ export default function RequirePremium({ redirectTo = "/sommelier" }) {
           {isUnknown ? "Veuillez patienter une seconde." : "Cette fonctionnalité nécessite un accès Premium."}
         </p>
         <button
-          onClick={() => openSubscriptionScreen()}
+          onClick={() => tryOpenPaywall({ force: true })}
           style={{
             marginTop: 16,
             padding: "10px 14px",

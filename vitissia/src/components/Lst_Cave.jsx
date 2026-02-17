@@ -15,13 +15,18 @@ import config from '../config/config';
 import authHeader from '../config/authHeader';
 import CaveGrid from './CaveGrid';
 
-const CAVE_STATE_KEY = 'caveListState';
-const CAVES_CACHE_KEY = 'vitissia_caves_cache';
+const getCaveStateKey = (uuid) => (uuid ? `caveListState_${uuid}` : 'caveListState');
+const getCavesCacheKey = (uuid) => (uuid ? `vitissia_caves_cache_${uuid}` : null);
+const getDistinctCavesKey = (uuid) => (uuid ? `distinctCaves_${uuid}` : 'distinctCaves');
 
 export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
+    const uuidUser = useMemo(() => sessionStorage.getItem('uuid_user'), []);
+    const caveStateKey = getCaveStateKey(uuidUser);
+    const cavesCacheKey = getCavesCacheKey(uuidUser);
+    const distinctCavesKey = getDistinctCavesKey(uuidUser);
     let initialPersisted = {};
     try {
-        const raw = sessionStorage.getItem(CAVE_STATE_KEY);
+        const raw = sessionStorage.getItem(caveStateKey);
         if (raw) {
             initialPersisted = JSON.parse(raw) || {};
         }
@@ -75,8 +80,8 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
             showEnCaveOnly,
             showFavoritesOnly,
         };
-        sessionStorage.setItem(CAVE_STATE_KEY, JSON.stringify(stateToSave));
-    }, [globalFilter, mobileFilters, sortField, sortOrder, showEnCaveOnly, showFavoritesOnly]);
+        sessionStorage.setItem(caveStateKey, JSON.stringify(stateToSave));
+    }, [globalFilter, mobileFilters, sortField, sortOrder, showEnCaveOnly, showFavoritesOnly, caveStateKey]);
 
 
     const { regions, pays, types, millesime, totalPrice, totalResteFiltered, couleurs, douceurs, contenants } = useMemo(() => {
@@ -96,8 +101,6 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
     const [selectedCave, setSelectedCave] = useState(null);
     const [distinctCaves, setDistinctCaves] = useState([]);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const uuidUser = useMemo(() => sessionStorage.getItem('uuid_user'), []);
-
     useEffect(() => {
         if (!uuidUser) return;
         let aborted = false;
@@ -117,7 +120,7 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
                         { label: 'Toutes', value: 'Toutes' },
                         ...data.filter(Boolean).map(c => ({ label: c, value: c }))
                     ]);
-                    localStorage.setItem('distinctCaves', JSON.stringify(data));
+                    localStorage.setItem(distinctCavesKey, JSON.stringify(data));
                 } else {
                     console.warn('Format inattendu react_getDistincteCaves', data);
                 }
@@ -133,7 +136,7 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
         };
         fetchDistinct();
         return () => { aborted = true; controller.abort(); };
-    }, [uuidUser, listeCaves]);
+    }, [uuidUser, listeCaves, distinctCavesKey]);
 
     useEffect(() => {
         setCaves(listeCaves);
@@ -234,12 +237,14 @@ export default function LstCave({ listeCaves, refreshCaves, loading, error }) {
                     const updated = prevCaves.filter((vin) => vin.UUID_ !== vinToDelete.UUID_);
 
                     try {
-                        const rawCache = localStorage.getItem(CAVES_CACHE_KEY);
-                        if (rawCache) {
-                            const parsed = JSON.parse(rawCache);
-                            if (Array.isArray(parsed)) {
-                                const updatedCache = parsed.filter((vin) => vin.UUID_ !== vinToDelete.UUID_);
-                                localStorage.setItem(CAVES_CACHE_KEY, JSON.stringify(updatedCache));
+                        if (cavesCacheKey) {
+                            const rawCache = localStorage.getItem(cavesCacheKey);
+                            if (rawCache) {
+                                const parsed = JSON.parse(rawCache);
+                                if (Array.isArray(parsed)) {
+                                    const updatedCache = parsed.filter((vin) => vin.UUID_ !== vinToDelete.UUID_);
+                                    localStorage.setItem(cavesCacheKey, JSON.stringify(updatedCache));
+                                }
                             }
                         }
                     } catch (e) {

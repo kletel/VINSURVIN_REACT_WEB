@@ -1,23 +1,54 @@
+const INTERNAL_DOMAINS = ['kletel.net', 'vitissia.fr', 'benyamin.fr'];
+
+function isInternalEmailValue(email) {
+    const e = String(email || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+    if (!e) return false;
+    return INTERNAL_DOMAINS.some((d) => e.endsWith(`@${d}`));
+}
+
 function parseBooleanResponse(text) {
     const t = String(text ?? "").trim().toLowerCase();
-    if (!t) return false;
+    if (!t) return null;
     if (t === "true" || t === "1") return true;
     if (t === "false" || t === "0") return false;
 
     try {
         const j = JSON.parse(text);
-        return !!(j?.isInternal ?? j?.ok);
+        if (typeof j?.isInternal === "boolean") return j.isInternal;
+        if (typeof j?.ok === "boolean") return j.ok;
+        return null;
     } catch {
-        return false;
+        return null;
     }
 }
 
 export async function fetchAndStoreIsInternal({ apiBaseUrl, email }) {
-    const url = `${apiBaseUrl}/4DACTION/react_isInternalEmail?email=${encodeURIComponent(email)}`;
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json();
+    if (!email || !apiBaseUrl) return false;
 
-    const isInternal = !!data?.isInternal; // ✅ c’est ça la vraie valeur
+    const url = `${apiBaseUrl}/4DACTION/react_isInternalEmail?email=${encodeURIComponent(email)}`;
+    let isInternal = null;
+
+    try {
+        const res = await fetch(url, { method: "GET" });
+        const raw = await res.text();
+
+        // ✅ si l'API renvoie un booléen JSON classique
+        const parsed = parseBooleanResponse(raw);
+        if (parsed !== null) {
+            isInternal = parsed;
+        }
+    } catch {
+        // ignore
+    }
+
+    // ✅ fallback: règles locales (mêmes domaines que côté app)
+    if (isInternal === null) {
+        isInternal = isInternalEmailValue(email);
+    }
+
     const v = isInternal ? "true" : "false";
 
     localStorage.setItem("isInternal", v);
@@ -45,4 +76,3 @@ export async function fetchAndStoreIsInternal({ apiBaseUrl, email }) {
 
     return isInternal;
 }
-

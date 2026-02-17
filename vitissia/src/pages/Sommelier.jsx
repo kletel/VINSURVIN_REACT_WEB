@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
 import SubscriptionRequiredModal from '../components/SubscriptionRequiredModal';
 
-const Card = ({ id, img, title, description, mounted, setShowSubscriptionPopup, isPremium }) => {
+const Card = ({
+    id,
+    img,
+    title,
+    description,
+    mounted,
+    setShowSubscriptionPopup,
+    isPremium,
+    openSubscriptionScreen,
+    isInApp,
+}) => {
     const navigate = useNavigate();
     const [loaded, setLoaded] = useState(false);
     const imgRef = React.useRef(null);
@@ -43,7 +53,15 @@ const Card = ({ id, img, title, description, mounted, setShowSubscriptionPopup, 
                 const requiresLogin = id === "cave";
 
                 if (requiresLogin && !isLoggedIn) {
-                    setShowPopup(true);
+                    setShowSubscriptionPopup(true);
+                    return;
+                }
+                if (!isPremium) {
+                    if (isInApp) {
+                        openSubscriptionScreen();
+                    } else {
+                        setShowSubscriptionPopup(true);
+                    }
                     return;
                 }
                 navigate(`/sommelier/${id}`);
@@ -132,9 +150,12 @@ const Card = ({ id, img, title, description, mounted, setShowSubscriptionPopup, 
 const Sommelier = () => {
     const [mounted, setMounted] = useState(false);
     const [showSubscriptionPopup, setShowSubscriptionPopup] = useState(false);
+    const location = useLocation();
+    const navigate = useNavigate();
 
     // Hook pour vérifier l'état d'abonnement
-    const { isPremium } = useSubscription();
+    const { isPremium, openSubscriptionScreen } = useSubscription();
+    const isInApp = typeof window !== "undefined" && !!window.ReactNativeWebView;
 
     const cards = [
         {
@@ -170,6 +191,15 @@ const Sommelier = () => {
         return () => clearTimeout(t);
     }, []);
 
+    useEffect(() => {
+        if (isInApp || isPremium) return;
+        const fromPath = location.state?.from?.pathname;
+        if (fromPath && fromPath.startsWith('/sommelier/')) {
+            setShowSubscriptionPopup(true);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [isInApp, isPremium, location.pathname, location.state, navigate]);
+
     return (
         <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15]">
             <div className="font-['Work_Sans',sans-serif] max-w-6xl mx-auto px-4 pb-10 pt-10">
@@ -190,6 +220,8 @@ const Sommelier = () => {
                             mounted={mounted}
                             setShowSubscriptionPopup={setShowSubscriptionPopup}
                             isPremium={isPremium}
+                            openSubscriptionScreen={openSubscriptionScreen}
+                            isInApp={isInApp}
                         />
                     ))}
                 </div>

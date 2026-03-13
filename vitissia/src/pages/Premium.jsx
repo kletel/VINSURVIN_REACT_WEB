@@ -10,7 +10,7 @@ export default function Premium() {
   const sub = useSubscriptionStatus();
 
   const inRN = isRunningInRNWebView();
-  const isPremium = !!sub?.isPremium;
+  const hasPremiumAccess = !!sub?.isPremium || !!sub?.isInternal;
 
   const fromPath = useMemo(() => {
     // Là où l’utilisateur voulait aller (depuis RequirePremium)
@@ -18,7 +18,7 @@ export default function Premium() {
   }, [location.state]);
 
   // Si déjà premium, on renvoie vers la cible
-  if (isPremium) {
+  if (hasPremiumAccess) {
     // replace pour éviter de revenir sur premium via back
     navigate(fromPath, { replace: true });
     return null;

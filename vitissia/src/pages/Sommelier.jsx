@@ -10,9 +10,8 @@ const Card = ({
     description,
     mounted,
     setShowSubscriptionPopup,
-    isPremium,
-    openSubscriptionScreen,
-    isInApp,
+    hasPremiumAccess,
+    isLoadingSubscription,
 }) => {
     const navigate = useNavigate();
     const [loaded, setLoaded] = useState(false);
@@ -50,18 +49,15 @@ const Card = ({
             `}
             onClick={() => {
                 const isLoggedIn = !!sessionStorage.getItem("token");
-                const requiresLogin = id === "cave";
-
-                if (requiresLogin && !isLoggedIn) {
+                if (isLoadingSubscription) {
+                    return;
+                }
+                if (!isLoggedIn) {
                     setShowSubscriptionPopup(true);
                     return;
                 }
-                if (!isPremium) {
-                    if (isInApp) {
-                        openSubscriptionScreen();
-                    } else {
-                        setShowSubscriptionPopup(true);
-                    }
+                if (!hasPremiumAccess) {
+                    setShowSubscriptionPopup(true);
                     return;
                 }
                 navigate(`/sommelier/${id}`);
@@ -154,8 +150,10 @@ const Sommelier = () => {
     const navigate = useNavigate();
 
     // Hook pour vérifier l'état d'abonnement
-    const { isPremium, openSubscriptionScreen } = useSubscription();
-    const isInApp = typeof window !== "undefined" && !!window.ReactNativeWebView;
+    const {
+        hasPremiumAccess,
+        isLoading,
+    } = useSubscription();
 
     const cards = [
         {
@@ -192,13 +190,18 @@ const Sommelier = () => {
     }, []);
 
     useEffect(() => {
-        if (isInApp || isPremium) return;
+        if (isLoading) return;
+
+        const isLoggedIn = !!sessionStorage.getItem("token");
+        const canAccessSommelierDetail = hasPremiumAccess && isLoggedIn;
+        if (canAccessSommelierDetail) return;
+
         const fromPath = location.state?.from?.pathname;
         if (fromPath && fromPath.startsWith('/sommelier/')) {
             setShowSubscriptionPopup(true);
             navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [isInApp, isPremium, location.pathname, location.state, navigate]);
+    }, [hasPremiumAccess, isLoading, location.pathname, location.state, navigate]);
 
     return (
         <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15]">
@@ -219,9 +222,8 @@ const Sommelier = () => {
                             description={card.description}
                             mounted={mounted}
                             setShowSubscriptionPopup={setShowSubscriptionPopup}
-                            isPremium={isPremium}
-                            openSubscriptionScreen={openSubscriptionScreen}
-                            isInApp={isInApp}
+                            hasPremiumAccess={hasPremiumAccess}
+                            isLoadingSubscription={isLoading}
                         />
                     ))}
                 </div>

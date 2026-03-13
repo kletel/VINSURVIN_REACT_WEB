@@ -107,14 +107,67 @@ const useAuth = () => {
         }
     }, []);
 
+    const fetchEmailFromToken = useCallback(async (token) => {
+        if (!token) return null;
+
+        const uuidFromStorage =
+            sessionStorage.getItem('uuid_user') ||
+            localStorage.getItem('uuid_user');
+
+        let url = `${config.apiBaseUrl}/4DACTION/react_getUserInfo`;
+        if (uuidFromStorage) {
+            url += `?UUID_user=${encodeURIComponent(uuidFromStorage)}`;
+        }
+
+        const deviceUUID =
+            sessionStorage.getItem('deviceUUID') ||
+            localStorage.getItem('deviceUUID');
+
+        const tryFetch = async (headers) => {
+            try {
+                const res = await fetch(url, { method: 'GET', headers });
+                if (!res.ok) return null;
+                const data = await res.json().catch(() => null);
+                return data?.Email || data?.email || null;
+            } catch {
+                return null;
+            }
+        };
+
+        // 1) Essai avec Bearer + deviceUUID (authHeader)
+        let email = await tryFetch(authHeader());
+        if (email) return email;
+
+        // 2) Essai avec token brut + deviceUUID (fallback)
+        const rawHeaders = { Authorization: token };
+        if (deviceUUID) rawHeaders.deviceUUID = deviceUUID;
+        email = await tryFetch(rawHeaders);
+        return email;
+    }, []);
+
     const autoLoginFromStorage = useCallback(async () => {
         const token =
             sessionStorage.getItem("token") || localStorage.getItem("token");
 
         if (token) {
             sessionStorage.setItem("token", token);
-            const mapped = await loadUserInfo();
-            const emailToCheck = mapped?.email;
+            let mapped = null;
+            try {
+                mapped = await loadUserInfo();
+            } catch { }
+
+            let emailToCheck = mapped?.email;
+            if (!emailToCheck) {
+                emailToCheck =
+                    sessionStorage.getItem("email_user") ||
+                    localStorage.getItem("email_user");
+            }
+            if (!emailToCheck) {
+                const emailFromToken = await fetchEmailFromToken(token);
+                if (emailFromToken) {
+                    emailToCheck = emailFromToken;
+                }
+            }
             if (emailToCheck) {
                 sessionStorage.setItem("email_user", emailToCheck);
                 await fetchAndStoreIsInternal({
@@ -125,7 +178,7 @@ const useAuth = () => {
             return true;
         }
         return false;
-    }, [loadUserInfo]);
+    }, [loadUserInfo, fetchEmailFromToken]);
 
     useEffect(() => {
         autoLoginFromStorage();

@@ -86,13 +86,32 @@ function AppContent() {
     }, []);
 
     useEffect(() => {
-        if (!window.ReactNativeWebView) {
-            // ✅ on est sur le web => on nettoie les traces RN
+        const clearRNMarkers = () => {
             localStorage.removeItem("APP_HOST");
             sessionStorage.removeItem("APP_HOST");
             localStorage.removeItem("RN_ENV");
             sessionStorage.removeItem("RN_ENV");
+        };
+
+        if (window.ReactNativeWebView) return;
+
+        const appHost = sessionStorage.getItem("APP_HOST") || localStorage.getItem("APP_HOST");
+        const rnEnv = sessionStorage.getItem("RN_ENV") || localStorage.getItem("RN_ENV");
+        const hasRNMarkers = appHost === "rn" || rnEnv === "rn";
+
+        if (!hasRNMarkers) {
+            // ✅ web "pur": on nettoie les traces RN obsolètes
+            clearRNMarkers();
+            return;
         }
+
+        // Si les marqueurs RN existent mais que le bridge n'est pas encore prêt,
+        // on attend un court délai avant de nettoyer (évite les faux négatifs au boot).
+        const t = setTimeout(() => {
+            if (!window.ReactNativeWebView) clearRNMarkers();
+        }, 1200);
+
+        return () => clearTimeout(t);
     }, []);
 
     useEffect(() => {

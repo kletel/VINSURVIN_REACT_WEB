@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSubscription } from '../hooks/useSubscription';
 
 /**
@@ -9,11 +9,39 @@ import { useSubscription } from '../hooks/useSubscription';
  * - Annuel: 59,99€/an (économie de 35%)
  */
 const SubscriptionRequiredModal = ({ isOpen, onClose, feature = "cette fonctionnalité" }) => {
-    const { purchaseProduct, restorePurchases, PRODUCTS, isExpired } = useSubscription();
+    const {
+        purchaseProduct,
+        restorePurchases,
+        openSubscriptionScreen,
+        isInReactNativeApp,
+        hasPremiumAccess,
+        PRODUCTS,
+        isExpired,
+    } = useSubscription();
     const [selectedPlan, setSelectedPlan] = useState('annual');
     const [isProcessing, setIsProcessing] = useState(false);
+    const isLoggedIn = !!sessionStorage.getItem('token');
+    const forcePaywallForGuest = !isLoggedIn;
+    const isInApp = isInReactNativeApp();
+    const hasNativeBridge =
+        typeof window !== 'undefined' &&
+        !!window.ReactNativeWebView &&
+        typeof window.ReactNativeWebView.postMessage === 'function';
+    const shouldUseNativePaywall = isInApp && hasNativeBridge;
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (!isOpen) return;
+        if (!forcePaywallForGuest && hasPremiumAccess) {
+            onClose?.();
+            return;
+        }
+        if (shouldUseNativePaywall) {
+            const opened = openSubscriptionScreen();
+            if (opened) onClose?.();
+        }
+    }, [forcePaywallForGuest, hasPremiumAccess, isOpen, onClose, openSubscriptionScreen, shouldUseNativePaywall]);
+
+    if (!isOpen || (!forcePaywallForGuest && hasPremiumAccess) || shouldUseNativePaywall) return null;
 
     const handlePurchase = async (productId) => {
         setIsProcessing(true);

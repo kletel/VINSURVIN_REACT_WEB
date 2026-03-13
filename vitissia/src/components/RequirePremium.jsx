@@ -4,26 +4,23 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 import { openSubscriptionScreen, isRunningInRNWebView } from "../utils/rnBridge";
 
-const readIsInternal = () =>
-  (localStorage.getItem("isInternal") === "true") ||
-  (sessionStorage.getItem("isInternal") === "true");
-
 export default function RequirePremium({ redirectTo = "/sommelier" }) {
   const sub = useSubscriptionStatus();
   const location = useLocation();
 
   const inRN = isRunningInRNWebView();
   const isPremium = !!sub?.isPremium;
+  const isHydrating = !!sub?.isHydrating;
 
   // ✅ internal bypass
-  const isInternal = readIsInternal();
+  const isInternal = !!sub?.isInternal;
 
   // ✅ premium effectif
   const effectivePremium = isPremium || isInternal;
 
   // Tant que l’injection n’est pas arrivée, status peut être unknown
   const isUnknown =
-    inRN && (!sub?.subscriptionStatus || sub.subscriptionStatus === "unknown");
+    inRN && (isHydrating || !sub?.subscriptionStatus || sub.subscriptionStatus === "unknown");
 
   const [asked, setAsked] = useState(false);
   const lastAskRef = useRef(0);
@@ -58,11 +55,12 @@ export default function RequirePremium({ redirectTo = "/sommelier" }) {
     const now = Date.now();
     const COOLDOWN_MS = 2500;
     if (!force && now - lastAskRef.current < COOLDOWN_MS) return false;
+    const opened = openSubscriptionScreen();
+    if (!opened) return false;
     lastAskRef.current = now;
     setAsked(true);
-    openSubscriptionScreen();
     return true;
-  }, [inRN, openSubscriptionScreen]);
+  }, [inRN]);
 
   useEffect(() => {
     if (!inRN) return;

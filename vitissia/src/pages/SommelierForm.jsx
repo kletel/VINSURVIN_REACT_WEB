@@ -3409,7 +3409,7 @@ const SommelierForm = () => {
                                         <div className="block lg:hidden space-y-10">
                                             {/* HORS CAVE */}
                                             <div className="space-y-8">
-                                                <ColumnHeader tone="buy" title="Vins conseillers à l’achat" subtitle="Sélection hors cave" />
+                                                <ColumnHeader tone="buy" title="Vins conseillés à l’achat" subtitle="Sélection hors cave" />
 
                                                 {sections
                                                     .filter((key) => getBuyCards(key).length > 0) // ✅ affiche seulement les sections avec des vins hors cave
@@ -3492,7 +3492,7 @@ const SommelierForm = () => {
                                         <div className="hidden lg:block space-y-10">
                                             {/* Headers */}
                                             <div className="grid grid-cols-2 gap-12">
-                                                <ColumnHeader tone="buy" title="Vins conseillers à l’achat" subtitle="Sélection hors cave" />
+                                                <ColumnHeader tone="buy" title="Vins conseillés à l’achat" subtitle="Sélection hors cave" />
                                                 <ColumnHeader tone="cave" title="Déjà dans votre cave" subtitle="Vins compatibles depuis votre cave" />
                                             </div>
 

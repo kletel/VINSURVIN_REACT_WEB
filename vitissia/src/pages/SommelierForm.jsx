@@ -6,6 +6,7 @@ import imageCompression from "browser-image-compression";
 import config from '../config/config';
 import authHeader from '../config/authHeader';
 import useFetchPlats from '../hooks/useFetchPlats';
+import useFetchCaves from '../hooks/useFetchCaves';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ const SommelierForm = () => {
     console.log(token);
 
     const { fetchPlats, platsCarte } = useFetchPlats();
+    const { caves, fetchCaves, loading: cavesLoading } = useFetchCaves();
 
     const shouldAnalyze = useRef(false);
     const [image, setImage] = useState(null);
@@ -74,6 +76,8 @@ const SommelierForm = () => {
     });
     const [stepError, setStepError] = useState('');
     const [imageError, setImageError] = useState(null);
+    const [caveEmptyMessage, setCaveEmptyMessage] = useState('');
+    const hasTriggeredCaveAdviceRef = useRef(false);
 
     const [iaLang, setIaLang] = useState("fr");
 
@@ -155,14 +159,37 @@ const SommelierForm = () => {
         }
     }, []);
 
-    const returnToSommelierMenu = () => {
-        Storage.removeItem("lastSommelierResult");
+    useEffect(() => {
+        if (id !== 'cave') return;
+        fetchCaves();
+    }, [id, fetchCaves]);
+
+    const hasAnyWineInCave = useMemo(() => {
+        if (!Array.isArray(caves) || caves.length === 0) return false;
+
+        return caves.some((vin) => {
+            const raw = vin?.Reste_en_Cave;
+            if (typeof raw === 'number') return raw > 0;
+            if (typeof raw === 'string') {
+                const parsed = parseFloat(raw.replace(',', '.'));
+                if (!Number.isNaN(parsed)) return parsed > 0;
+            }
+            return true;
+        });
+    }, [caves]);
+
+    function goToSommelierMenu() {
+        localStorage.removeItem("lastSommelierResult");
+        sessionStorage.removeItem(SOMMELIER_ACTIVE_KEY);
+        sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
         setOldResult(null);
         setShowOldResult(false);
-
         restartHandler();
-
         navigate('/sommelier', { replace: true });
+    }
+
+    const returnToSommelierMenu = () => {
+        goToSommelierMenu();
     };
     const handleCheckboxChange = (item) => {
         setSelectedPlats(prev =>
@@ -191,10 +218,7 @@ const SommelierForm = () => {
 
     const analyseResult = async (retryCount = 0, vinsfiltre = vinsFiltre, platsChoisi = selectedPlats, typeCase = 'conseilVin') => {
         try {
-            const vinsPropres = (vinsfiltre || []).filter((v) => {
-                return v?.couleur || v?.appellation || (Array.isArray(v?.format) && v.format.length);
-            });
-            const string = JSON.stringify(vinsFiltre)
+            const string = JSON.stringify(vinsfiltre || [])
             setIsAnalyzing(true);
             const formData = new FormData();
 
@@ -239,7 +263,7 @@ const SommelierForm = () => {
             if (!jsonAtraite || Object.keys(jsonAtraite).length === 0) {
                 if (retryCount < 2) {
                     toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Réponse vide, tentative ${retryCount + 2}...`, life: 3000 });
-                    await analyseResult(retryCount + 1, typeCase);
+                    await analyseResult(retryCount + 1, vinsfiltre, platsChoisi, typeCase);
                     return;
                 } else {
                     throw new Error("Réponse vide après trois tentatives");
@@ -364,7 +388,7 @@ const SommelierForm = () => {
         } catch (error) {
             if (retryCount < 2) {
                 toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Erreur lors de la tentative ${retryCount + 1}, nouvelle tentative...`, life: 3000 });
-                await analyseResult(retryCount + 1, vinsFiltre, selectedPlats, typeCase);
+                await analyseResult(retryCount + 1, vinsfiltre, platsChoisi, typeCase);
             } else {
                 toast.current.show({ severity: 'error', summary: 'Erreur', detail: "Erreur lors de l'analyse après trois tentatives", life: 3000 });
             }
@@ -815,6 +839,31 @@ const SommelierForm = () => {
             analyseResult(0, vinsFiltre, repas, "conseilVin");
         }
     }, [currentStep, hasRunFinalAnalyse, id, vinsFiltre, repas, rayonMode]);
+
+    useEffect(() => {
+        if (id !== 'cave') return;
+        hasTriggeredCaveAdviceRef.current = false;
+        setCaveEmptyMessage('');
+    }, [id]);
+
+    useEffect(() => {
+        if (id !== 'cave') return;
+        if (isAnalyzing || vinResult || conseilResult) return;
+        if (cavesLoading) return;
+        if (hasTriggeredCaveAdviceRef.current) return;
+
+        if (!hasAnyWineInCave) {
+            setCaveEmptyMessage(
+                "Votre cave est vide. Ajoutez quelques bouteilles pour lancer l'analyse d'équilibrage. " +
+                "Conseil débutant : commencez avec 2 rouges polyvalents, 2 blancs secs, 1 rosé et 1 effervescent."
+            );
+            return;
+        }
+
+        hasTriggeredCaveAdviceRef.current = true;
+        setCaveEmptyMessage('');
+        analyseResult(0, '', selectedPlats, 'conseilCave');
+    }, [id, isAnalyzing, vinResult, conseilResult, cavesLoading, hasAnyWineInCave, selectedPlats]);
 
 
     useEffect(() => {
@@ -2154,13 +2203,29 @@ const SommelierForm = () => {
                 );
 
             case 'cave':
-                analyseResult(0, '', selectedPlats, 'conseilCave');
+                return (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+                        {cavesLoading ? (
+                            <p className="text-sm text-gray-100">
+                                Vérification de votre cave en cours...
+                            </p>
+                        ) : caveEmptyMessage ? (
+                            <p className="text-sm text-gray-100 leading-relaxed">
+                                {caveEmptyMessage}
+                            </p>
+                        ) : (
+                            <p className="text-sm text-gray-100">
+                                Analyse de l’équilibre de votre cave en cours...
+                            </p>
+                        )}
+                    </div>
+                );
             default:
                 return null;
         }
     };
 
-    const restartHandler = () => {
+    function restartHandler() {
         setIsAnalyzing(false)
         setImage(null)
         setUUIDTable('')
@@ -2177,11 +2242,9 @@ const SommelierForm = () => {
         setEquilibre('')
         setAperitif('false')
         setDigestif('false')
+        setCaveEmptyMessage('')
+        hasTriggeredCaveAdviceRef.current = false
     }
-
-    sessionStorage.removeItem(SOMMELIER_ACTIVE_KEY);
-    sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
-
 
     const normalizeConseilData = (rawData) => {
         if (!rawData) return {};
@@ -2365,11 +2428,45 @@ const SommelierForm = () => {
         ]);
 
         const plats = [...keys].filter((k) => k !== "Aperitif" && k !== "Digestif");
-        plats.sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+
+        const normalizeDishKey = (txt) =>
+            String(txt || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim();
+
+        const requestedOrder = (Array.isArray(repas) ? repas : [])
+            .map((p) => (typeof p === "string" ? p.trim() : ""))
+            .filter(Boolean);
+
+        const remaining = [...plats];
+        const orderedPlats = [];
+
+        requestedOrder.forEach((dish) => {
+            const needle = normalizeDishKey(dish);
+            if (!needle) return;
+
+            let idx = remaining.findIndex((candidate) => normalizeDishKey(candidate) === needle);
+            if (idx < 0) {
+                idx = remaining.findIndex((candidate) => {
+                    const hay = normalizeDishKey(candidate);
+                    return hay.includes(needle) || needle.includes(hay);
+                });
+            }
+
+            if (idx >= 0) {
+                orderedPlats.push(remaining[idx]);
+                remaining.splice(idx, 1);
+            }
+        });
+
+        orderedPlats.push(...remaining);
 
         const ordered = [];
         if (keys.has("Aperitif")) ordered.push("Aperitif");
-        ordered.push(...plats);
+        ordered.push(...orderedPlats);
         if (keys.has("Digestif")) ordered.push("Digestif");
 
         return ordered;
@@ -2390,6 +2487,25 @@ const SommelierForm = () => {
             imgSrc: hasImg ? `data:image/jpeg;base64,${b64}` : null,
             vin,
         };
+    };
+
+    const isLikelyCaveWine = (entry) => {
+        const media = getWineMedia(entry);
+        const vin = media.vin || {};
+
+        const hasUUID = media.uuid !== "";
+
+        const rawStock = vin?.Reste_en_Cave;
+        const stock =
+            typeof rawStock === "number"
+                ? rawStock
+                : typeof rawStock === "string"
+                    ? parseFloat(rawStock.replace(',', '.'))
+                    : NaN;
+
+        const hasPositiveStock = Number.isFinite(stock) && stock > 0;
+
+        return hasUUID || hasPositiveStock;
     };
 
 
@@ -2464,18 +2580,16 @@ const SommelierForm = () => {
             const caveAperitif = item.vinCaveAperitif;
             if (caveAperitif && typeof caveAperitif === "object") {
                 const entry = unwrapCaveEntry(caveAperitif);
-                if (entry) {
-                    const media = getWineMedia(entry);
-                    if (media.uuid && media.hasImg) pushUnique("Aperitif", entry);
+                if (entry && isLikelyCaveWine(entry)) {
+                    pushUnique("Aperitif", entry);
                 }
             }
 
             const caveDigestif = item.vinCaveDigestif;
             if (caveDigestif && typeof caveDigestif === "object") {
                 const entry = unwrapCaveEntry(caveDigestif);
-                if (entry) {
-                    const media = getWineMedia(entry);
-                    if (media.uuid && media.hasImg) pushUnique("Digestif", entry);
+                if (entry && isLikelyCaveWine(entry)) {
+                    pushUnique("Digestif", entry);
                 }
             }
 
@@ -2491,9 +2605,7 @@ const SommelierForm = () => {
                 item.vinsCave.forEach((vc) => {
                     const entry = unwrapCaveEntry(vc);
                     if (!entry) return;
-
-                    const media = getWineMedia(entry);
-
+                    if (!isLikelyCaveWine(entry)) return;
                     pushUnique(platName, entry);
                 });
             }
@@ -2578,6 +2690,8 @@ const SommelierForm = () => {
         return grouped;
     };
 
+    const isFinalStep = currentStep >= 100;
+
     return (
         <div className="font-['Work_Sans',sans-serif] text-gray-100">
             <div className=" px-4 py-6 mb-4 border-b border-black/40 shadow-[0_18px_30px_-18px_rgba(0,0,0,0.9)] bg-transparent">
@@ -2603,13 +2717,8 @@ const SommelierForm = () => {
             <div className="max-w-4xl mx-auto mt-4 flex justify-start">
                 <motion.button
                     onClick={() => {
-                        if (currentStep === 1) {
-                            localStorage.removeItem("lastSommelierResult");
-                            sessionStorage.removeItem(SOMMELIER_ACTIVE_KEY);
-                            sessionStorage.removeItem(SOMMELIER_RETURN_FLAG);
-
-                            setOldResult(null);
-                            navigate('/sommelier');
+                        if (currentStep === 1 || isFinalStep) {
+                            goToSommelierMenu();
                         } else {
                             lastStepHandler();
                         }
@@ -2619,7 +2728,7 @@ const SommelierForm = () => {
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white/20 border border-white/15 text-gray-100 rounded-lg hover:bg-white/30 hover:border-white/40 transition-all duration-300 shadow-md backdrop-blur-md"
                 >
                     <i className="pi pi-arrow-left text-gray-200"></i>
-                    {currentStep === 1 ? 'Retour au menu' : 'Étape précédente'}
+                    {currentStep === 1 || isFinalStep ? 'Retour au menu' : 'Étape précédente'}
                 </motion.button>
             </div>
 
@@ -2991,24 +3100,14 @@ const SommelierForm = () => {
                             const groupedByPlat = vinResultNormalize(vinResult);
                             const caveGrouped = caveResultNormalize(vinResult);
                             const affinInvalid = vinResult?.vraiAffin === false;
+                            const shouldShowNoFilterInfo =
+                                affinInvalid &&
+                                refine === 'true' &&
+                                typeof refineFree === 'string' &&
+                                refineFree.trim().length > 0;
 
                             const grouped = { ...(groupedByPlat || {}) };
                             const cave = { ...(caveGrouped || {}) };
-
-                            const list = Array.isArray(vinResult?.conseil) ? vinResult.conseil : [];
-
-                            const aperitifBlock = list.find((o) => o && typeof o === "object" && o.vinaperitif);
-                            const digestifBlock = list.find((o) => o && typeof o === "object" && o.vindigestif);
-
-                            if (aperitifBlock) {
-
-                                cave.Aperitif = aperitifBlock.vinCaveAperitif ? [aperitifBlock.vinCaveAperitif] : [];
-                            }
-
-                            if (digestifBlock) {
-
-                                cave.Digestif = digestifBlock.vinCaveDigestif ? [digestifBlock.vinCaveDigestif] : [];
-                            }
 
                             const normTxt = (s) =>
                                 String(s || "")
@@ -3243,7 +3342,12 @@ const SommelierForm = () => {
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-3 mb-3">
-                                                    <h3 className="font-bold text-white text-sm sm:text-base leading-tight truncate">{title}</h3>
+                                                    <h3
+                                                        className="font-bold text-white text-sm sm:text-base leading-tight whitespace-normal break-words"
+                                                        title={title}
+                                                    >
+                                                        {title}
+                                                    </h3>
                                                     <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border ${badgeCls}`}>
                                                         {rightBadge}
                                                     </span>
@@ -3267,7 +3371,6 @@ const SommelierForm = () => {
                             };
 
                             const BuyWineCard = ({ vin, platKey }) => {
-                                const media = getWineMedia(vin);
                                 const vinName = vin.nomvin || vin.nom || vin.Nom || "Vin";
 
                                 const couleur = vin.couleur || vin.Couleur || "";
@@ -3574,7 +3677,7 @@ const SommelierForm = () => {
                                     </div>
 
                                     {/* ✅ Affinage invalide (inchangé) */}
-                                    {affinInvalid && (
+                                    {shouldShowNoFilterInfo && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -3590,7 +3693,7 @@ const SommelierForm = () => {
 
                                     {/* Bouton restart (inchangé) */}
                                     <motion.div
-                                        className="flex justify-center mt-12"
+                                        className="flex flex-wrap justify-center gap-3 mt-12"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.4 }}
@@ -3603,6 +3706,15 @@ const SommelierForm = () => {
                                         >
                                             <FiRefreshCcw size={18} />
                                             Recommencer
+                                        </motion.button>
+                                        <motion.button
+                                            onClick={goToSommelierMenu}
+                                            whileHover={{ scale: 1.03 }}
+                                            whileTap={{ scale: 0.97 }}
+                                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-gray-100 font-semibold shadow-lg hover:bg-white/20 transition-all duration-300 backdrop-blur-md border border-white/10"
+                                        >
+                                            <i className="pi pi-home" />
+                                            Menu principal
                                         </motion.button>
                                     </motion.div>
                                 </div>

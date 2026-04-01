@@ -5,6 +5,8 @@ import authHeader from '../config/authHeader';
 import config from '../config/config';
 import { fetchAndStoreIsInternal } from "../utils/internalAccess";
 
+const MANUAL_LOGOUT_FLAG = 'vitissia_manual_logout';
+
 const decodeJwtClaims = (token) => {
     try {
         const parts = (token || '').split('.');
@@ -146,6 +148,13 @@ const useAuth = () => {
     }, []);
 
     const autoLoginFromStorage = useCallback(async () => {
+        const hasManualLogoutFlag =
+            sessionStorage.getItem(MANUAL_LOGOUT_FLAG) === '1' ||
+            localStorage.getItem(MANUAL_LOGOUT_FLAG) === '1';
+        if (hasManualLogoutFlag) {
+            return false;
+        }
+
         const token =
             sessionStorage.getItem("token") || localStorage.getItem("token");
 
@@ -218,6 +227,8 @@ const useAuth = () => {
                 const token = data.accessToken;
                 console.log('📦 Token reçu:', token);
                 sessionStorage.setItem('token', token);
+                sessionStorage.removeItem(MANUAL_LOGOUT_FLAG);
+                localStorage.removeItem(MANUAL_LOGOUT_FLAG);
 
                 sessionStorage.setItem("email_user", email);
 
@@ -275,6 +286,8 @@ const useAuth = () => {
 
             if (data.entete === "succes") {
                 sessionStorage.setItem('token', token);
+                sessionStorage.removeItem(MANUAL_LOGOUT_FLAG);
+                localStorage.removeItem(MANUAL_LOGOUT_FLAG);
                 setUUIDuser(data.uuidUser);
                 sessionStorage.setItem('uuid_user', data.uuidUser);
                 sessionStorage.setItem('nom_user', data.nomUser);
@@ -363,7 +376,10 @@ const useAuth = () => {
                 try { localStorage.removeItem(k); } catch { }
             });
 
-            navigate('/login');
+            try { sessionStorage.setItem(MANUAL_LOGOUT_FLAG, '1'); } catch { }
+            try { localStorage.setItem(MANUAL_LOGOUT_FLAG, '1'); } catch { }
+
+            navigate('/', { replace: true });
         }
     };
     const isLoggedIn = () => {

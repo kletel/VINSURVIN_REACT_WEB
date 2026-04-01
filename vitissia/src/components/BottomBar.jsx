@@ -89,7 +89,6 @@ const BottomBar = () => {
         } finally {
             setProfileOpen(false);
             if (op.current) op.current.hide();
-            navigate("/login");
         }
     };
 

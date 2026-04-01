@@ -127,7 +127,6 @@ const Navbar = () => {
         } finally {
             setProfileOpen(false);
             if (op.current) op.current.hide();
-            navigate("/login");
         }
     };
 

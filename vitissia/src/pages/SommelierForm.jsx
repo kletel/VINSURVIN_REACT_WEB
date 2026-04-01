@@ -82,6 +82,9 @@ const SommelierForm = () => {
     const [iaLang, setIaLang] = useState("fr");
 
     const toast = useRef(null);
+    const showToast = useCallback((_options) => {
+        // Notifications toast désactivées à la demande utilisateur.
+    }, []);
 
     const navigate = useNavigate();
 
@@ -262,7 +265,7 @@ const SommelierForm = () => {
             console.log("jsontraiter", jsonAtraite)
             if (!jsonAtraite || Object.keys(jsonAtraite).length === 0) {
                 if (retryCount < 2) {
-                    toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Réponse vide, tentative ${retryCount + 2}...`, life: 3000 });
+                    showToast({ severity: 'warn', summary: 'Tentative échouée', detail: `Réponse vide, tentative ${retryCount + 2}...`, life: 3000 });
                     await analyseResult(retryCount + 1, vinsfiltre, platsChoisi, typeCase);
                     return;
                 } else {
@@ -384,13 +387,13 @@ const SommelierForm = () => {
                 }
                 return;
             }
-            toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Analyse réussie', life: 3000 });
+            showToast({ severity: 'success', summary: 'Succès', detail: 'Analyse réussie', life: 3000 });
         } catch (error) {
             if (retryCount < 2) {
-                toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Erreur lors de la tentative ${retryCount + 1}, nouvelle tentative...`, life: 3000 });
+                showToast({ severity: 'warn', summary: 'Tentative échouée', detail: `Erreur lors de la tentative ${retryCount + 1}, nouvelle tentative...`, life: 3000 });
                 await analyseResult(retryCount + 1, vinsfiltre, platsChoisi, typeCase);
             } else {
-                toast.current.show({ severity: 'error', summary: 'Erreur', detail: "Erreur lors de l'analyse après trois tentatives", life: 3000 });
+                showToast({ severity: 'error', summary: 'Erreur', detail: "Erreur lors de l'analyse après trois tentatives", life: 3000 });
             }
         } finally {
             setIsAnalyzing(false);
@@ -432,7 +435,7 @@ const SommelierForm = () => {
                 const msg = "La photo est trop lourde pour être analysée. Merci de la recadrer ou de réduire sa résolution.";
                 console.warn("[IMAGE] trop lourde >", sizeMB, "Mo");
                 setImageError({ code: 'IMAGE_TOO_LARGE', message: msg });
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: 'Image trop lourde',
                     detail: msg,
@@ -495,7 +498,7 @@ const SommelierForm = () => {
                     console.error("Erreur lors de la conversion base64:", err);
                     const msg = "Impossible de préparer cette photo pour l'analyse. Essaie de la reprendre ou d'en choisir une autre.";
                     setImageError({ code: 'IMAGE_READ_ERROR', message: msg });
-                    toast.current?.show({
+                    showToast({
                         severity: 'error',
                         summary: 'Erreur image',
                         detail: msg,
@@ -508,7 +511,7 @@ const SommelierForm = () => {
                 console.error("FileReader error:", e);
                 const msg = "Erreur lors de la lecture de l'image. Merci de réessayer.";
                 setImageError({ code: 'IMAGE_READ_ERROR', message: msg });
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: 'Erreur image',
                     detail: msg,
@@ -521,7 +524,7 @@ const SommelierForm = () => {
             console.error("Erreur globale lors du traitement de l'image :", error);
             const msg = "Une erreur inattendue est survenue avec la photo.";
             setImageError({ code: 'IMAGE_UNKNOWN_ERROR', message: msg });
-            toast.current?.show({
+            showToast({
                 severity: 'error',
                 summary: 'Erreur image',
                 detail: msg,
@@ -596,7 +599,7 @@ const SommelierForm = () => {
                 const msg = "Aucune image valide n'a été reçue. Merci de reprendre la photo.";
                 console.warn("[AnalyseSommelier] image manquante");
                 setImageError({ code: 'NO_IMAGE', message: msg });
-                toast.current?.show({
+                showToast({
                     severity: 'error',
                     summary: 'Aucune image',
                     detail: msg,
@@ -628,7 +631,7 @@ const SommelierForm = () => {
             console.log("jsontraiter", jsonAtraite)
             if (!jsonAtraite || Object.keys(jsonAtraite).length === 0) {
                 if (retryCount < 2) {
-                    toast.current.show({ severity: 'warn', summary: 'Tentative échouée', detail: `Réponse vide, tentative ${retryCount + 2}...`, life: 3000 });
+                    showToast({ severity: 'warn', summary: 'Tentative échouée', detail: `Réponse vide, tentative ${retryCount + 2}...`, life: 3000 });
                     await AnalyseSommelier(retryCount + 1);
                     return;
                 } else {
@@ -682,7 +685,7 @@ const SommelierForm = () => {
 
         } catch (error) {
             if (retryCount < 2) {
-                toast.current.show({
+                showToast({
                     severity: 'warn',
                     summary: 'Tentative échouée',
                     detail: `Erreur lors de la tentative ${retryCount + 1}, nouvelle tentative...`,
@@ -690,7 +693,7 @@ const SommelierForm = () => {
                 });
                 await AnalyseSommelier(retryCount + 1);
             } else {
-                toast.current.show({
+                showToast({
                     severity: 'error',
                     summary: 'Erreur',
                     detail: "Erreur lors de l'analyse après trois tentatives",
@@ -2429,13 +2432,19 @@ const SommelierForm = () => {
 
         const plats = [...keys].filter((k) => k !== "Aperitif" && k !== "Digestif");
 
-        const normalizeDishKey = (txt) =>
-            String(txt || "")
+        const normalizeDishKey = (txt) => {
+            const base = String(txt || "")
+                .replace(/œ/gi, "oe")
+                .replace(/æ/gi, "ae")
+                .replace(/ß/g, "ss");
+
+            return base
                 .normalize("NFD")
                 .replace(/[\u0300-\u036f]/g, "")
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, " ")
                 .trim();
+        };
 
         const requestedOrder = (Array.isArray(repas) ? repas : [])
             .map((p) => (typeof p === "string" ? p.trim() : ""))
@@ -2493,19 +2502,29 @@ const SommelierForm = () => {
         const media = getWineMedia(entry);
         const vin = media.vin || {};
 
-        const hasUUID = media.uuid !== "";
+        if (media.uuid !== "") return true;
 
-        const rawStock = vin?.Reste_en_Cave;
+        const rawStock = vin?.Reste_en_Cave ?? vin?.reste_en_cave;
         const stock =
             typeof rawStock === "number"
                 ? rawStock
                 : typeof rawStock === "string"
-                    ? parseFloat(rawStock.replace(',', '.'))
+                    ? parseFloat(rawStock.replace(",", "."))
                     : NaN;
-
         const hasPositiveStock = Number.isFinite(stock) && stock > 0;
 
-        return hasUUID || hasPositiveStock;
+        const shelf = vin?.Etagere;
+        const hasShelf =
+            typeof shelf === "number"
+                ? true
+                : typeof shelf === "string"
+                    ? shelf.trim() !== ""
+                    : false;
+
+        const b64 = typeof vin?.base64_132etiquette === "string" ? vin.base64_132etiquette : "";
+        const hasImage = b64.length > 80;
+
+        return hasPositiveStock || hasShelf || hasImage;
     };
 
 

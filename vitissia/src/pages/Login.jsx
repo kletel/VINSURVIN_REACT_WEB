@@ -4,6 +4,8 @@ import useAuth from '../hooks/useAuth';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 
+const MANUAL_LOGOUT_FLAG = 'vitissia_manual_logout';
+
 const Login = () => {
     const {
         email,
@@ -31,6 +33,11 @@ const Login = () => {
     useEffect(() => {
         if (hasProcessedLogin) return;
         const autoLogin = async () => {
+            const hasManualLogoutFlag =
+                sessionStorage.getItem(MANUAL_LOGOUT_FLAG) === '1' ||
+                localStorage.getItem(MANUAL_LOGOUT_FLAG) === '1';
+            if (hasManualLogoutFlag) return;
+
             const tokenTemp = searchParams.get('tokenTemp');
             const token = searchParams.get('token');
             const loginParam = searchParams.get('login');

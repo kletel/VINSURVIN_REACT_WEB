@@ -8,6 +8,7 @@ import config from '../config/config';
 import authHeader from '../config/authHeader';
 import Layout from '../components/Layout';
 import { AutoComplete } from 'primereact/autocomplete';
+import { getImageDataUrl } from '../utils/imageDataUrl';
 
 const MetsVins = () => {
     const { associations, fetchAssociations, loading, error } = useFetchAssociations();
@@ -558,8 +559,8 @@ const MetsVins = () => {
                                             <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gray-900 mb-3">
                                                 {recipesMap[normalizeName(card.met)] ? (
                                                     <img
-                                                        src={`data:image/jpeg;base64,${recipesMap[normalizeName(card.met)]}`}
-                                                        alt={`Image recette pour ${card.met}`}
+                                                        src={getImageDataUrl(recipesMap[normalizeName(card.met)])}
+                                                        alt={card.met}
                                                         className="w-full h-full object-cover"
                                                         loading="lazy"
                                                     />

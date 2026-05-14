@@ -1,10 +1,12 @@
 import React from "react";
 import { Navigate, useLocation, useParams } from "react-router-dom";
+import { hasStoredToken, syncTokenToSession } from "../hooks/useAuth";
 
 export default function RequireAuthForCave({ children, redirectTo = "/sommelier" }) {
     const { id } = useParams();
     const location = useLocation();
-    const isLoggedIn = !!sessionStorage.getItem("token");
+    syncTokenToSession();
+    const isLoggedIn = hasStoredToken();
 
     const requiresLogin = id === "cave";
 

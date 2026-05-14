@@ -8,6 +8,7 @@ import { AutoComplete } from 'primereact/autocomplete';
 import { Toast } from 'primereact/toast';
 import config from '../config/config';
 import authHeader from '../config/authHeader';
+import { getImageDataUrl } from '../utils/imageDataUrl';
 
 const VinsMets = () => {
     const { associations, fetchAssociations, loading, error } = useFetchAssociations();
@@ -499,8 +500,8 @@ const VinsMets = () => {
                                                                 {hasImage ? (
                                                                     <>
                                                                         <img
-                                                                            src={`data:image/jpeg;base64,${imgBase64}`}
-                                                                            alt={`Image recette pour ${item.met}`}
+                                                                            src={getImageDataUrl(imgBase64)}
+                                                                            alt={item.met}
                                                                             className="
                                                                                 w-full h-full object-cover 
                                                                                 transition-transform duration-300 

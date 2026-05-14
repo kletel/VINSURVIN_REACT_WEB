@@ -2,13 +2,30 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LoginRequiredModal from "./LoginRequiredModal";
+import { hasStoredToken, syncTokenToSession } from "../hooks/useAuth";
 
 const ProtectedRoute = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isLoggedIn = !!sessionStorage.getItem("token");
-
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    syncTokenToSession();
+    return hasStoredToken();
+  });
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const refreshAuthState = () => {
+      syncTokenToSession();
+      setIsLoggedIn(hasStoredToken());
+    };
+    refreshAuthState();
+    window.addEventListener("app-auth-changed", refreshAuthState);
+    window.addEventListener("storage", refreshAuthState);
+    return () => {
+      window.removeEventListener("app-auth-changed", refreshAuthState);
+      window.removeEventListener("storage", refreshAuthState);
+    };
+  }, []);
 
   // Dès qu'on détecte "pas connecté" → on affiche la modale
   useEffect(() => {

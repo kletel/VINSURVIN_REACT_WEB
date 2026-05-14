@@ -9,6 +9,7 @@ import { FileUpload } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import config from '../config/config';
 import authHeader from '../config/authHeader';
+import { handleTokenInvalidError } from '../hooks/useAuth';
 import VinTabs from '../components/VinTabs';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
@@ -23,6 +24,31 @@ import { motion } from 'framer-motion';
 
 const MotionDiv = motion.div;
 const MotionButton = motion.button;
+
+const NUMERIC_WINE_FIELDS = new Set([
+    'Prix_Achat',
+    'Valeur',
+    'valeurCave',
+    'Qte',
+    'Dont_Bue',
+    'Reste_en_Cave',
+    'Apogee',
+    'Apogee_Max',
+    'Alcool',
+    'Note_sur_20',
+]);
+
+const normalizeModifiedWineFields = (fields) => {
+    return Object.entries(fields).reduce((acc, [key, value]) => {
+        if (NUMERIC_WINE_FIELDS.has(key)) {
+            acc[key] = value === '' || value === null || value === undefined ? null : Number(value);
+            return acc;
+        }
+
+        acc[key] = value;
+        return acc;
+    }, {});
+};
 
 const VinLoadingScreen = () => {
     const fakeChips = ['Appellation', 'Millesime', 'Pays', 'Type'];
@@ -320,8 +346,10 @@ const Vin = () => {
         if (customName) {
             setVin((prevVin) => {
                 const updatedVin = { ...prevVin, [customName]: e };
-                if (customName === "Valeur" || customName === "Qte") {
-                    updatedVin.valeurCave = (updatedVin.Qte || 0) * (updatedVin.Valeur || 0);
+                if (customName === "Valeur" || customName === "Prix_Achat" || customName === "Qte") {
+                    const unitPrice = Number(updatedVin.Prix_Achat ?? updatedVin.Valeur ?? 0);
+                    const quantity = Number(updatedVin.Qte ?? 0);
+                    updatedVin.valeurCave = quantity * unitPrice;
                 }
                 return updatedVin;
             });
@@ -329,8 +357,10 @@ const Vin = () => {
             const { name, value } = e.target;
             setVin((prevVin) => {
                 const updatedVin = { ...prevVin, [name]: value };
-                if (name === "Valeur" || name === "Qte") {
-                    updatedVin.valeurCave = (updatedVin.Qte || 0) * (updatedVin.Valeur || 0);
+                if (name === "Valeur" || name === "Prix_Achat" || name === "Qte") {
+                    const unitPrice = Number(updatedVin.Prix_Achat ?? updatedVin.Valeur ?? 0);
+                    const quantity = Number(updatedVin.Qte ?? 0);
+                    updatedVin.valeurCave = quantity * unitPrice;
                 }
                 return updatedVin;
             });
@@ -362,25 +392,23 @@ const Vin = () => {
 
         if (!vin) return;
 
-        const modifiedVin = getModifiedFields();
+        const modifiedVin = normalizeModifiedWineFields(getModifiedFields());
 
         try {
-            const formData = new FormData();
-            formData.append("UUID_", vin.UUID_);
-            formData.append("champsModif", JSON.stringify(modifiedVin));
-            formData.append("token", token);
+            const body = new URLSearchParams();
+            body.append("UUID_", vin.UUID_);
+            body.append("champsModif", JSON.stringify(modifiedVin));
+            body.append("token", token);
 
             const headers = authHeader();
-            if (headers['Content-Type']) {
-                delete headers['Content-Type'];
-            }
+            headers['Content-Type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
 
             const response = await fetch(
                 `${config.apiBaseUrl}/4DACTION/react_putCave?UUID_=${vin.UUID_}`,
                 {
-                    method: 'PUT',
+                    method: 'POST',
                     headers,
-                    body: formData,
+                    body,
                 }
             );
 
@@ -393,15 +421,32 @@ const Vin = () => {
             let updated;
             const rawText = await response.text();
 
-            if (rawText && rawText.trim() !== '') {
-                try {
-                    updated = JSON.parse(rawText);
-                } catch (err) {
-                    console.warn('Réponse non-JSON du serveur, on garde les données locales :', rawText);
-                    updated = { ...vin, ...modifiedVin };
-                }
-            } else {
-                updated = { ...vin, ...modifiedVin };
+            if (!rawText || rawText.trim() === '') {
+                throw new Error('Réponse vide du serveur : la modification n’a probablement pas été enregistrée.');
+            }
+
+            try {
+                updated = JSON.parse(rawText);
+            } catch (err) {
+                console.warn('Réponse non-JSON du serveur :', rawText);
+                throw new Error('Réponse invalide du serveur.');
+            }
+
+            if (
+                updated?.message === 'Token invalide' ||
+                updated?.message === 'Token manquant' ||
+                updated?.error === 'token invalide'
+            ) {
+                await handleTokenInvalidError(new Error('token invalide'), { force: true });
+                return;
+            }
+
+            if (updated?.etat === 'erreur' || updated?.entete === 'erreur' || updated?.error) {
+                throw new Error(updated?.message || updated?.error || 'Erreur sauvegarde côté serveur.');
+            }
+
+            if (updated?.etat === 'succes') {
+                updated = { ...vin, ...modifiedVin, ...updated };
             }
 
             setVin(updated);
@@ -425,7 +470,7 @@ const Vin = () => {
                 console.warn('Erreur mise à jour cache caves après édition', e);
             }
 
-            toast.current.show({
+            toast.current?.show({
                 severity: 'success',
                 summary: 'Succès',
                 detail: 'Modifications enregistrées.',
@@ -433,7 +478,7 @@ const Vin = () => {
             });
         } catch (e) {
             console.error(e);
-            toast.current.show({
+            toast.current?.show({
                 severity: 'error',
                 summary: 'Erreur',
                 detail: 'Erreur lors de la sauvegarde.',
@@ -535,7 +580,7 @@ const Vin = () => {
             const data = await response.json();
 
             if (data.entete === "succes") {
-                toast.current.show({
+                toast.current?.show({
                     severity: "success",
                     summary: "Succès",
                     detail: newFavoriState
@@ -554,7 +599,7 @@ const Vin = () => {
                 Coup_de_Coeur: !prev.Coup_de_Coeur,
             }));
 
-            toast.current.show({
+            toast.current?.show({
                 severity: "error",
                 summary: "Erreur",
                 detail: "Impossible de mettre à jour le favori.",
@@ -589,7 +634,7 @@ const Vin = () => {
             navigate('/recette');
         } catch (err) {
             console.error('Erreur lors de la récupération de la recette:', err);
-            toast.current.show({
+            toast.current?.show({
                 severity: 'error',
                 summary: 'Erreur',
                 detail: 'Erreur lors de la récupération de la recette',
@@ -629,7 +674,7 @@ const Vin = () => {
     return (
         <Layout>
             <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] min-h-screen font-['Work_Sans',sans-serif] text-white">
-                {/* <Toast ref={toast} />*/}
+                <Toast ref={toast} />
                 <div className="max-w-6xl mx-auto px-4 pt-6">
                     <MotionButton
                         whileHover={{ scale: 1.03, x: -2 }}

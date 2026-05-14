@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiTrash2, FiPlusCircle, FiCheckCircle, FiRefreshCcw, FiStar } from "react-icons/fi";
 import { FaWineGlassAlt as FiWine } from "react-icons/fa";
 import RegionRefiner from "../components/RegionRefiner"
+import { getImageDataUrl } from '../utils/imageDataUrl';
 
 const SOMMELIER_ACTIVE_KEY = 'vitissia_sommelier_active_state';
 const SOMMELIER_RETURN_FLAG = 'vitissia_sommelier_returning';
@@ -53,6 +54,7 @@ const SommelierForm = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [selectedPlats, setSelectedPlats] = useState([]);
+    const [submittedPlatsOrder, setSubmittedPlatsOrder] = useState([]);
     const [conseilResult, setConseilResult] = useState(null);
     const [manual, setManual] = useState(false);
     const [resultAnalyseSommelier, setResultAnalyseSommelier] = useState([]);
@@ -100,6 +102,7 @@ const SommelierForm = () => {
             // optionnel mais utile si tu veux retrouver exactement l’écran :
             UUIDTable,
             selectedPlats,
+            submittedPlatsOrder,
             repas,
             vinChoice,
             budget,
@@ -120,6 +123,7 @@ const SommelierForm = () => {
         conseilResult,
         UUIDTable,
         selectedPlats,
+        submittedPlatsOrder,
         repas,
         vinChoice,
         budget,
@@ -148,6 +152,7 @@ const SommelierForm = () => {
 
             if (s.UUIDTable !== undefined) setUUIDTable(s.UUIDTable);
             if (Array.isArray(s.selectedPlats)) setSelectedPlats(s.selectedPlats);
+            if (Array.isArray(s.submittedPlatsOrder)) setSubmittedPlatsOrder(s.submittedPlatsOrder);
             if (Array.isArray(s.repas)) setRepas(s.repas);
             if (s.vinChoice !== undefined) setVinChoice(s.vinChoice);
             if (typeof s.budget === 'number') setBudget(s.budget);
@@ -225,11 +230,16 @@ const SommelierForm = () => {
             setIsAnalyzing(true);
             const formData = new FormData();
 
-            const platsString = Array.isArray(platsChoisi)
-                ? platsChoisi.map(p => (typeof p === "string" ? p.trim() : "")).filter(Boolean).join(", ")
-                : (platsChoisi ?? "");
+            const normalizedPlats = Array.isArray(platsChoisi)
+                ? platsChoisi.map(p => (typeof p === "string" ? p.trim() : "")).filter(Boolean)
+                : String(platsChoisi ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+            const platsString = normalizedPlats.join(", ");
+            const nbPlats = normalizedPlats.length;
+            setSubmittedPlatsOrder(normalizedPlats);
 
             formData.append("platsChoisi", platsString);
+            formData.append("nbPlats", String(nbPlats));
 
             formData.append("uuidUser", UUIDuser);
             formData.append("uuidTable", UUIDTable);
@@ -917,7 +927,7 @@ const SommelierForm = () => {
 
     const FileUploadField = ({ onSelect, label, disabled = false, version = 0 }) => (
         <div className="relative w-full">
-            <label className="block mb-2 text-sm font-medium text-slate-800">
+            <label className="block mb-2 text-sm font-medium text-white">
                 {label} :
             </label>
 
@@ -1494,23 +1504,25 @@ const SommelierForm = () => {
 
                         {currentStep === 5 && (
                             <div className="w-full max-w-3xl mx-auto p-6 rounded-3xl bg-gray-900/70 border border-gray-800 shadow-xl backdrop-blur-xl font-['Work_Sans',sans-serif]">
-                                {restoProfil && (
-                                    <div className="mt-3 space-y-2 text-sm text-gray-200">
-                                        {/* Phrase récap globale */}
-                                        <p>
-                                            Le vin recommandé par notre sommelier pour accompagner votre plat
-                                            {repas && repas.length > 0 && repas[0]?.trim()
-                                                ? ` "${repas[0].trim()}"`
-                                                : ""}{" "}
-                                            est un vin
-                                            {restoProfil.couleur ? ` ${restoProfil.couleur.toLowerCase()}` : ""}
-                                            {restoProfil.region ? ` de la région ${restoProfil.region}` : ""}
-                                            {restoProfil.type || restoProfil.style
-                                                ? ` de type ${(restoProfil.type || restoProfil.style).toLowerCase()}`
-                                                : ""}.
-                                        </p>
-                                    </div>
-                                )}
+                                {restoProfil && (() => {
+                                    const platsDisplay = (repas || []).map(p => typeof p === 'string' ? p.trim() : '').filter(Boolean);
+                                    const isSingle = platsDisplay.length === 1;
+                                    const truncate = (s) => s.length > 25 ? s.slice(0, 22) + '...' : s;
+                                    const platsStr = platsDisplay.map(truncate).join(', ');
+                                    return (
+                                        <div className="mt-3 mb-4 space-y-2 text-sm text-white">
+                                            <p>
+                                                {isSingle
+                                                    ? <>Vin recommandé par notre sommelier pour accompagner votre plat{' '}<span className="font-semibold">« {truncate(platsDisplay[0])} »</span></>
+                                                    : <>Vin recommandé par notre sommelier pour accompagner vos plats :{' '}<span className="font-semibold">{platsStr}</span></>
+                                                }
+                                                {(restoProfil.couleur || restoProfil.type || restoProfil.style) && (
+                                                    <>{' '}— un vin{restoProfil.couleur ? ` ${restoProfil.couleur.toLowerCase()}` : ''}{restoProfil.type || restoProfil.style ? ` de type ${(restoProfil.type || restoProfil.style).toLowerCase()}` : ''}.</>
+                                                )}
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
 
                                 <FileUploadField
                                     label={'La carte des vins'}
@@ -1830,24 +1842,25 @@ const SommelierForm = () => {
                                     Profil conseillé pour ton plat
                                 </h2>
 
-                                {rayonProfil && (
-                                    <div className="space-y-2 text-sm text-gray-200">
-                                        {/* Phrase globale */}
-                                        <p>
-                                            Notre sommelier vous conseille pour votre plat
-                                            {repas && repas.length > 0 && repas[0]?.trim()
-                                                ? ` "${repas[0].trim()}"`
-                                                : ""}{" "}
-                                            un vin
-                                            {rayonProfil.couleur
-                                                ? ` ${rayonProfil.couleur.toLowerCase()}`
-                                                : ""}
-                                            {rayonProfil.region
-                                                ? ` de la région ${rayonProfil.region}`
-                                                : ""}
-                                        </p>
-                                    </div>
-                                )}
+                                {rayonProfil && (() => {
+                                    const platsDisplay = (repas || []).map(p => typeof p === 'string' ? p.trim() : '').filter(Boolean);
+                                    const isSingle = platsDisplay.length === 1;
+                                    const truncate = (s) => s.length > 25 ? s.slice(0, 22) + '...' : s;
+                                    const platsStr = platsDisplay.map(truncate).join(', ');
+                                    return (
+                                        <div className="space-y-2 text-sm text-white">
+                                            <p>
+                                                {isSingle
+                                                    ? <>Vin recommandé par notre sommelier pour accompagner votre plat{' '}<span className="font-semibold">« {truncate(platsDisplay[0])} »</span></>
+                                                    : <>Vin recommandé par notre sommelier pour accompagner vos plats :{' '}<span className="font-semibold">{platsStr}</span></>
+                                                }
+                                                {(rayonProfil.couleur || rayonProfil.type || rayonProfil.style) && (
+                                                    <>{' '}— un vin{rayonProfil.couleur ? ` ${rayonProfil.couleur.toLowerCase()}` : ''}{rayonProfil.type || rayonProfil.style ? ` de type ${(rayonProfil.type || rayonProfil.style).toLowerCase()}` : ''}.</>
+                                                )}
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
 
                                 <p className="text-sm text-gray-400">
                                     Maintenant envoie l’image du rayon, on te conseillera les meilleurs vins pour ton plat.
@@ -2233,6 +2246,7 @@ const SommelierForm = () => {
         setImage(null)
         setUUIDTable('')
         setRepas([''])
+        setSubmittedPlatsOrder([])
         setVinChoice('acheter')
         setBudget(0)
         setBouteille(0)
@@ -2424,14 +2438,7 @@ const SommelierForm = () => {
         return matches;
     };
 
-    const getSectionsOrder = (purchaseGrouped, caveGrouped) => {
-        const keys = new Set([
-            ...Object.keys(purchaseGrouped || {}),
-            ...Object.keys(caveGrouped || {}),
-        ]);
-
-        const plats = [...keys].filter((k) => k !== "Aperitif" && k !== "Digestif");
-
+    const getSectionsOrder = (purchaseGrouped, caveGrouped, preferredOrder = []) => {
         const normalizeDishKey = (txt) => {
             const base = String(txt || "")
                 .replace(/œ/gi, "oe")
@@ -2446,37 +2453,166 @@ const SommelierForm = () => {
                 .trim();
         };
 
-        const requestedOrder = (Array.isArray(repas) ? repas : [])
-            .map((p) => (typeof p === "string" ? p.trim() : ""))
-            .filter(Boolean);
+        const levenshteinDistance = (a, b) => {
+            const s = String(a || "");
+            const t = String(b || "");
+            const rows = s.length + 1;
+            const cols = t.length + 1;
+            const dist = Array.from({ length: rows }, () => Array(cols).fill(0));
 
-        const remaining = [...plats];
-        const orderedPlats = [];
+            for (let i = 0; i < rows; i++) dist[i][0] = i;
+            for (let j = 0; j < cols; j++) dist[0][j] = j;
 
-        requestedOrder.forEach((dish) => {
-            const needle = normalizeDishKey(dish);
-            if (!needle) return;
-
-            let idx = remaining.findIndex((candidate) => normalizeDishKey(candidate) === needle);
-            if (idx < 0) {
-                idx = remaining.findIndex((candidate) => {
-                    const hay = normalizeDishKey(candidate);
-                    return hay.includes(needle) || needle.includes(hay);
-                });
+            for (let i = 1; i < rows; i++) {
+                for (let j = 1; j < cols; j++) {
+                    const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+                    dist[i][j] = Math.min(
+                        dist[i - 1][j] + 1,
+                        dist[i][j - 1] + 1,
+                        dist[i - 1][j - 1] + cost
+                    );
+                }
             }
+            return dist[s.length][t.length];
+        };
 
-            if (idx >= 0) {
-                orderedPlats.push(remaining[idx]);
-                remaining.splice(idx, 1);
+        const similarityScore = (a, b) => {
+            const left = String(a || "");
+            const right = String(b || "");
+            if (!left || !right) return 0;
+            const maxLen = Math.max(left.length, right.length);
+            if (maxLen === 0) return 1;
+            return 1 - (levenshteinDistance(left, right) / maxLen);
+        };
+
+        const isAperitifKey = (k) => normalizeDishKey(k) === "aperitif";
+        const isDigestifKey = (k) => normalizeDishKey(k) === "digestif";
+
+        const rawOrderedKeys = [
+            ...Object.keys(purchaseGrouped || {}),
+            ...Object.keys(caveGrouped || {}),
+        ];
+
+        const seen = new Set();
+        const allKeysOrdered = [];
+        rawOrderedKeys.forEach((k) => {
+            if (!seen.has(k)) {
+                seen.add(k);
+                allKeysOrdered.push(k);
             }
         });
 
-        orderedPlats.push(...remaining);
+        const aperitifKey = allKeysOrdered.find((k) => isAperitifKey(k));
+        const digestifKey = allKeysOrdered.find((k) => isDigestifKey(k));
+        const aiOrderedPlats = allKeysOrdered.filter(
+            (k) => !isAperitifKey(k) && !isDigestifKey(k)
+        );
+
+        const fallbackOrder = (Array.isArray(repas) && repas.length > 0)
+            ? repas
+            : (Array.isArray(selectedPlats) ? selectedPlats : []);
+
+        const requestedOrderSource =
+            (Array.isArray(preferredOrder) && preferredOrder.length > 0)
+                ? preferredOrder
+                : fallbackOrder;
+
+        const requestedOrder = requestedOrderSource
+            .map((p) => (typeof p === "string" ? p.trim() : ""))
+            .filter(Boolean);
+
+        const buildRequestedBasedOrder = (available) => {
+            const remaining = [...available];
+            const ordered = [];
+
+            requestedOrder.forEach((dish) => {
+                const needle = normalizeDishKey(dish);
+                if (!needle) return;
+
+                let idx = remaining.findIndex((candidate) => normalizeDishKey(candidate) === needle);
+                if (idx < 0) {
+                    idx = remaining.findIndex((candidate) => {
+                        const hay = normalizeDishKey(candidate);
+                        return hay.includes(needle) || needle.includes(hay);
+                    });
+                }
+                if (idx < 0) {
+                    let bestIdx = -1;
+                    let bestScore = 0;
+                    remaining.forEach((candidate, candidateIndex) => {
+                        const hay = normalizeDishKey(candidate);
+                        if (!hay) return;
+                        const score = similarityScore(needle, hay);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestIdx = candidateIndex;
+                        }
+                    });
+
+                    const minScore = needle.length <= 4 ? 0.75 : 0.68;
+                    if (bestIdx >= 0 && bestScore >= minScore) idx = bestIdx;
+                }
+
+                if (idx >= 0) {
+                    ordered.push(remaining[idx]);
+                    remaining.splice(idx, 1);
+                }
+            });
+
+            ordered.push(...remaining);
+            return ordered;
+        };
+
+        const computeKendallDistance = (orderA, orderB) => {
+            if (!Array.isArray(orderA) || !Array.isArray(orderB)) return 0;
+            if (orderA.length < 2 || orderB.length < 2) return 0;
+
+            const posInB = new Map(orderB.map((k, i) => [k, i]));
+            const seq = orderA.filter((k) => posInB.has(k)).map((k) => posInB.get(k));
+            if (seq.length < 2) return 0;
+
+            let discordant = 0;
+            let total = 0;
+            for (let i = 0; i < seq.length; i++) {
+                for (let j = i + 1; j < seq.length; j++) {
+                    total += 1;
+                    if (seq[i] > seq[j]) discordant += 1;
+                }
+            }
+            return total > 0 ? discordant / total : 0;
+        };
+
+        const computeAvgShift = (orderA, orderB) => {
+            if (!Array.isArray(orderA) || !Array.isArray(orderB)) return 0;
+            if (orderA.length < 2 || orderB.length < 2) return 0;
+
+            const posInA = new Map(orderA.map((k, i) => [k, i]));
+            const denom = Math.max(1, orderA.length - 1);
+            let shiftSum = 0;
+            let count = 0;
+
+            orderB.forEach((k, idx) => {
+                if (!posInA.has(k)) return;
+                shiftSum += Math.abs(posInA.get(k) - idx) / denom;
+                count += 1;
+            });
+
+            return count > 0 ? shiftSum / count : 0;
+        };
+
+        const requestedBasedOrder = buildRequestedBasedOrder(aiOrderedPlats);
+
+        const hasRequestedReference = requestedOrder.length > 0 && requestedBasedOrder.length > 1;
+        const kendall = computeKendallDistance(aiOrderedPlats, requestedBasedOrder);
+        const avgShift = computeAvgShift(aiOrderedPlats, requestedBasedOrder);
+        const isTooDifferent = hasRequestedReference && (kendall > 0.42 || avgShift > 0.38);
+
+        const orderedPlats = isTooDifferent ? requestedBasedOrder : aiOrderedPlats;
 
         const ordered = [];
-        if (keys.has("Aperitif")) ordered.push("Aperitif");
+        if (aperitifKey) ordered.push(aperitifKey);
         ordered.push(...orderedPlats);
-        if (keys.has("Digestif")) ordered.push("Digestif");
+        if (digestifKey) ordered.push(digestifKey);
 
         return ordered;
     };
@@ -2485,16 +2621,39 @@ const SommelierForm = () => {
         const vin = obj?.vin && typeof obj.vin === "object" ? obj.vin : obj;
 
         const uuid = typeof vin?.UUID_ === "string" ? vin.UUID_.trim() : "";
-        const b64 = typeof vin?.base64_132etiquette === "string" ? vin.base64_132etiquette : "";
+        const normalizeWineName = (value) => String(value || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/\s+/g, " ")
+            .trim();
+
+        const vinName = normalizeWineName(vin?.Nom || vin?.nom || vin?.nomvin);
+        const caveMatch = Array.isArray(caves)
+            ? caves.find((caveVin) => {
+                const caveUuid = typeof caveVin?.UUID_ === "string" ? caveVin.UUID_.trim() : "";
+                if (uuid && caveUuid === uuid) return true;
+                return vinName !== "" && normalizeWineName(caveVin?.Nom || caveVin?.nom || caveVin?.nomvin) === vinName;
+            })
+            : null;
+        const mergedVin = caveMatch ? { ...caveMatch, ...vin } : vin;
+
+        const b64 = [
+            mergedVin?.base64_132etiquette,
+            mergedVin?.base64_etiquette,
+            mergedVin?.base64_etiquettecomplet,
+            mergedVin?.imageBase64,
+        ].find((value) => typeof value === "string" && value.trim().length > 80) || "";
         const hasImg = b64.length > 80;
+        const resolvedUuid = uuid || (typeof mergedVin?.UUID_ === "string" ? mergedVin.UUID_.trim() : "");
 
         return {
-            uuid,
-            isClickable: uuid !== "",
+            uuid: resolvedUuid,
+            isClickable: resolvedUuid !== "",
             hasImg,
             // ✅ IMPORTANT : pas de fallback image
-            imgSrc: hasImg ? `data:image/jpeg;base64,${b64}` : null,
-            vin,
+            imgSrc: hasImg ? getImageDataUrl(b64) : null,
+            vin: mergedVin,
         };
     };
 
@@ -2521,7 +2680,12 @@ const SommelierForm = () => {
                     ? shelf.trim() !== ""
                     : false;
 
-        const b64 = typeof vin?.base64_132etiquette === "string" ? vin.base64_132etiquette : "";
+        const b64 = [
+            vin?.base64_132etiquette,
+            vin?.base64_etiquette,
+            vin?.base64_etiquettecomplet,
+            vin?.imageBase64,
+        ].find((value) => typeof value === "string" && value.trim().length > 80) || "";
         const hasImage = b64.length > 80;
 
         return hasPositiveStock || hasShelf || hasImage;
@@ -2814,95 +2978,79 @@ const SommelierForm = () => {
                                                             {category === 'Le Top' ? ' Le Choix Idéal' : category}
                                                         </h2>
 
-                                                        <div className="space-y-4">
+                                                        <div className="space-y-3">
                                                             {Array.isArray(vins) &&
                                                                 vins.map((vin, index) => {
-                                                                    const region = vin.region || vin.région || 'Non précisée';
+                                                                    const couleurNorm = (vin.couleur || '').toLowerCase();
+                                                                    const colorDotCls = {
+                                                                        rouge: "bg-red-400 shadow-[0_0_7px_rgba(248,113,113,0.7)]",
+                                                                        blanc: "bg-amber-300 shadow-[0_0_7px_rgba(252,211,77,0.7)]",
+                                                                        rosé: "bg-pink-400 shadow-[0_0_7px_rgba(244,114,182,0.7)]",
+                                                                        rose: "bg-pink-400 shadow-[0_0_7px_rgba(244,114,182,0.7)]",
+                                                                        effervescent: "bg-sky-300 shadow-[0_0_7px_rgba(125,211,252,0.7)]",
+                                                                    }[couleurNorm] || (vin.couleur ? "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.7)]" : null);
+
+                                                                    const priceText = (() => {
+                                                                        if (!vin.prix) return null;
+                                                                        const fmtVal = (v) => {
+                                                                            if (typeof v === 'number') return `${v.toFixed(2)} €`;
+                                                                            if (typeof v === 'string') return v.includes('€') ? v : `${v} €`;
+                                                                            return String(v);
+                                                                        };
+                                                                        if (Array.isArray(vin.prix)) {
+                                                                            return vin.prix.map((p) =>
+                                                                                typeof p === 'object' && p !== null
+                                                                                    ? `${p.contenance ? `${p.contenance} ` : ''}${fmtVal(p.prix)}`.trim()
+                                                                                    : fmtVal(p)
+                                                                            ).filter(Boolean).join(' · ');
+                                                                        }
+                                                                        return formatPrice(vin.prix);
+                                                                    })();
+
                                                                     return (
                                                                         <motion.div
                                                                             key={index}
-                                                                            whileHover={{ scale: 1.02 }}
-                                                                            whileTap={{ scale: 0.98 }}
-                                                                            className="p-5 rounded-2xl bg-gray-900/70 border border-emerald-500/30 shadow-lg hover:shadow-emerald-400/30 transition-all duration-300 backdrop-blur-md"
+                                                                            initial={{ opacity: 0, y: 10 }}
+                                                                            animate={{ opacity: 1, y: 0 }}
+                                                                            transition={{ duration: 0.3, delay: index * 0.06, ease: "easeOut" }}
+                                                                            whileHover={{ y: -4, scale: 1.012, transition: { type: "spring", stiffness: 320, damping: 22 } }}
+                                                                            whileTap={{ scale: 0.975, transition: { duration: 0.08 } }}
+                                                                            className="bg-white/[0.04] backdrop-blur-md rounded-3xl p-4 sm:p-5 border border-emerald-400/20 shadow-[0_8px_32px_rgba(0,0,0,0.35)] hover:shadow-[0_16px_48px_rgba(16,185,129,0.28)] transition-colors duration-300"
                                                                         >
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <FiWine className="text-emerald-400" />
-                                                                                <p className="font-semibold text-gray-50">
-                                                                                    {vin.nom}
-                                                                                </p>
-                                                                            </div>
-                                                                            <p className="text-sm text-gray-200">
-                                                                                <strong>Couleur :</strong> {vin.couleur}
-                                                                            </p>
-                                                                            {vin.appellation && (
-                                                                                <p className="text-sm text-gray-200">
-                                                                                    <strong>Appellation :</strong>{' '}
-                                                                                    {vin.appellation}
-                                                                                </p>
-                                                                            )}
-                                                                            <p className="text-sm text-gray-200">
-                                                                                <strong>Région :</strong> {region}
-                                                                            </p>
-                                                                            {vin.prix && (
-                                                                                <div className="text-sm text-gray-200 mt-1">
-                                                                                    <strong>Prix :</strong>{' '}
-                                                                                    {Array.isArray(vin.prix)
-                                                                                        ? vin.prix.map((p, i) => {
-                                                                                            if (
-                                                                                                typeof p === 'object' &&
-                                                                                                p !== null
-                                                                                            ) {
-                                                                                                return (
-                                                                                                    <span
-                                                                                                        key={i}
-                                                                                                        className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                    >
-                                                                                                        {p.contenance
-                                                                                                            ? `${p.contenance} — `
-                                                                                                            : ''}
-                                                                                                        {p.prix ??
-                                                                                                            'Non précisé'}
-                                                                                                    </span>
-                                                                                                );
-                                                                                            }
-                                                                                            if (typeof p === 'number') {
-                                                                                                return (
-                                                                                                    <span
-                                                                                                        key={i}
-                                                                                                        className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                    >
-                                                                                                        {p.toFixed(2)} €
-                                                                                                    </span>
-                                                                                                );
-                                                                                            }
-                                                                                            if (typeof p === 'string') {
-                                                                                                return (
-                                                                                                    <span
-                                                                                                        key={i}
-                                                                                                        className="inline-block bg-white/10 px-2 py-1 rounded mr-2"
-                                                                                                    >
-                                                                                                        {p.includes('€')
-                                                                                                            ? p
-                                                                                                            : `${p} €`}
-                                                                                                    </span>
-                                                                                                );
-                                                                                            }
-                                                                                            return null;
-                                                                                        })
-                                                                                        : formatPrice(vin.prix)}
+                                                                            <div className="flex items-start justify-between gap-3 mb-2.5">
+                                                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                                    {colorDotCls && (
+                                                                                        <span className={`flex-shrink-0 inline-block w-2.5 h-2.5 rounded-full ${colorDotCls}`} />
+                                                                                    )}
+                                                                                    <h3 className="font-bold text-white text-sm sm:text-base leading-tight whitespace-normal break-words">
+                                                                                        {vin.nom || vin.nomvin}
+                                                                                    </h3>
                                                                                 </div>
-                                                                            )}
-                                                                            {(vin.commentaireVin || vin.commentaire) && (
-                                                                                <div className="mt-4">
-                                                                                    <p className="text-[10px] sm:text-xs uppercase tracking-[0.16em] text-emerald-200/80">
-                                                                                        Commentaire du sommelier
-                                                                                    </p>
+                                                                            </div>
 
-                                                                                    <div className="relative mt-2 rounded-2xl border border-emerald-400/40 bg-gradient-to-br from-emerald-900/70 via-gray-900/80 to-black/80 px-4 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.6)]">
-                                                                                        <p className="text-[11px] sm:text-[12px] text-emerald-50 leading-relaxed pl-4">
-                                                                                            {vin.commentaireVin || vin.commentaire}
-                                                                                        </p>
-                                                                                    </div>
+                                                                            <div className="flex flex-wrap gap-1.5 mb-2.5">
+                                                                                {vin.appellation && (
+                                                                                    <span className="px-3 py-1 rounded-full text-[11px] font-medium border bg-white/10 text-white/80 border-white/10">
+                                                                                        {vin.appellation}
+                                                                                    </span>
+                                                                                )}
+                                                                                {priceText && (
+                                                                                    <span className="px-3 py-1 rounded-full text-[11px] font-medium border bg-emerald-500/15 text-emerald-200 border-emerald-400/25">
+                                                                                        {priceText}
+                                                                                    </span>
+                                                                                )}
+                                                                                {vin.position && (
+                                                                                    <span className="px-3 py-1 rounded-full text-[11px] font-medium border bg-white/10 text-white/80 border-white/10">
+                                                                                        Emplacement : {vin.position}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {(vin.commentaireVin || vin.commentaire) && (
+                                                                                <div className="bg-white/[0.04] rounded-2xl px-3 py-2.5 border border-white/10 mt-1">
+                                                                                    <p className="text-[11px] text-white/65 leading-relaxed">
+                                                                                        {vin.commentaireVin || vin.commentaire}
+                                                                                    </p>
                                                                                 </div>
                                                                             )}
                                                                         </motion.div>
@@ -3236,8 +3384,8 @@ const SommelierForm = () => {
                             };
 
                             // ✅ NECESSAIRE : l’ordre doit être calculé sur grouped/cave (sinon aperitif/digestif injectés n’apparaissent pas)
-                            const sectionsBase = Array.isArray(getSectionsOrder?.(grouped, cave))
-                                ? getSectionsOrder(grouped, cave)
+                            const sectionsBase = Array.isArray(getSectionsOrder?.(grouped, cave, submittedPlatsOrder))
+                                ? getSectionsOrder(grouped, cave, submittedPlatsOrder)
                                 : Array.from(new Set([...Object.keys(grouped || {}), ...Object.keys(cave || {})]));
 
                             const sections = sectionsBase
@@ -3294,8 +3442,9 @@ const SommelierForm = () => {
                             };
 
                             const WineCardUI = ({
-                                tone, // "buy" | "cave"
+                                tone,
                                 title,
+                                colorDot,
                                 imgSrc,
                                 clickable,
                                 onClick,
@@ -3303,22 +3452,22 @@ const SommelierForm = () => {
                                 match,
                                 comment,
                                 rightBadge,
-                                showImage = true, // ✅ NEW
-                                forceCursor = null, // ✅ NEW ("pointer" | "default" | null)
+                                showImage = true,
+                                forceCursor = null,
+                                animDelay = 0,
                             }) => {
                                 const glow =
                                     tone === "buy"
-                                        ? "hover:shadow-[0_12px_40px_rgba(16,185,129,0.22),0_8px_32px_rgba(0,0,0,0.35)]"
-                                        : "hover:shadow-[0_12px_40px_rgba(168,85,247,0.22),0_8px_32px_rgba(0,0,0,0.35)]";
+                                        ? "hover:shadow-[0_16px_48px_rgba(16,185,129,0.28),0_8px_32px_rgba(0,0,0,0.4)]"
+                                        : "hover:shadow-[0_16px_48px_rgba(168,85,247,0.28),0_8px_32px_rgba(0,0,0,0.4)]";
 
                                 const border = tone === "buy" ? "border-emerald-400/20" : "border-violet-400/20";
 
                                 const badgeCls =
                                     tone === "buy"
-                                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
-                                        : "bg-violet-500/20 text-violet-300 border-violet-400/30";
+                                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/25 text-[10px]"
+                                        : "bg-violet-500/15 text-violet-300 border-violet-400/25 text-[10px]";
 
-                                // ✅ cursor : cave toujours "cursor-pointer", hors cave = seulement si clickable
                                 const cursorClass =
                                     forceCursor === "pointer"
                                         ? "cursor-pointer"
@@ -3328,16 +3477,22 @@ const SommelierForm = () => {
                                                 ? "cursor-pointer"
                                                 : "cursor-default";
 
-                                // ✅ click uniquement si clickable (on garde ton comportement)
                                 const canClick = clickable && typeof onClick === "function";
 
                                 return (
                                     <motion.div
-                                        whileHover={{ y: clickable ? -2 : 0 }}
-                                        whileTap={{ scale: clickable ? 0.985 : 1 }}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: animDelay, ease: "easeOut" }}
+                                        whileHover={{
+                                            y: -4,
+                                            scale: 1.012,
+                                            transition: { type: "spring", stiffness: 320, damping: 22 },
+                                        }}
+                                        whileTap={{ scale: 0.975, transition: { duration: 0.08 } }}
                                         onClick={() => canClick && onClick()}
                                         className={[
-                                            "group relative bg-white/5 backdrop-blur-md rounded-3xl p-4 sm:p-5 border transition-all duration-300",
+                                            "group relative bg-white/[0.04] backdrop-blur-md rounded-3xl p-4 sm:p-5 border transition-colors duration-300",
                                             border,
                                             cursorClass,
                                             "shadow-[0_8px_32px_rgba(0,0,0,0.35)]",
@@ -3345,7 +3500,6 @@ const SommelierForm = () => {
                                         ].join(" ")}
                                     >
                                         <div className="flex gap-4">
-                                            {/* ✅ Image (optionnelle) */}
                                             {showImage && (
                                                 <div className="flex-shrink-0">
                                                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] overflow-hidden border border-white/20 bg-black/20">
@@ -3358,29 +3512,35 @@ const SommelierForm = () => {
                                                 </div>
                                             )}
 
-                                            {/* Content */}
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-3 mb-3">
-                                                    <h3
-                                                        className="font-bold text-white text-sm sm:text-base leading-tight whitespace-normal break-words"
-                                                        title={title}
-                                                    >
-                                                        {title}
-                                                    </h3>
-                                                    <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border ${badgeCls}`}>
+                                                <div className="flex items-start justify-between gap-3 mb-2.5">
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        {colorDot && (
+                                                            <span className={`flex-shrink-0 inline-block w-2.5 h-2.5 rounded-full ${colorDot}`} />
+                                                        )}
+                                                        <h3
+                                                            className="font-bold text-white text-sm sm:text-base leading-tight whitespace-normal break-words"
+                                                            title={title}
+                                                        >
+                                                            {title}
+                                                        </h3>
+                                                    </div>
+                                                    <span className={`flex-shrink-0 px-2.5 py-0.5 rounded-full font-medium border ${badgeCls}`}>
                                                         {rightBadge}
                                                     </span>
                                                 </div>
 
-                                                <div className="flex flex-wrap gap-2 mb-3">{tags}</div>
+                                                {tags && tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5 mb-2.5">{tags}</div>
+                                                )}
 
-                                                <div className="mb-3">
+                                                <div className="mb-2.5">
                                                     <MatchRow tone={tone} match={match} />
                                                 </div>
 
                                                 {comment && (
-                                                    <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 border border-white/10">
-                                                        <p className="text-xs text-white/70 leading-relaxed">{comment}</p>
+                                                    <div className="bg-white/[0.04] backdrop-blur-sm rounded-2xl px-3 py-2.5 border border-white/8">
+                                                        <p className="text-[11px] text-white/65 leading-relaxed">{comment}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -3389,26 +3549,39 @@ const SommelierForm = () => {
                                 );
                             };
 
-                            const BuyWineCard = ({ vin, platKey }) => {
+                            const colorDotMap = {
+                                rouge: "bg-red-400 shadow-[0_0_7px_rgba(248,113,113,0.7)]",
+                                blanc: "bg-amber-300 shadow-[0_0_7px_rgba(252,211,77,0.7)]",
+                                rosé: "bg-pink-400 shadow-[0_0_7px_rgba(244,114,182,0.7)]",
+                                rose: "bg-pink-400 shadow-[0_0_7px_rgba(244,114,182,0.7)]",
+                                effervescent: "bg-sky-300 shadow-[0_0_7px_rgba(125,211,252,0.7)]",
+                            };
+
+                            const BuyWineCard = ({ vin, platKey, animIdx = 0 }) => {
                                 const vinName = vin.nomvin || vin.nom || vin.Nom || "Vin";
 
                                 const couleur = vin.couleur || vin.Couleur || "";
                                 const appellation = vin.appellation || vin.Appellation || "";
-                                const region = vin.region || vin.Region || vin.région || vin.Région || "";
+                                const position = vin.position || null;
 
                                 const match = typeof vin.tauxCorrespondancePlat === "number" ? vin.tauxCorrespondancePlat : null;
 
                                 const priceText = (() => {
                                     if (!vin.prix) return null;
+                                    const fmtVal = (v) => {
+                                        if (typeof v === "number") return `${v.toFixed(2)} €`;
+                                        if (typeof v === "string") return v.includes("€") ? v : `${v} €`;
+                                        return String(v);
+                                    };
                                     if (Array.isArray(vin.prix)) {
-                                        const parts = vin.prix
+                                        return vin.prix
                                             .map((p) =>
                                                 typeof p === "object" && p !== null
-                                                    ? `${p.contenance ? `${p.contenance} ` : ""}${p.prix ?? ""}`.trim()
-                                                    : String(p)
+                                                    ? `${p.contenance ? `${p.contenance} ` : ""}${fmtVal(p.prix)}`.trim()
+                                                    : fmtVal(p)
                                             )
-                                            .filter(Boolean);
-                                        return parts.join(" · ");
+                                            .filter(Boolean)
+                                            .join(" · ");
                                     }
                                     return typeof formatPrice === "function" ? formatPrice(vin.prix) : String(vin.prix);
                                 })();
@@ -3418,14 +3591,19 @@ const SommelierForm = () => {
                                         ? vin.commentaire || vin.commentaireVin
                                         : vin.commentaireVin || vin.commentaire;
 
+                                const colorDot = couleur
+                                    ? colorDotMap[couleur.toLowerCase()] || "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.7)]"
+                                    : null;
+
                                 const tags = [
-                                    couleur ? <Tag key="c">{couleur}</Tag> : null,
                                     appellation ? <Tag key="a">{appellation}</Tag> : null,
-                                    region ? <Tag key="r">{region}</Tag> : null,
                                     priceText ? (
                                         <Tag key="p" tone="buy">
                                             {priceText}
                                         </Tag>
+                                    ) : null,
+                                    id === 'rayon' && position ? (
+                                        <Tag key="pos" tone="neutral">Emplacement : {position}</Tag>
                                     ) : null,
                                 ].filter(Boolean);
 
@@ -3433,25 +3611,25 @@ const SommelierForm = () => {
                                     <WineCardUI
                                         tone="buy"
                                         title={vinName}
-                                        imgSrc={null} // ✅ pas d'image
-                                        showImage={false} // ✅ retire visuellement le bloc image
-                                        clickable={false} // ✅ hors cave : pas de cursor et pas de click
+                                        colorDot={colorDot}
+                                        showImage={false}
+                                        clickable={false}
                                         tags={tags}
                                         match={match}
                                         comment={comment}
-                                        rightBadge="Hors cave" // ✅ label
+                                        rightBadge="Hors cave"
+                                        animDelay={animIdx * 0.06}
                                     />
                                 );
                             };
 
-                            const CaveWineCard = ({ entry }) => {
+                            const CaveWineCard = ({ entry, animIdx = 0 }) => {
                                 const media = getWineMedia(entry);
                                 const caveVin = media.vin;
 
                                 const nom = caveVin?.Nom || caveVin?.nom || caveVin?.nomvin || "Vin";
                                 const couleur = caveVin?.Couleur || caveVin?.couleur || "";
                                 const appellation = caveVin?.Appellation || caveVin?.appellation || "";
-                                const region = caveVin?.Région || caveVin?.Region || caveVin?.region || caveVin?.région || "";
 
                                 const stock = typeof caveVin?.Reste_en_Cave === "number" ? caveVin.Reste_en_Cave : null;
                                 const shelf = caveVin?.Etagere ? String(caveVin.Etagere) : null;
@@ -3470,10 +3648,12 @@ const SommelierForm = () => {
                                             ? caveVin.commentaireAccordCave
                                             : null;
 
+                                const colorDot = couleur
+                                    ? colorDotMap[couleur.toLowerCase()] || "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.7)]"
+                                    : null;
+
                                 const tags = [
-                                    couleur ? <Tag key="c">{couleur}</Tag> : null,
                                     appellation ? <Tag key="a">{appellation}</Tag> : null,
-                                    region ? <Tag key="r">{region}</Tag> : null,
                                     stock !== null ? (
                                         <Tag key="s" tone="cave">
                                             {stock} en stock
@@ -3490,19 +3670,21 @@ const SommelierForm = () => {
                                     <WineCardUI
                                         tone="cave"
                                         title={nom}
-                                        imgSrc={media.imgSrc} // ✅ image affichée si dispo
-                                        showImage={true} // ✅ toujours montrer le bloc image
-                                        clickable={media.isClickable} // click seulement si UUID
+                                        colorDot={colorDot}
+                                        imgSrc={media.imgSrc}
+                                        showImage={true}
+                                        clickable={media.isClickable}
                                         onClick={() => {
                                             if (!media.isClickable) return;
                                             saveSommelierState?.();
                                             navigate(`/vin/${media.uuid}`);
                                         }}
-                                        forceCursor="pointer" // ✅ curseur TOUJOURS sur cave
+                                        forceCursor="pointer"
                                         tags={tags}
                                         match={match}
                                         comment={comment}
                                         rightBadge="Dans la cave"
+                                        animDelay={animIdx * 0.06}
                                     />
                                 );
                             };
@@ -3549,7 +3731,7 @@ const SommelierForm = () => {
 
                                                                 <div className="space-y-4">
                                                                     {buyCards.map((vin, i) => (
-                                                                        <BuyWineCard key={i} vin={vin} platKey={key} />
+                                                                        <BuyWineCard key={i} vin={vin} platKey={key} animIdx={i} />
                                                                     ))}
                                                                 </div>
 
@@ -3588,7 +3770,7 @@ const SommelierForm = () => {
 
                                                                 <div className="space-y-4">
                                                                     {caveList.map((entry, i) => (
-                                                                        <CaveWineCard key={i} entry={entry} />
+                                                                        <CaveWineCard key={i} entry={entry} animIdx={i} />
                                                                     ))}
                                                                 </div>
 
@@ -3654,7 +3836,7 @@ const SommelierForm = () => {
                                                                     ) : (
                                                                         <div className="space-y-4">
                                                                             {buyCards.map((vin, i) => (
-                                                                                <BuyWineCard key={i} vin={vin} platKey={key} />
+                                                                                <BuyWineCard key={i} vin={vin} platKey={key} animIdx={i} />
                                                                             ))}
                                                                         </div>
                                                                     )}
@@ -3680,7 +3862,7 @@ const SommelierForm = () => {
                                                                     ) : (
                                                                         <div className="space-y-4">
                                                                             {caveList.map((entry, i) => (
-                                                                                <CaveWineCard key={i} entry={entry} />
+                                                                                <CaveWineCard key={i} entry={entry} animIdx={i} />
                                                                             ))}
                                                                         </div>
                                                                     )}

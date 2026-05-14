@@ -4,14 +4,19 @@ import { OverlayPanel } from "primereact/overlaypanel";
 import { Button } from "primereact/button";
 import { GiGrapes, GiWineBottle } from "react-icons/gi";
 import LoginRequiredModal from "./LoginRequiredModal";
-import useAuth from "../hooks/useAuth";
+import useAuth, { hasStoredToken, syncTokenToSession } from "../hooks/useAuth";
 import { isRunningInRNWebView } from "../utils/rnBridge";
 
 const BottomBar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout } = useAuth();
-    const isLoggedIn = !!sessionStorage.getItem("token");
+    const [isLoggedIn, setIsLoggedIn] = useState(
+        () => {
+            syncTokenToSession();
+            return hasStoredToken();
+        }
+    );
 
     const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -34,9 +39,12 @@ const BottomBar = () => {
 
     useEffect(() => {
         const handler = () => {
+            syncTokenToSession();
             const n = sessionStorage.getItem("nom_user") || "";
             setNomUser(n);
+            setIsLoggedIn(hasStoredToken());
         };
+        handler();
         window.addEventListener("app-auth-changed", handler);
         window.addEventListener("storage", handler);
         return () => {
@@ -87,6 +95,8 @@ const BottomBar = () => {
         } catch (e) {
             console.warn("Erreur logout:", e);
         } finally {
+            setIsLoggedIn(false);
+            setNomUser("");
             setProfileOpen(false);
             if (op.current) op.current.hide();
         }

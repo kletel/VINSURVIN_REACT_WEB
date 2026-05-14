@@ -28,6 +28,7 @@ const NouveauVinEtape2 = ({
     setNewCaveName,
     handleCaveChange,
     addCaveDialogFooter,
+    isSaving = false,
     onBack
 }) => {
     const { darkMode } = useContext(ThemeContext);
@@ -683,6 +684,7 @@ const NouveauVinEtape2 = ({
                                     <div className="pt-4">
                                         <button
                                             onClick={handleSave}
+                                            disabled={isSaving}
                                             className="
                                                 w-full py-3.5
                                                 bg-white/20
@@ -695,11 +697,12 @@ const NouveauVinEtape2 = ({
                                                 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-0
                                                 transition-all duration-300
                                                 transform hover:scale-[1.02] active:scale-[0.97]
+                                                disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none
                                                 flex items-center justify-center gap-2
                                             "
                                         >
-                                            <i className="pi pi-check"></i>
-                                            Ajouter à ma cave
+                                            <i className={`pi ${isSaving ? 'pi-spin pi-spinner' : 'pi-check'}`}></i>
+                                            {isSaving ? 'Ajout en cours...' : 'Ajouter à ma cave'}
                                         </button>
                                     </div>
                                 </div>
@@ -1265,6 +1268,7 @@ const NouveauVinEtape2 = ({
                                     <div className="mt-4 pt-2 w-full flex justify-end">
                                         <button
                                             onClick={handleSave}
+                                            disabled={isSaving}
                                             className="
                                                 px-6 py-2.5 rounded-xl text-sm font-semibold
                                                 bg-white/20
@@ -1275,11 +1279,12 @@ const NouveauVinEtape2 = ({
                                                 hover:shadow-[0_22px_70px_rgba(0,0,0,1)]
                                                 transform hover:scale-[1.02] active:scale-[0.97]
                                                 transition-all duration-300
+                                                disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none
                                                 flex items-center gap-2
                                             "
                                         >
-                                            <i className="pi pi-check" />
-                                            Sauvegarder
+                                            <i className={`pi ${isSaving ? 'pi-spin pi-spinner' : 'pi-check'}`} />
+                                            {isSaving ? 'Sauvegarde en cours...' : 'Sauvegarder'}
                                         </button>
                                     </div>
                                 </div>

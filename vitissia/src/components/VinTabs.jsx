@@ -22,6 +22,15 @@ const VinTabs = ({ vin, setVin, isEditing, handleInputChange }) => {
     const UUIDuser = sessionStorage.getItem('uuid_user');
     const MotionDiv = motion.div;
 
+    const formatEuroValue = (value) => {
+        const numberValue =
+            typeof value === 'number'
+                ? value
+                : Number(String(value ?? '').replace(',', '.'));
+
+        return Number.isFinite(numberValue) ? `${numberValue.toFixed(2)} €` : 'NC';
+    };
+
     const [elevage, setElevage] = useState(vin?.Elevage || '');
     const [contenant, setContenant] = useState(vin?.Flacon || '');
     const [lieuAchat, setLieuAchat] = useState(vin?.Lieu_Achat || '');
@@ -1265,7 +1274,7 @@ useEffect(() => {
                                                 Prix moyen estimé
                                             </p>
                                             <p className="mt-1 text-sm md:text-base font-medium text-white">
-                                                {vin?.Valeur ? `${vin.Valeur.toFixed(2)} €` : 'NC'}
+                                                {formatEuroValue(vin?.Valeur)}
                                             </p>
                                         </div>
                                     </div>

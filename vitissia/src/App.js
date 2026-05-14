@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -37,11 +37,15 @@ import Profil from "./pages/Profil";
 import ScrollToTop from './components/ScrollToTop';
 import Premium from './pages/Premium';
 import { PrimeReactProvider } from 'primereact/api';
+import Swal from 'sweetalert2';
+import { syncTokenToSession } from './hooks/useAuth';
 
 function AppContent() {
     const isLoggedIn = !!sessionStorage.getItem('token');
     const location = useLocation();
+    const navigate = useNavigate();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const sessionPopupOpenRef = useRef(false);
 
     const clearUserCaches = () => {
         const keys = [
@@ -84,6 +88,46 @@ function AppContent() {
             window.history.scrollRestoration = 'manual';
         }
     }, []);
+
+    useEffect(() => {
+        const sync = () => {
+            syncTokenToSession();
+        };
+        sync();
+        window.addEventListener("app-auth-changed", sync);
+        window.addEventListener("storage", sync);
+        return () => {
+            window.removeEventListener("app-auth-changed", sync);
+            window.removeEventListener("storage", sync);
+        };
+    }, []);
+
+    useEffect(() => {
+        const onSessionExpired = async () => {
+            if (sessionPopupOpenRef.current) return;
+            sessionPopupOpenRef.current = true;
+            try {
+                const authPages = ["/login", "/inscription", "/forgot-password", "/reset-password"];
+                if (!authPages.includes(window.location.pathname)) {
+                    await Swal.fire({
+                        icon: 'info',
+                        title: 'Session expirée',
+                        text: 'Votre session a expiré. Merci de vous reconnecter.',
+                        confirmButtonText: 'Se reconnecter',
+                        confirmButtonColor: '#b20e2a',
+                        background: '#111827',
+                        color: '#f9fafb',
+                    });
+                    navigate('/login', { replace: true, state: { sessionExpired: true } });
+                }
+            } finally {
+                sessionPopupOpenRef.current = false;
+            }
+        };
+
+        window.addEventListener('app-session-expired', onSessionExpired);
+        return () => window.removeEventListener('app-session-expired', onSessionExpired);
+    }, [navigate]);
 
     useEffect(() => {
         const clearRNMarkers = () => {

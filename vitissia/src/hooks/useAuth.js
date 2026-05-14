@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import authHeader from '../config/authHeader';
@@ -6,6 +6,170 @@ import config from '../config/config';
 import { fetchAndStoreIsInternal } from "../utils/internalAccess";
 
 const MANUAL_LOGOUT_FLAG = 'vitissia_manual_logout';
+const SESSION_EXPIRED_EVENT = 'app-session-expired';
+const LAST_ACTIVITY_KEY = 'vitissia_last_activity_at';
+const TOKEN_REFRESH_WINDOW_MS = 2 * 60 * 1000;
+const ACTIVITY_IDLE_LIMIT_MS = 30 * 60 * 1000;
+
+const emitAuthChanged = () => {
+    try {
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('app-auth-changed'));
+        }
+    } catch { }
+};
+
+const emitSessionExpired = (reason = 'expired') => {
+    try {
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+                new CustomEvent(SESSION_EXPIRED_EVENT, { detail: { reason } })
+            );
+        }
+    } catch { }
+};
+
+const safeGet = (storage, key) => {
+    try {
+        return storage?.getItem?.(key) || '';
+    } catch {
+        return '';
+    }
+};
+
+const safeSet = (storage, key, value) => {
+    try {
+        storage?.setItem?.(key, value);
+    } catch { }
+};
+
+const safeRemove = (storage, key) => {
+    try {
+        storage?.removeItem?.(key);
+    } catch { }
+};
+
+export const getStoredToken = () =>
+    safeGet(sessionStorage, 'token') || safeGet(localStorage, 'token');
+
+export const hasStoredToken = () => !!getStoredToken();
+
+export const syncTokenToSession = () => {
+    const token = getStoredToken();
+    if (token && safeGet(sessionStorage, 'token') !== token) {
+        safeSet(sessionStorage, 'token', token);
+    }
+    return token;
+};
+
+const setStoredToken = (token) => {
+    if (!token) return;
+    safeSet(sessionStorage, 'token', token);
+    safeSet(localStorage, 'token', token);
+};
+
+const clearAuthStorage = () => {
+    const uuid =
+        safeGet(sessionStorage, 'uuid_user') || safeGet(localStorage, 'uuid_user');
+    const keys = [
+        'token',
+        'uuid_user',
+        'nom_user',
+        'APP_HOST',
+        'email_user',
+        'isInternal',
+        'SUBSCRIPTION',
+        'vitissia_caves_cache',
+        'distinctCaves',
+        'caveListState',
+        'caveScrollY',
+    ];
+
+    if (uuid) {
+        keys.push(
+            `vitissia_caves_cache_${uuid}`,
+            `distinctCaves_${uuid}`,
+            `caveListState_${uuid}`,
+            `caveScrollY_${uuid}`
+        );
+    }
+
+    keys.forEach((k) => {
+        safeRemove(sessionStorage, k);
+        safeRemove(localStorage, k);
+    });
+};
+
+const isAppHostRuntime = () => {
+    return (
+        safeGet(sessionStorage, 'APP_HOST') === 'rn' ||
+        safeGet(localStorage, 'APP_HOST') === 'rn' ||
+        (typeof window !== 'undefined' && !!window.ReactNativeWebView)
+    );
+};
+
+const getOrCreateDeviceUUID = () => {
+    let deviceUUID =
+        safeGet(sessionStorage, 'deviceUUID') || safeGet(localStorage, 'deviceUUID');
+
+    if (!deviceUUID) {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            deviceUUID = crypto.randomUUID();
+        } else {
+            deviceUUID = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        }
+    }
+
+    safeSet(sessionStorage, 'deviceUUID', deviceUUID);
+    safeSet(localStorage, 'deviceUUID', deviceUUID);
+    return deviceUUID;
+};
+
+let refreshByDevicePromise = null;
+
+const tryRefreshTokenByDeviceGlobal = async () => {
+    if (refreshByDevicePromise) return refreshByDevicePromise;
+
+    refreshByDevicePromise = (async () => {
+        try {
+            const deviceUUID = getOrCreateDeviceUUID();
+            if (!deviceUUID) return false;
+
+            const formData = new FormData();
+            formData.append('deviceUUID', deviceUUID);
+
+            const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_autoLoginByDevice`, {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) return false;
+
+            const data = await response.json().catch(() => null);
+            const newToken = data?.accessToken || data?.token;
+            if (!newToken) return false;
+
+            setStoredToken(String(newToken));
+            safeRemove(sessionStorage, MANUAL_LOGOUT_FLAG);
+            safeRemove(localStorage, MANUAL_LOGOUT_FLAG);
+
+            if (data?.uuid_user) {
+                safeSet(sessionStorage, 'uuid_user', String(data.uuid_user));
+                safeSet(localStorage, 'uuid_user', String(data.uuid_user));
+            }
+            if (data?.nom_user) {
+                safeSet(sessionStorage, 'nom_user', String(data.nom_user));
+                safeSet(localStorage, 'nom_user', String(data.nom_user));
+            }
+            return true;
+        } catch {
+            return false;
+        } finally {
+            refreshByDevicePromise = null;
+        }
+    })();
+
+    return refreshByDevicePromise;
+};
 
 const decodeJwtClaims = (token) => {
     try {
@@ -25,6 +189,8 @@ const decodeJwtClaims = (token) => {
 
 const useAuth = () => {
     const navigate = useNavigate();
+    const refreshInFlightRef = useRef(false);
+    const lastRefreshTsRef = useRef(0);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -34,7 +200,7 @@ const useAuth = () => {
     const [UUIDuser, setUUIDuser] = useState(null);
 
     const loadUserInfo = useCallback(async () => {
-        const token = sessionStorage.getItem('token');
+        const token = syncTokenToSession();
         if (!token) {
             setUser(null);
             return null;
@@ -55,7 +221,7 @@ const useAuth = () => {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    handleTokenInvalidError(new Error('token invalide'));
+                    await handleTokenInvalidError(new Error('token invalide'));
                 }
                 throw new Error('Impossible de récupérer les infos utilisateur');
             }
@@ -89,13 +255,13 @@ const useAuth = () => {
             if (mapped.uuid) {
                 setUUIDuser(mapped.uuid);
                 sessionStorage.setItem('uuid_user', mapped.uuid);
+                localStorage.setItem('uuid_user', mapped.uuid);
             }
 
             if (mapped.firstName || mapped.lastName) {
-                sessionStorage.setItem(
-                    'nom_user',
-                    `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim()
-                );
+                const fullName = `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim();
+                sessionStorage.setItem('nom_user', fullName);
+                localStorage.setItem('nom_user', fullName);
             }
 
             return mapped;
@@ -147,6 +313,37 @@ const useAuth = () => {
         return email;
     }, []);
 
+    const markUserActivity = useCallback(() => {
+        safeSet(localStorage, LAST_ACTIVITY_KEY, String(Date.now()));
+    }, []);
+
+    const tryRefreshTokenByDevice = useCallback(async () => {
+        if (refreshInFlightRef.current) return false;
+
+        const now = Date.now();
+        if (now - lastRefreshTsRef.current < 20 * 1000) return false;
+        lastRefreshTsRef.current = now;
+        refreshInFlightRef.current = true;
+
+        try {
+            const refreshed = await tryRefreshTokenByDeviceGlobal();
+            if (!refreshed) return false;
+
+            const refreshedUuid = sessionStorage.getItem('uuid_user');
+            if (refreshedUuid) {
+                setUUIDuser(refreshedUuid);
+            }
+
+            markUserActivity();
+            emitAuthChanged();
+            return true;
+        } catch {
+            return false;
+        } finally {
+            refreshInFlightRef.current = false;
+        }
+    }, [markUserActivity]);
+
     const autoLoginFromStorage = useCallback(async () => {
         const hasManualLogoutFlag =
             sessionStorage.getItem(MANUAL_LOGOUT_FLAG) === '1' ||
@@ -155,11 +352,9 @@ const useAuth = () => {
             return false;
         }
 
-        const token =
-            sessionStorage.getItem("token") || localStorage.getItem("token");
+        const token = syncTokenToSession();
 
         if (token) {
-            sessionStorage.setItem("token", token);
             let mapped = null;
             try {
                 mapped = await loadUserInfo();
@@ -179,15 +374,17 @@ const useAuth = () => {
             }
             if (emailToCheck) {
                 sessionStorage.setItem("email_user", emailToCheck);
+                localStorage.setItem("email_user", emailToCheck);
                 await fetchAndStoreIsInternal({
                     apiBaseUrl: config.apiBaseUrl,
                     email: emailToCheck,
                 });
             }
+            markUserActivity();
             return true;
         }
         return false;
-    }, [loadUserInfo, fetchEmailFromToken]);
+    }, [loadUserInfo, fetchEmailFromToken, markUserActivity]);
 
     useEffect(() => {
         autoLoginFromStorage();
@@ -197,17 +394,67 @@ const useAuth = () => {
     }, [autoLoginFromStorage]);
 
     useEffect(() => {
-        const token = sessionStorage.getItem('token');
+        const onActivity = () => markUserActivity();
+        const events = ['click', 'keydown', 'touchstart', 'mousemove', 'scroll'];
+        events.forEach((evt) => window.addEventListener(evt, onActivity, { passive: true }));
+        markUserActivity();
+        return () => events.forEach((evt) => window.removeEventListener(evt, onActivity));
+    }, [markUserActivity]);
+
+    useEffect(() => {
+        const token = syncTokenToSession();
         if (token) {
             loadUserInfo();
         }
     }, [loadUserInfo]);
 
+    useEffect(() => {
+        const interval = window.setInterval(async () => {
+            const token = syncTokenToSession();
+            if (!token) return;
+
+            const claims = decodeJwtClaims(token);
+            const expMs =
+                claims && typeof claims.exp === 'number'
+                    ? claims.exp * 1000
+                    : null;
+            if (!expMs) return;
+
+            const now = Date.now();
+            const remaining = expMs - now;
+            const lastActivity = Number(safeGet(localStorage, LAST_ACTIVITY_KEY) || 0);
+            const hasRecentActivity = now - lastActivity <= ACTIVITY_IDLE_LIMIT_MS;
+            const isAppHost = isAppHostRuntime();
+            const canRefresh = isAppHost || hasRecentActivity;
+
+            if (remaining <= 0) {
+                if (canRefresh) {
+                    const refreshed = await tryRefreshTokenByDevice();
+                    if (refreshed) return;
+                }
+                if (isAppHost) {
+                    return;
+                }
+                await handleTokenInvalidError(new Error('token invalide'), {
+                    reason: 'expired',
+                    showPopup: !isAppHost,
+                });
+                return;
+            }
+
+            if (remaining <= TOKEN_REFRESH_WINDOW_MS && canRefresh) {
+                await tryRefreshTokenByDevice();
+            }
+        }, 30 * 1000);
+
+        return () => window.clearInterval(interval);
+    }, [tryRefreshTokenByDevice]);
+
     const login = async () => {
         setError('');
         try {
             const formData = new FormData();
-            const deviceUUID = localStorage.getItem("deviceUUID") || sessionStorage.getItem("deviceUUID");
+            const deviceUUID = getOrCreateDeviceUUID();
             if (deviceUUID) formData.append("deviceUUID", deviceUUID);
 
             formData.append('email', email);
@@ -226,11 +473,12 @@ const useAuth = () => {
             if (response.ok && data.accessToken) {
                 const token = data.accessToken;
                 console.log('📦 Token reçu:', token);
-                sessionStorage.setItem('token', token);
+                setStoredToken(token);
                 sessionStorage.removeItem(MANUAL_LOGOUT_FLAG);
                 localStorage.removeItem(MANUAL_LOGOUT_FLAG);
 
                 sessionStorage.setItem("email_user", email);
+                localStorage.setItem("email_user", email);
 
                 await fetchAndStoreIsInternal({
                     apiBaseUrl: config.apiBaseUrl,
@@ -242,11 +490,15 @@ const useAuth = () => {
                 if (uuid) {
                     setUUIDuser(uuid);
                     sessionStorage.setItem('uuid_user', uuid);
+                    localStorage.setItem('uuid_user', uuid);
                 }
                 if (nomComplet) {
                     sessionStorage.setItem('nom_user', nomComplet);
+                    localStorage.setItem('nom_user', nomComplet);
                 }
                 console.log("uuid", uuid, "nomComplet", nomComplet)
+                markUserActivity();
+                emitAuthChanged();
                 navigate('/dashboard');
 
             } else {
@@ -259,22 +511,20 @@ const useAuth = () => {
     };
 
     const loginMobile = async (tokenTemp, token) => {
-        debugger;
         console.log('🔐 Début loginMobile avec tokenTemp/uuidTemp:', tokenTemp, 'et token:', token);
         setError('');
 
         try {
             const formData = new FormData();
             formData.append('uuidTemp', tokenTemp);
-            if (token) {
-                formData.append('token', token);
-            }
+                if (token) {
+                    formData.append('token', token);
+                }
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_verifLoginMobile`, {
                 method: 'POST',
                 headers: authHeader(),
                 body: formData,
             });
-            debugger;
             console.log('📥 Réponse reçue, status:', response.status, 'ok:', response.ok);
 
             if (!response.ok) {
@@ -285,25 +535,25 @@ const useAuth = () => {
             console.log('📄 Données reçues:', data);
 
             if (data.entete === "succes") {
-                sessionStorage.setItem('token', token);
+                const tokenToStore = token || data.accessToken;
+                if (tokenToStore) setStoredToken(tokenToStore);
                 sessionStorage.removeItem(MANUAL_LOGOUT_FLAG);
                 localStorage.removeItem(MANUAL_LOGOUT_FLAG);
                 setUUIDuser(data.uuidUser);
                 sessionStorage.setItem('uuid_user', data.uuidUser);
+                localStorage.setItem('uuid_user', data.uuidUser);
                 sessionStorage.setItem('nom_user', data.nomUser);
+                localStorage.setItem('nom_user', data.nomUser);
                 const mapped = await loadUserInfo();
                 const emailToCheck = mapped?.email;
                 if (emailToCheck) {
                     sessionStorage.setItem("email_user", emailToCheck);
+                    localStorage.setItem("email_user", emailToCheck);
                     await fetchAndStoreIsInternal({ apiBaseUrl: config.apiBaseUrl, email: emailToCheck });
                 }
 
-
-                await fetchAndStoreIsInternal({
-                    apiBaseUrl: config.apiBaseUrl,
-                    email: mapped.email,
-                });
-
+                markUserActivity();
+                emitAuthChanged();
                 navigate('/dashboard');
 
             } else {
@@ -349,46 +599,24 @@ const useAuth = () => {
         } catch (e) {
             console.warn('logoutDevice failed:', e);
         } finally {
-            const uuid = sessionStorage.getItem('uuid_user');
-            const keys = [
-                'token',
-                'uuid_user',
-                'nom_user',
-                'APP_HOST',
-                'email_user',
-                'isInternal',
-                'SUBSCRIPTION',
-                'vitissia_caves_cache',
-                'distinctCaves',
-                'caveListState',
-                'caveScrollY',
-            ];
-            if (uuid) {
-                keys.push(
-                    `vitissia_caves_cache_${uuid}`,
-                    `distinctCaves_${uuid}`,
-                    `caveListState_${uuid}`,
-                    `caveScrollY_${uuid}`
-                );
-            }
-            keys.forEach(k => {
-                try { sessionStorage.removeItem(k); } catch { }
-                try { localStorage.removeItem(k); } catch { }
-            });
+            clearAuthStorage();
 
             try { sessionStorage.setItem(MANUAL_LOGOUT_FLAG, '1'); } catch { }
             try { localStorage.setItem(MANUAL_LOGOUT_FLAG, '1'); } catch { }
+            setUser(null);
+            setUUIDuser(null);
+            emitAuthChanged();
 
             navigate('/', { replace: true });
         }
     };
     const isLoggedIn = () => {
-        return !!sessionStorage.getItem('token');
+        return !!syncTokenToSession();
     };
 
     const getUserInfo = async () => {
         try {
-            const token = sessionStorage.getItem('token');
+            const token = syncTokenToSession();
             if (!token) return null;
 
             const uuidFromStorage = sessionStorage.getItem('uuid_user');
@@ -430,7 +658,7 @@ const useAuth = () => {
     };
 
     const updateProfile = async (fields) => {
-        const token = sessionStorage.getItem('token');
+        const token = syncTokenToSession();
         const uuid = sessionStorage.getItem('uuid_user');
 
         if (!token || !uuid) {
@@ -506,19 +734,20 @@ const useAuth = () => {
 
         if (updatedUser.uuid) {
             sessionStorage.setItem('uuid_user', updatedUser.uuid);
+            localStorage.setItem('uuid_user', updatedUser.uuid);
         }
         if (updatedUser.firstName || updatedUser.lastName) {
-            sessionStorage.setItem(
-                'nom_user',
-                `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim()
-            );
+            const fullName = `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim();
+            sessionStorage.setItem('nom_user', fullName);
+            localStorage.setItem('nom_user', fullName);
         }
+        emitAuthChanged();
 
         return updatedUser;
     };
 
     const deleteAccount = async () => {
-        const token = sessionStorage.getItem('token');
+        const token = syncTokenToSession();
         const uuid = sessionStorage.getItem('uuid_user');
 
         const formData = new FormData();
@@ -573,9 +802,37 @@ const useAuth = () => {
 
 export default useAuth;
 
-export const handleTokenInvalidError = (error) => {
-    if (error.message === 'token invalide') {
-        sessionStorage.removeItem('token');
-        window.location.reload();
+export const handleTokenInvalidError = async (error, options = {}) => {
+    const message = error?.message;
+    const hadToken = hasStoredToken();
+    const shouldHandle =
+        !error ||
+        message === 'token invalide' ||
+        message === '401' ||
+        message === 'Unauthorized' ||
+        options?.force === true;
+
+    if (!shouldHandle) return;
+    if (!hadToken && options?.force !== true) return;
+
+    if (options?.force !== true && message !== 'token invalide') {
+        const refreshed = await tryRefreshTokenByDeviceGlobal();
+        if (refreshed) {
+            emitAuthChanged();
+            return;
+        }
+    }
+
+    if (isAppHostRuntime() && options?.allowInAppHost !== true && options?.force !== true) {
+        return;
+    }
+
+    const reason = options?.reason || (message === 'token invalide' ? 'invalid_token' : 'unauthorized');
+
+    clearAuthStorage();
+    emitAuthChanged();
+
+    if (options?.showPopup !== false) {
+        emitSessionExpired(reason);
     }
 };

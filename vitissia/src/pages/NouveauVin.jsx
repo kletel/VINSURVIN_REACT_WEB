@@ -3,6 +3,7 @@ import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
 import authHeader from '../config/authHeader';
 import config from '../config/config';
+import { handleTokenInvalidError } from '../hooks/useAuth';
 import useFetchPays from '../hooks/useFetchPays';
 import useFetchRegions from '../hooks/useFetchRegions';
 import useFetchEnums from '../hooks/useFetchEnums';
@@ -37,6 +38,17 @@ const NouveauVinLoadingScreen = () => {
                 <div className="pointer-events-none absolute -top-32 -left-20 w-64 h-64 rounded-full bg-[#f97373]/22 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-28 -right-16 w-72 h-72 rounded-full bg-[#7f0b21]/28 blur-3xl" />
                 <div className="pointer-events-none absolute top-1/3 -right-8 w-40 h-40 rounded-full bg-[#22c55e]/14 blur-3xl" />
+                <motion.div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 opacity-20"
+                    initial={{ backgroundPosition: '0% 0%' }}
+                    animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
+                    transition={{ repeat: Infinity, duration: 12, ease: 'linear' }}
+                    style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 0)',
+                        backgroundSize: '16px 16px',
+                    }}
+                />
 
                 <div className="relative grid md:grid-cols-[1.2fr,1fr] gap-8 p-6 md:p-8">
                     {/* Colonne gauche : texte / étapes */}
@@ -55,9 +67,9 @@ const NouveauVinLoadingScreen = () => {
                                     Ouverture de l’étape 1
                                 </h1>
                                 <p className="mt-2 text-sm md:text-[15px] text-red-100/85 max-w-xl">
-                                    Nous préparons l’écran où vous pourrez choisir entre
-                                    ajouter votre vin manuellement ou utiliser notre IA
-                                    à partir d’une photo d’étiquette.
+                                    Nous préparons l’écran pour ajouter votre vin,
+                                    soit manuellement, soit avec l’analyse IA de
+                                    l’étiquette.
                                 </p>
                             </div>
                         </div>
@@ -97,6 +109,18 @@ const NouveauVinLoadingScreen = () => {
                                         ease: 'easeInOut',
                                     }}
                                     className="h-full w-1/2 bg-gradient-to-r from-[#ffe3ea] via-white to-[#ff8ba1] opacity-90"
+                                />
+                            </div>
+                            <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                                <motion.div
+                                    initial={{ x: '100%' }}
+                                    animate={{ x: ['100%', '-120%'] }}
+                                    transition={{
+                                        repeat: Infinity,
+                                        duration: 2.1,
+                                        ease: 'easeInOut',
+                                    }}
+                                    className="h-full w-1/3 bg-gradient-to-r from-[#bbf7d0] via-[#86efac] to-transparent opacity-85"
                                 />
                             </div>
                             <div className="flex items-center justify-between text-[11px] text-red-100/75">
@@ -144,6 +168,133 @@ const NouveauVinLoadingScreen = () => {
 
 const getDistinctCavesKey = (uuid) => (uuid ? `distinctCaves_${uuid}` : 'distinctCaves');
 
+const normalizeErrorText = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.replace(/\s+/g, ' ').trim();
+};
+
+const extractMessageFromPayload = (payload) => {
+    if (!payload) return '';
+
+    if (typeof payload === 'string') {
+        return normalizeErrorText(payload);
+    }
+
+    if (Array.isArray(payload)) {
+        for (const item of payload) {
+            const msg = extractMessageFromPayload(item);
+            if (msg) return msg;
+        }
+        return '';
+    }
+
+    if (typeof payload === 'object') {
+        const candidateKeys = [
+            'message', 'Message',
+            'error', 'Error', 'erreur',
+            'detail', 'details',
+            'description', 'error_description',
+            'reason', 'raison',
+            'msg', 'texte', 'text',
+        ];
+
+        for (const key of candidateKeys) {
+            if (!(key in payload)) continue;
+            const msg = extractMessageFromPayload(payload[key]);
+            if (msg) return msg;
+        }
+    }
+
+    return '';
+};
+
+const has4DFieldSignature = (payload) => {
+    if (!payload || typeof payload !== 'object') return false;
+
+    if (Array.isArray(payload)) {
+        return payload.some((item) => has4DFieldSignature(item));
+    }
+
+    const fieldKeys = ['champ', 'Champ', 'field', 'Field', 'nomChamp', 'fieldName', 'attribut', 'attribute', 'column'];
+    for (const key of fieldKeys) {
+        const val = payload[key];
+        if (typeof val === 'string' && val.trim() !== '') return true;
+    }
+
+    const codeCandidate = String(payload.code || payload.errorCode || payload.errCode || payload.type || '');
+    if (/(champ|field|4d_field|invalid_field|mandatory_field)/i.test(codeCandidate)) {
+        return true;
+    }
+
+    return Object.values(payload).some((value) => (value && typeof value === 'object' ? has4DFieldSignature(value) : false));
+};
+
+const parsePutCaveError = async (response) => {
+    const rawText = await response.text().catch(() => '');
+    let payload = null;
+
+    if (rawText && rawText.trim() !== '') {
+        try {
+            payload = JSON.parse(rawText);
+        } catch (_) {
+            payload = null;
+        }
+    }
+
+    const payloadMessage = extractMessageFromPayload(payload);
+    const textMessage = normalizeErrorText(rawText);
+    const message = payloadMessage || textMessage || `Erreur HTTP ${response.status}`;
+    const is4DFieldError = has4DFieldSignature(payload) || /\b(champ|field)\b/i.test(message);
+
+    return { message, is4DFieldError, payload, rawText };
+};
+
+const SaveVinLoadingOverlay = () => {
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1200] bg-black/65 backdrop-blur-[3px] flex items-center justify-center px-4"
+        >
+            <motion.div
+                initial={{ y: 20, scale: 0.98 }}
+                animate={{ y: 0, scale: 1 }}
+                exit={{ y: 16, scale: 0.98 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="relative w-full max-w-md rounded-3xl border border-white/15 bg-black/45 backdrop-blur-2xl shadow-[0_26px_80px_rgba(0,0,0,0.95)] overflow-hidden p-6 text-center font-['Work_Sans',sans-serif]"
+            >
+                <div className="pointer-events-none absolute -top-16 -left-12 w-40 h-40 rounded-full bg-[#f97373]/25 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-20 -right-10 w-44 h-44 rounded-full bg-[#7f0b21]/25 blur-3xl" />
+
+                <div className="relative z-10">
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1.8, ease: 'linear' }}
+                        className="mx-auto w-16 h-16 rounded-2xl border border-white/20 bg-gradient-to-br from-[#d41132] via-[#b20e2a] to-[#7f0b21] flex items-center justify-center shadow-[0_16px_38px_rgba(0,0,0,0.85)]"
+                    >
+                        <i className="pi pi-spin pi-spinner text-white text-2xl" />
+                    </motion.div>
+
+                    <h3 className="mt-4 text-xl font-semibold text-white">Ajout en cours</h3>
+                    <p className="mt-2 text-sm text-red-100/80">
+                        Nous enregistrons votre bouteille dans votre cave.
+                    </p>
+
+                    <div className="mt-5 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <motion.div
+                            initial={{ x: '-60%' }}
+                            animate={{ x: ['-60%', '120%'] }}
+                            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+                            className="h-full w-1/2 bg-gradient-to-r from-[#ffe3ea] via-white to-[#ff8ba1]"
+                        />
+                    </div>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
 const NouveauVin = () => {
     const [vin, setVin] = useState({});
     const [initialVin, setInitialVin] = useState(null);
@@ -158,6 +309,7 @@ const NouveauVin = () => {
     const [errorRegion, setErrorRegion] = useState("");
     const [errorCouleur, setErrorCouleur] = useState("");
     const [currentStep, setCurrentStep] = useState(1);
+    const [isSaving, setIsSaving] = useState(false);
     const [showPlacementDialog, setShowPlacementDialog] = useState(false);
     const [placementMode, setPlacementMode] = useState(null); 
     const [tempCaveOption, setTempCaveOption] = useState(null);
@@ -364,6 +516,7 @@ const NouveauVin = () => {
                 setShowLoginModal(true);
                 return;
             }
+            setIsSaving(true);
             const modifiedVin = getModifiedFields();
 
             if (modifiedVin.Note_sur_100 !== undefined) {
@@ -378,9 +531,12 @@ const NouveauVin = () => {
 
 
             const formData = new FormData();
+            const currentUuid = sessionStorage.getItem('uuid_user') || UUIDuser;
             formData.append("champsModif", modifiedVinJson);
             formData.append("action", "creation");
-            formData.append("UUIDuser", UUIDuser);
+            if (currentUuid) {
+                formData.append("UUIDuser", currentUuid);
+            }
             // Ajouter le token pour 4D en paramètre supplémentaire
             formData.append('token', token);
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_putCave`, {
@@ -389,15 +545,65 @@ const NouveauVin = () => {
                 body: formData,
             });
             if (!response.ok) {
-                throw new Error('Erreur lors de la sauvegarde');
+                const errData = await parsePutCaveError(response);
+                const error = new Error(errData.message || 'Erreur lors de la sauvegarde');
+                error.is4DFieldError = errData.is4DFieldError;
+                error.status = response.status;
+                error.serverPayload = errData.payload;
+                error.serverRaw = errData.rawText;
+                throw error;
             }
-            const updatedCave = await response.json();
-            toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Modifications enregistrées.', life: 3000 });
+
+            const rawText = await response.text();
+            let updatedCave = null;
+            if (rawText && rawText.trim() !== '') {
+                try {
+                    updatedCave = JSON.parse(rawText);
+                } catch (parseError) {
+                    console.warn('[NouveauVin] Réponse non JSON de react_putCave, fallback local.', parseError, rawText);
+                }
+            }
+            if (
+                updatedCave?.message === 'Token invalide' ||
+                updatedCave?.message === 'Token manquant' ||
+                updatedCave?.error === 'token invalide'
+            ) {
+                await handleTokenInvalidError(new Error('token invalide'), { force: true });
+                return;
+            }
+            if (updatedCave?.etat === 'erreur' || updatedCave?.entete === 'erreur' || updatedCave?.error) {
+                throw new Error(updatedCave?.message || updatedCave?.error || 'Erreur sauvegarde côté serveur.');
+            }
+            if (updatedCave?.etat === 'succes') {
+                updatedCave = { ...vin, ...modifiedVin, ...updatedCave };
+            }
+            if (!updatedCave || typeof updatedCave !== 'object') {
+                updatedCave = { ...vin, ...modifiedVin };
+            }
+
             setVin(updatedCave);
             setInitialVin(updatedCave);
-            navigate(`/vin/${updatedCave.UUID_}`);
+            const uuidToOpen = updatedCave.UUID_ || vin.UUID_;
+            if (uuidToOpen) {
+                navigate(`/vin/${uuidToOpen}`);
+            }
         } catch (error) {
-            toast.current.show({ severity: 'warn', summary: 'Warning', detail: 'Erreur lors de sauvegarde', life: 3000 });
+            if (error?.status === 401) {
+                await handleTokenInvalidError(new Error('token invalide'), { force: true });
+                return;
+            }
+            if (error?.is4DFieldError) {
+                toast.current.show({
+                    severity: 'warn',
+                    summary: 'Champ invalide',
+                    detail: error.message || 'Un champ 4D est invalide.',
+                    life: 5000
+                });
+            } else {
+                console.error('[NouveauVin] Erreur de sauvegarde (non champ 4D)', error);
+            }
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -524,21 +730,8 @@ const NouveauVin = () => {
 
         if (!regionTrouvee) {
             try {
-                const newRegion = await ajouterRegionIA(paysIA, regionIA);
-                toast.current.show({
-                    severity: 'success',
-                    summary: 'Succès',
-                    detail: `Région "${regionIA}" ajoutée avec succès.`,
-                    life: 3000,
-                });
+                await ajouterRegionIA(paysIA, regionIA);
                 await fetchRegions(); // Recharger les régions après l'ajout
-                toast.current.show({
-                    severity: 'success',
-                    summary: 'Succès',
-                    detail: `Région "${regionIA}" ajoutée avec succès.`,
-                    life: 3000,
-                });
-
                 await fetchRegions(); // Recharger les régions après l'ajout
 
                 // Recalculer les optionsRegions après fetchRegions
@@ -742,8 +935,11 @@ const NouveauVin = () => {
         try {
             setIsAnalyzing(true);
             const formData = new FormData();
+            const currentUuid = sessionStorage.getItem('uuid_user') || UUIDuser;
             formData.append("b64", vin.base64_etiquette);
-            formData.append("uuidUser", UUIDuser);
+            if (currentUuid) {
+                formData.append("uuidUser", currentUuid);
+            }
             const response = await fetch(`${config.apiBaseUrl}/4DACTION/react_analyseIA`, {
                 method: 'POST',
                 headers: authHeader(),
@@ -764,7 +960,6 @@ const NouveauVin = () => {
             }
             console.log("jsonAtraite", jsonAtraite);
             traiterAnalyseIA(jsonAtraite);
-            toast.current.show({ severity: 'success', summary: 'Succès', detail: 'Analyse réussie', life: 3000 });
             // Ancien: setCurrentStep(2)
             setShowPlacementDialog(true);
         } catch (error) {
@@ -941,6 +1136,9 @@ const NouveauVin = () => {
     return (
         <div className="bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15]">
             <Toast ref={toast} />
+            <AnimatePresence>
+                {isSaving && <SaveVinLoadingOverlay />}
+            </AnimatePresence>
             <LoginRequiredModal
                 visible={showLoginModal}
                 onLogin={() => { setShowLoginModal(false); navigate('/login'); }}
@@ -1174,36 +1372,41 @@ const NouveauVin = () => {
                 </div>
             </Dialog>
             {currentStep === 1 ? (
-              <NouveauVinEtape1                    onAnalyzeComplete={() => setCurrentStep(2)}
-                   onManualMode={handleManualMode}
+                <NouveauVinEtape1
+                    onAnalyzeComplete={() => setCurrentStep(2)}
+                    onManualMode={handleManualMode}
                     customBase64Uploader={customBase64Uploader}
-                   isAnalyzing={isAnalyzing}
-               />
-           ) : isVinReady ? (
-               <NouveauVinEtape2
-                   vin={vin}
+                    isAnalyzing={isAnalyzing}
+                />
+            ) : isVinReady ? (
+                <NouveauVinEtape2
+                    vin={vin}
                     handleInputChange={handleInputChange}
                     handleSave={handleSave}
                     customBase64UploaderSansIA={customBase64UploaderSansIA}
                     getNoteDescription={getNoteDescription}
                     optionsPays={optionsPays}
                     filteredRegions={filteredRegions}
-                   optionCouleur={optionCouleur}
-                    optionTypeVin={optionTypeVin}                    distinctCaves={distinctCaves}
+                    optionCouleur={optionCouleur}
+                    optionTypeVin={optionTypeVin}
+                    distinctCaves={distinctCaves}
                     defaultCountryValue={defaultCountryValue}
-                   defaultRegionValue={defaultRegionValue}
-                   handleCountryChange={handleCountryChange}
+                    defaultRegionValue={defaultRegionValue}
+                    handleCountryChange={handleCountryChange}
                     errorRegion={errorRegion}
-                   errorCouleur={errorCouleur}
-                   showAddCaveDialog={showAddCaveDialog}                   setShowAddCaveDialog={setShowAddCaveDialog}
+                    errorCouleur={errorCouleur}
+                    showAddCaveDialog={showAddCaveDialog}
+                    setShowAddCaveDialog={setShowAddCaveDialog}
                     newCaveName={newCaveName}
-                   setNewCaveName={setNewCaveName}
-                   handleCaveChange={handleCaveChange}                    addCaveDialogFooter={addCaveDialogFooter}
-                   onBack={handleBack}
+                    setNewCaveName={setNewCaveName}
+                    handleCaveChange={handleCaveChange}
+                    addCaveDialogFooter={addCaveDialogFooter}
+                    isSaving={isSaving}
+                    onBack={handleBack}
                 />
             ) : (
                 <NouveauVinLoadingScreen />
-           )}
+            )}
         </div >
     );
 };

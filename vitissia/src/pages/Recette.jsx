@@ -9,6 +9,7 @@ import config from '../config/config';
 import authHeader from '../config/authHeader';
 import Layout from '../components/Layout';
 import LoginRequiredModal from '../components/LoginRequiredModal';
+import { getImageDataUrl } from '../utils/imageDataUrl';
 
 const RecetteLoadingScreen = () => {
     const fakeSteps = Array.from({ length: 4 });
@@ -309,6 +310,9 @@ const Recette = () => {
 
             if (response.ok) {
                 const data = await response.json();
+                if (data?.error) {
+                    throw new Error(data.error);
+                }
 
                 setRecette(data);
                 setVin(vinName);
@@ -676,7 +680,7 @@ const Recette = () => {
                         <div className="relative w-full pt-[46%] md:pt-[36%]">
                             {recette?.imageBase64 ? (
                                 <img
-                                    src={`data:image/jpeg;base64,${recette.imageBase64}`}
+                                    src={getImageDataUrl(recette.imageBase64)}
                                     alt={recette.nomPlat}
                                     className="
                                         absolute inset-0
@@ -963,7 +967,7 @@ const Recette = () => {
                 {recette?.imageBase64 && (
                     <div className="bg-black rounded-lg overflow-hidden">
                         <img
-                            src={`data:image/jpeg;base64,${recette.imageBase64}`}
+                            src={getImageDataUrl(recette.imageBase64)}
                             alt={recette.nomPlat}
                             className="w-full h-auto max-h-96 object-contain"
                         />

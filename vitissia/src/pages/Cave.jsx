@@ -4,6 +4,7 @@ import React, {
     useState,
     useRef,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import LstCave from '../components/Lst_Cave';
 import useFetchCaves from '../hooks/useFetchCaves';
@@ -18,10 +19,26 @@ const CaveLoadingScreen = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] text-white flex items-center justify-center px-4">
-            <div className="relative w-full max-w-3xl rounded-3xl border border-white/15 bg-black/30 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.9)] p-6 md:p-8 overflow-hidden font-['Work_Sans',sans-serif]">
+            <motion.div
+                initial={{ opacity: 0, y: 22, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.45, ease: 'easeOut' }}
+                className="relative w-full max-w-3xl rounded-3xl border border-white/15 bg-black/30 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.9)] p-6 md:p-8 overflow-hidden font-['Work_Sans',sans-serif]"
+            >
 
                 <div className="pointer-events-none absolute -top-24 -left-10 w-40 h-40 rounded-full bg-[#ff4b6a]/25 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-24 -right-10 w-48 h-48 rounded-full bg-[#b20e2a]/25 blur-3xl" />
+                <motion.div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 opacity-20"
+                    initial={{ backgroundPosition: '0% 0%' }}
+                    animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
+                    transition={{ repeat: Infinity, duration: 12, ease: 'linear' }}
+                    style={{
+                        backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 0)',
+                        backgroundSize: '16px 16px',
+                    }}
+                />
 
                 <div className="relative flex flex-col gap-6">
                     <div className="flex items-center gap-4">
@@ -53,8 +70,8 @@ const CaveLoadingScreen = () => {
                                 Chargement de vos vins
                             </h1>
                             <p className="mt-1 text-xs md:text-sm text-red-100/80 max-w-md">
-                                On descend à la cave, on débouche vos meilleures bouteilles
-                                et on prépare l’affichage de votre collection 🍷
+                                Nous préparons votre cave: inventaire, stocks et favoris
+                                arrivent dans un instant.
                             </p>
                         </div>
                     </div>
@@ -130,7 +147,7 @@ const CaveLoadingScreen = () => {
                         </span>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };
@@ -191,7 +208,53 @@ const AnimatedBottle = () => {
     );
 };
 
+const EmptyCaveState = ({ onAddBottle }) => {
+    return (
+        <div className="min-h-screen bg-gradient-to-b from-[#8C2438] via-[#5A1020] to-[#3B0B15] text-white flex items-center justify-center px-4">
+            <motion.div
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="relative w-full max-w-2xl rounded-3xl border border-white/15 bg-black/35 backdrop-blur-2xl shadow-[0_28px_80px_rgba(0,0,0,0.95)] p-7 md:p-10 overflow-hidden text-center font-['Work_Sans',sans-serif]"
+            >
+                <div className="pointer-events-none absolute -top-24 -left-12 w-44 h-44 rounded-full bg-[#ff4b6a]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 -right-12 w-52 h-52 rounded-full bg-[#b20e2a]/20 blur-3xl" />
+
+                <div className="relative z-10 flex flex-col items-center">
+                    <motion.div
+                        initial={{ scale: 0.92, rotate: -6 }}
+                        animate={{ scale: [0.96, 1.04, 0.96], rotate: [-6, 4, -6] }}
+                        transition={{ repeat: Infinity, duration: 4.2, ease: 'easeInOut' }}
+                        className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-gradient-to-br from-[#d41132] via-[#b20e2a] to-[#7f0b21] shadow-[0_20px_40px_rgba(0,0,0,0.85)] border border-white/20 flex items-center justify-center"
+                    >
+                        <GiGrapes className="text-3xl md:text-4xl text-red-50 drop-shadow-lg" />
+                    </motion.div>
+
+                    <h2 className="mt-5 text-2xl md:text-3xl font-bold tracking-tight leading-tight">
+                        Vous n&apos;avez pas encore de vin dans votre cave
+                    </h2>
+                    <p className="mt-3 text-sm md:text-base text-red-100/80 max-w-xl leading-relaxed">
+                        Vous pouvez la remplir dès maintenant : ajoutez votre première bouteille,
+                        puis suivez facilement vos stocks, vos favoris et vos accords.
+                    </p>
+
+                    <motion.button
+                        whileHover={{ y: -1, scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onAddBottle}
+                        className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm md:text-base font-semibold bg-gradient-to-r from-[#f97373] via-[#d41132] to-[#7f0b21] text-white shadow-[0_20px_45px_rgba(0,0,0,0.9)] hover:shadow-[0_24px_60px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-red-300/70 transition-all duration-300"
+                    >
+                        <i className="pi pi-plus text-sm" />
+                        <span>Ajouter une bouteille</span>
+                    </motion.button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
 const Cave = () => {
+    const navigate = useNavigate();
     const uuidUser = sessionStorage.getItem('uuid_user');
     const CAVES_CACHE_KEY = getCavesCacheKey(uuidUser);
     const SCROLL_KEY = getCaveScrollKey(uuidUser);
@@ -291,6 +354,15 @@ const Cave = () => {
         Array.isArray(caves) && caves.length > 0
             ? caves
             : (cachedCaves ?? []);
+    const hasAnyWine = Array.isArray(listePourAffichage) && listePourAffichage.length > 0;
+
+    if (!loading && !hasAnyWine) {
+        return (
+            <Layout>
+                <EmptyCaveState onAddBottle={() => navigate('/creation-vin')} />
+            </Layout>
+        );
+    }
 
     return (
         <Layout>

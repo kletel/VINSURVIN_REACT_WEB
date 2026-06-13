@@ -450,7 +450,7 @@ const useAuth = () => {
         return () => window.clearInterval(interval);
     }, [tryRefreshTokenByDevice]);
 
-    const login = async () => {
+    const login = useCallback(async () => {
         setError('');
         try {
             const formData = new FormData();
@@ -508,9 +508,9 @@ const useAuth = () => {
             console.error("Failed to fetch:", err);
             setError('Failed to login. Please try again.');
         }
-    };
+    }, [email, password, markUserActivity, navigate]);
 
-    const loginMobile = async (tokenTemp, token) => {
+    const loginMobile = useCallback(async (tokenTemp, token) => {
         console.log('🔐 Début loginMobile avec tokenTemp/uuidTemp:', tokenTemp, 'et token:', token);
         setError('');
 
@@ -564,7 +564,7 @@ const useAuth = () => {
             setError('Failed to login with mobile token. Please try again.');
             throw err;
         }
-    };
+    }, [loadUserInfo, markUserActivity, navigate]);
 
     const logout = async () => {
         try {
